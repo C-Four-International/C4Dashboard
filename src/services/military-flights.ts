@@ -25,7 +25,7 @@ const DIRECT_OPENSKY_BASE_URL = wsRelayUrl
 const isLocalhostRuntime = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
 // Cache configuration
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes - reduce upstream API pressure
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes - reduce upstream API pressure
 let flightCache: { data: MilitaryFlight[]; timestamp: number } | null = null;
 
 // Track flight history for trails
@@ -38,7 +38,7 @@ const breaker = createCircuitBreaker<{ flights: MilitaryFlight[]; clusters: Mili
   name: 'Military Flight Tracking',
   maxFailures: 3,
   cooldownMs: 5 * 60 * 1000, // 5 minute cooldown
-  cacheTtlMs: 5 * 60 * 1000, // 5 minute cache
+  cacheTtlMs: 10 * 60 * 1000, // 10 minute cache
 });
 
 // OpenSky API returns arrays in this order:
