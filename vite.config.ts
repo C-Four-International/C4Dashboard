@@ -647,7 +647,7 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'html-navigation',
-              networkTimeoutSeconds: 3,
+              networkTimeoutSeconds: 10,
             },
           },
           {
