@@ -61,7 +61,11 @@ export default async function handler(req) {
     const requestUrl = new URL(req.url);
     const relayUrl = `${relayBaseUrl}/ais/snapshot${requestUrl.search || ''}`;
     const response = await fetchWithTimeout(relayUrl, {
-      headers: getRelayHeaders({ Accept: 'application/json' }),
+      headers: getRelayHeaders({
+        Accept: 'application/json',
+        Origin: req.headers.get('origin') || '',
+        'User-Agent': req.headers.get('user-agent') || 'WorldMonitor/EdgeProxy',
+      }),
     }, 12000);
 
     const body = await response.text();
