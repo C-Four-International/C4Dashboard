@@ -1484,12 +1484,6 @@ function handlePolymarketRequest(req, res) {
 // Periodic cache cleanup to prevent memory leaks
 setInterval(() => {
   const now = Date.now();
-  for (const [key, entry] of openskyResponseCache) {
-    if (now - entry.timestamp > OPENSKY_CACHE_TTL_MS * 2) openskyResponseCache.delete(key);
-  }
-  for (const [key, entry] of openskyNegativeCache) {
-    if (now - entry.timestamp > OPENSKY_NEGATIVE_CACHE_TTL_MS * 2) openskyNegativeCache.delete(key);
-  }
   for (const [key, entry] of rssResponseCache) {
     const maxAge = (entry.statusCode && entry.statusCode >= 200 && entry.statusCode < 300)
       ? RSS_CACHE_TTL_MS * 2 : RSS_NEGATIVE_CACHE_TTL_MS * 2;
