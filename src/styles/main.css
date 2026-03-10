@@ -55,7 +55,7 @@
 
   /* Font stack */
   --font-mono: 'SF Mono', 'Monaco', 'Cascadia Code', 'Fira Code', 'DejaVu Sans Mono', 'Liberation Mono', monospace;
-  --font-body: var(--font-mono);
+  --font-body: 'Montserrat', sans-serif;
 }
 
 [dir="rtl"] {
