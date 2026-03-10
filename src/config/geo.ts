@@ -497,7 +497,7 @@ export const CONFLICT_ZONES: ConflictZone[] = [
   {
     id: 'ukraine',
     name: 'Ukraine Conflict',
-    coords: [[30, 52], [40, 52], [40, 44], [30, 44]],
+    coords: [[30, 44], [40, 44], [40, 52], [30, 52], [30, 44]],
     center: [35, 48],
     intensity: 'high',
     parties: ['Russia', 'Ukraine', 'NATO (support)'],
@@ -512,7 +512,7 @@ export const CONFLICT_ZONES: ConflictZone[] = [
   {
     id: 'gaza',
     name: 'Gaza Conflict',
-    coords: [[34, 32], [35, 32], [35, 31], [34, 31]],
+    coords: [[34, 31], [35, 31], [35, 32], [34, 32], [34, 31]],
     center: [34.5, 31.5],
     intensity: 'high',
     parties: ['Israel', 'Hamas', 'Hezbollah', 'PIJ'],
@@ -527,7 +527,7 @@ export const CONFLICT_ZONES: ConflictZone[] = [
   {
     id: 'sudan',
     name: 'Sudan Civil War',
-    coords: [[30, 17], [34, 17], [34, 13], [30, 13]],
+    coords: [[30, 13], [34, 13], [34, 17], [30, 17], [30, 13]],
     center: [32, 15],
     intensity: 'high',
     parties: ['Sudanese Armed Forces (SAF)', 'Rapid Support Forces (RSF)'],
@@ -542,7 +542,7 @@ export const CONFLICT_ZONES: ConflictZone[] = [
   {
     id: 'myanmar',
     name: 'Myanmar Civil War',
-    coords: [[95, 22], [98, 22], [98, 18], [95, 18]],
+    coords: [[95, 18], [98, 18], [98, 22], [95, 22], [95, 18]],
     center: [96.5, 20],
     intensity: 'medium',
     parties: ['Military junta', 'NUG', 'Ethnic armed groups'],
@@ -558,7 +558,8 @@ export const CONFLICT_ZONES: ConflictZone[] = [
     id: 'yemen_redsea',
     name: 'Red Sea Crisis',
     // Coords in [lon, lat] format for GeoJSON - Red Sea is around 42-45°E, 12-16°N
-    coords: [[42, 12], [42, 16], [44, 16], [45, 13], [44, 12]],
+    // CCW ordering starting from lowest lat/lon
+    coords: [[42, 12], [44, 12], [45, 13], [44, 16], [42, 16], [42, 12]],
     center: [43, 14],
     intensity: 'high',
     parties: ['Houthis', 'US/UK Coalition', 'Yemen Govt'],
@@ -574,7 +575,7 @@ export const CONFLICT_ZONES: ConflictZone[] = [
     id: 'south_lebanon',
     name: 'Israel-Lebanon Border',
     // Coords in [lon, lat] format for GeoJSON - Lebanon border is around 35-36°E, 33-34°N
-    coords: [[35.1, 33.0], [35.1, 33.4], [35.8, 33.4], [35.8, 33.0]],
+    coords: [[35.1, 33.0], [35.8, 33.0], [35.8, 33.4], [35.1, 33.4], [35.1, 33.0]],
     center: [35.4, 33.2],
     intensity: 'high',
     parties: ['Israel (IDF)', 'Hezbollah'],
