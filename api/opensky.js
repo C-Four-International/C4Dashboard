@@ -3,8 +3,12 @@ import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 export const config = { runtime: 'edge' };
 
 function getRelayBaseUrl() {
-  const relayUrl = process.env.WS_RELAY_URL;
+  let relayUrl = process.env.WS_RELAY_URL;
   if (!relayUrl) return null;
+  // Auto-prepend https:// if the user forgot the protocol in their environment variables
+  if (!relayUrl.startsWith('http') && !relayUrl.startsWith('ws')) {
+    relayUrl = `https://${relayUrl}`;
+  }
   return relayUrl.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/$/, '');
 }
 
