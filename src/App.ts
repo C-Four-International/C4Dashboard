@@ -100,7 +100,7 @@ export class App {
         const removedPanels = [
           'finance', 'crypto', 'ai', 'polymarket', 'commodities',
           'markets', 'economic', 'trade-policy', 'supply-chain',
-          'heatmap', 'macro-signals', 'etf-flows', 'stablecoins'
+          'heatmap', 'macro-signals', 'etf-flows', 'stablecoins', 'tech'
         ];
         removedPanels.forEach(p => {
           if (panelSettings[p] && panelSettings[p].enabled) {

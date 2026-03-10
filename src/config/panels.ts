@@ -35,7 +35,7 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'trade-policy': { name: 'Trade Policy', enabled: false, priority: 1 },
   'supply-chain': { name: 'Supply Chain', enabled: false, priority: 1 },
   finance: { name: 'Financial', enabled: false, priority: 1 },
-  tech: { name: 'Technology', enabled: true, priority: 2 },
+  tech: { name: 'Technology', enabled: false, priority: 2 },
   crypto: { name: 'Crypto', enabled: false, priority: 2 },
   heatmap: { name: 'Sector Heatmap', enabled: false, priority: 2 },
   ai: { name: 'AI/ML', enabled: false, priority: 2 },
