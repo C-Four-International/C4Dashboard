@@ -94,6 +94,17 @@ export class App {
           panelSettings[key] = { ...config };
         }
       }
+
+      // V1.91 Migration: force disable removed panels from old cache for the full variant
+      if (currentVariant === 'full') {
+        const removedPanels = ['finance', 'crypto', 'ai'];
+        removedPanels.forEach(p => {
+          if (panelSettings[p] && panelSettings[p].enabled) {
+            panelSettings[p].enabled = false;
+          }
+        });
+      }
+
       console.log('[App] Loaded panel settings from storage:', Object.entries(panelSettings).filter(([_, v]) => !v.enabled).map(([k]) => k));
 
       // One-time migration: reorder panels for existing users (v1.9 panel layout)

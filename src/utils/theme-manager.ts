@@ -3,7 +3,7 @@ import { invalidateColorCache } from './theme-colors';
 export type Theme = 'dark' | 'light';
 
 const STORAGE_KEY = 'worldmonitor-theme';
-const DEFAULT_THEME: Theme = 'dark';
+const DEFAULT_THEME: Theme = 'light';
 
 /**
  * Read the stored theme preference from localStorage.
@@ -70,7 +70,7 @@ export function applyStoredTheme(): void {
     effective = raw as Theme;
   } else {
     // No stored preference: happy defaults to light, others to dark
-    effective = variant === 'happy' ? 'light' : DEFAULT_THEME;
+    effective = 'light';
   }
 
   document.documentElement.dataset.theme = effective;
