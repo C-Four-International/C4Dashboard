@@ -167,7 +167,7 @@ const LAYER_ZOOM_THRESHOLDS: Partial<Record<keyof MapLayers, { minZoom: number; 
 // Export for external use
 export { LAYER_ZOOM_THRESHOLDS };
 
-// Theme-aware overlay color function — refreshed each buildLayers() call
+// Theme-aware overlay color function
 function getOverlayColors() {
   const isLight = getCurrentTheme() === 'light';
   return {
@@ -226,7 +226,6 @@ function getOverlayColors() {
     ucdpOneSided: [255, 255, 0, 200] as [number, number, number, number],
   };
 }
-// Initialize and refresh on every buildLayers() call
 let COLORS = getOverlayColors();
 
 // SVG icons as data URLs for different marker shapes
@@ -341,6 +340,8 @@ export class DeckGLMap {
   private debouncedRebuildLayers: () => void;
   private rafUpdateLayers: () => void;
   private moveTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private timeParseCache = new Map<unknown, number | null>();
+  private timeFilterCache = new Map<unknown[], { timeRange: TimeRange, result: unknown[] }>();
 
   constructor(container: HTMLElement, initialState: DeckMapState) {
     this.container = container;
@@ -364,6 +365,7 @@ export class DeckGLMap {
       const theme = (e as CustomEvent).detail?.theme as 'dark' | 'light';
       if (theme) {
         this.switchBasemap(theme);
+        COLORS = getOverlayColors();
         this.render(); // Rebuilds Deck.GL layers with new theme-aware colors
       }
     });
@@ -519,8 +521,13 @@ export class DeckGLMap {
 
   private parseTime(value: Date | string | number | undefined | null): number | null {
     if (value == null) return null;
+    if (this.timeParseCache.has(value)) return this.timeParseCache.get(value)!;
+    
     const ts = value instanceof Date ? value.getTime() : new Date(value).getTime();
-    return Number.isFinite(ts) ? ts : null;
+    const result = Number.isFinite(ts) ? ts : null;
+    
+    this.timeParseCache.set(value, result);
+    return result;
   }
 
   private filterByTime<T>(
@@ -528,11 +535,26 @@ export class DeckGLMap {
     getTime: (item: T) => Date | string | number | undefined | null
   ): T[] {
     if (this.state.timeRange === 'all') return items;
+    
+    // Check memoization cache
+    const cached = this.timeFilterCache.get(items as unknown as unknown[]);
+    if (cached && cached.timeRange === this.state.timeRange) {
+      return cached.result as T[];
+    }
+    
     const cutoff = Date.now() - this.getTimeRangeMs();
-    return items.filter((item) => {
+    const result = items.filter((item) => {
       const ts = this.parseTime(getTime(item));
       return ts == null ? true : ts >= cutoff;
     });
+    
+    // Update cache
+    this.timeFilterCache.set(items as unknown as unknown[], {
+      timeRange: this.state.timeRange,
+      result: result as unknown as unknown[]
+    });
+    
+    return result;
   }
 
   private getFilteredProtests(): SocialUnrestEvent[] {
@@ -924,8 +946,6 @@ export class DeckGLMap {
 
   private buildLayers(): LayersList {
     const startTime = performance.now();
-    // Refresh theme-aware overlay colors on each rebuild
-    COLORS = getOverlayColors();
     const layers: (Layer | null | false)[] = [];
     const { layers: mapLayers } = this.state;
     const filteredEarthquakes = this.filterByTime(this.earthquakes, (eq) => eq.occurredAt);
