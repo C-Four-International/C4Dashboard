@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package worldmonitor.intelligence.v1;
+
+import "buf/validate/validate.proto";
+
+// DeductSituationRequest specifies the query and context for a situation deduction.
+message DeductSituationRequest {
+  // Query to analyze.
+  string query = 1 [(buf.validate.field).string.min_len = 1];
+  // Geographic or intelligence context.
+  string geo_context = 2;
+}
+
+// DeductSituationResponse contains the AI-generated analysis of the situation.
+message DeductSituationResponse {
+  // AI-generated analysis text.
+  string analysis = 1;
+  // AI model used for generation.
+  string model = 2;
+  // Provider used for generation (e.g., "groq", "skipped", "error").
+  string provider = 3;
+}
