@@ -70,7 +70,7 @@ export default async function handler(req) {
         Origin: req.headers.get('origin') || '',
         'User-Agent': req.headers.get('user-agent') || 'WorldMonitor/EdgeProxy',
       }),
-    });
+    }, 8000);
 
     const body = await response.text();
     const headers = {

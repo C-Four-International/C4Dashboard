@@ -1363,7 +1363,7 @@ function _attemptOpenSkyTokenFetch(clientId, clientSecret) {
       resolve({ error: `${err.code || 'UNKNOWN'}: ${err.message}` });
     });
 
-    req.on('timeout', () => {
+    req.setTimeout(10000, () => {
       req.destroy();
       resolve({ error: 'TIMEOUT' });
     });
@@ -1410,7 +1410,7 @@ async function _fetchOpenSkyToken(clientId, clientSecret) {
 // Promisified upstream OpenSky fetch (single request)
 function _openskyRawFetch(url, token) {
   return new Promise((resolve) => {
-    const request = https.get(url, {
+    const req = https.get(url, {
       family: 4,
       headers: {
         'Accept': 'application/json',
@@ -1423,8 +1423,8 @@ function _openskyRawFetch(url, token) {
       response.on('data', chunk => data += chunk);
       response.on('end', () => resolve({ status: response.statusCode || 502, data }));
     });
-    request.on('error', (err) => resolve({ status: 0, data: null, error: err }));
-    request.on('timeout', () => { request.destroy(); resolve({ status: 504, data: null, error: new Error('timeout') }); });
+    req.on('error', (err) => resolve({ status: 0, data: null, error: err }));
+    req.setTimeout(15000, () => { req.destroy(); resolve({ status: 504, data: null, error: new Error('timeout') }); });
   });
 }
 
