@@ -233,7 +233,11 @@ export class DataLoaderManager implements AppModule {
     });
 
     if (SITE_VARIANT === 'full') {
-      if (this.ctx.panelSettings['insights']?.enabled || this.ctx.panelSettings['cii']?.enabled) {
+      const needsIntelligence = [
+        'insights', 'cii', 'ucdp-events', 'population-exposure'
+      ].some(p => this.ctx.panelSettings[p]?.enabled);
+
+      if (needsIntelligence) {
         tasks.push({ name: 'intelligence', task: runGuarded('intelligence', () => this.loadIntelligenceSignals()) });
       }
     }

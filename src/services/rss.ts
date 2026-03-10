@@ -50,19 +50,17 @@ function getPersistentFeedKey(feedScope: string): string {
   return `feed:${feedScope}`;
 }
 
-async function readPersistentFeed(key: string): Promise<NewsItem[] | null> {
+async function readPersistentFeed(key: string): Promise<{ items: NewsItem[], timestamp: number } | null> {
   const entry = await getPersistentCache<Array<Omit<NewsItem, 'pubDate'> & { pubDate: string }>>(key);
   if (!entry?.data?.length) return null;
-  return fromSerializable(entry.data);
+  return { items: fromSerializable(entry.data), timestamp: entry.updatedAt };
 }
 
-async function loadPersistentFeed(feedScope: string): Promise<NewsItem[] | null> {
+async function loadPersistentFeed(feedScope: string): Promise<{ items: NewsItem[], timestamp: number } | null> {
   const scopedKey = getPersistentFeedKey(feedScope);
   const scoped = await readPersistentFeed(scopedKey);
   if (scoped) return scoped;
 
-  // Migration fallback: older builds stored feeds as `feed:<feedName>` without language scope.
-  // Only use this for English to avoid mixing cached content across locales.
   const { feedName, lang } = parseFeedScope(feedScope);
   if (lang !== 'en') return null;
   return readPersistentFeed(`feed:${feedName}`);
@@ -238,10 +236,20 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
   if (isFeedOnCooldown(feedScope)) {
     const cached = feedCache.get(feedScope);
     if (cached) return cached.items;
-    return (await loadPersistentFeed(feedScope)) || [];
+    const persistent = await loadPersistentFeed(feedScope);
+    return persistent ? persistent.items : [];
   }
 
-  const cached = feedCache.get(feedScope);
+  let cached = feedCache.get(feedScope);
+  
+  if (!cached) {
+    const persistent = await loadPersistentFeed(feedScope);
+    if (persistent && Date.now() - persistent.timestamp < CACHE_TTL) {
+      cached = persistent;
+      feedCache.set(feedScope, cached); // Bring back to memory
+    }
+  }
+
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.items;
   }
@@ -265,7 +273,7 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
       console.warn(`Parse error for ${feed.name}`);
       recordFeedFailure(feedScope);
       const persistent = await loadPersistentFeed(feedScope);
-      return cached?.items || persistent || [];
+      return cached?.items || persistent?.items || [];
     }
 
     let items = doc.querySelectorAll('item');
@@ -337,7 +345,7 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
     console.error(`Failed to fetch ${feed.name}:`, e);
     recordFeedFailure(feedScope);
     const persistent = await loadPersistentFeed(feedScope);
-    return cached?.items || persistent || [];
+    return cached?.items || persistent?.items || [];
   }
 }
 
