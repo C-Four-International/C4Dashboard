@@ -41,7 +41,7 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   ai: { name: 'AI/ML', enabled: false, priority: 2 },
   layoffs: { name: 'Layoffs Tracker', enabled: true, priority: 2 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
-  'satellite-fires': { name: 'Fires', enabled: true, priority: 2 },
+  'satellite-fires': { name: 'Fires', enabled: false, priority: 2 },
   'macro-signals': { name: 'Market Radar', enabled: false, priority: 2 },
   'etf-flows': { name: 'BTC ETF Tracker', enabled: false, priority: 2 },
   stablecoins: { name: 'Stablecoins', enabled: false, priority: 2 },
