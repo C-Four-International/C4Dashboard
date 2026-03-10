@@ -60,7 +60,6 @@
     "populationExposure": "Befolkningsexponering",
     "gccInvestments": "GCC-investeringar",
     "geoHubs": "Geopolitical Hotspots",
-    "polymarket": "Förutsägelser",
     "climate": "Klimatanomalier",
     "liveWebcams": "Webbkameror"
   },
@@ -79,7 +78,6 @@
         "news": "Nyheter",
         "hotspot": "Hotspot",
         "market": "Marknad",
-        "prediction": "Prognos",
         "conflict": "Konflikt",
         "base": "Militärbas",
         "pipeline": "Rörledning",
@@ -889,9 +887,6 @@
         "manufacturing": "Manufacturing"
       }
     },
-    "prediction": {
-      "infoTooltip": "<strong>Prognosmarknader</strong> Marknader för prognoser för riktiga pengar:<ul><li>Priserna återspeglar sannolikhetsuppskattningar av publiken</li><li>Högre volym = mer tillförlitlig signal</li><li>Geopolitiska och aktuella händelser fokus</li></ul>marknad:Polymarket.com)"
-    },
     "ucdpEvents": {
       "stateBased": "Statsbaserad",
       "nonState": "Icke-statlig",
@@ -984,13 +979,6 @@
       "stories": "berättelser",
       "tooltip": "<strong>Geopolitiska aktivitetshubbar</strong><br>Visar regioner med mest nyhetsaktivitet.<br><br><em>Typer:</em><br>• 🏛️ Huvudstäder — Världshuvudstäder och regeringscentra<br>• ⚔️ Konfliktzoner — Aktiva konfliktområden<br>• ⚓ Strategiska — Flaskhalsar och nyckelregioner<br>• 🏢 Organisationer — FN, NATO, IAEA, etc.<br><br><em>Nivåer:</em><br>• <span style=\"color: #ff4444\">Hög</span> — Nyheter eller poäng 70+<br>• <span style=\"color: #ff8844\">Förhöjd</span> — Poäng 40-69<br>• <span style=\"color: #888\">Låg</span> — Poäng under 40<br><br>Klicka på en hubb för att zooma till dess plats.",
       "noActive": "Inga aktiva geopolitiska hubbar"
-    },
-    "predictions": {
-      "vol": "Vol",
-      "yes": "Ja",
-      "no": "Nej",
-      "tooltip": "<strong>Förutsägelsemarknader</strong><br>Marknader med riktiga pengar:<br><ul><li>Priserna speglar sannolikhetsuppskattningar</li><li>Högre volym = mer tillförlitlig signal</li><li>Fokus på geopolitiska och aktuella händelser</li></ul>Källa: Polymarket (polymarket.com)",
-      "error": "Kunde inte ladda prognoser"
     },
     "gdelt": {
       "empty": "Inga nya artiklar om detta ämne"
@@ -1863,13 +1851,10 @@
     "topNews": "Toppnyheter",
     "activeSignals": "Aktiva signaler",
     "timeline": "7-dagars tidslinje",
-    "predictionMarkets": "Förutsägelsemarknader",
-    "loadingMarkets": "Laddar förutsägelsemarknader...",
     "infrastructure": "Infrastrukturexponering",
     "briefUnavailable": "AI-sammanfattning ej tillgänglig — konfigurera GROQ_API_KEY i Inställningar.",
     "cached": "Cachelagrad",
     "fresh": "Aktuell",
-    "noMarkets": "Inga förutsägelsemarknader hittades",
     "loadingIndex": "Laddar index...",
     "components": {
       "unrest": "Oro",

@@ -60,7 +60,6 @@
     "populationExposure": "Bevolkingsblootstelling",
     "gccInvestments": "GCC-investeringen",
     "geoHubs": "Geopolitical Hotspots",
-    "polymarket": "Voorspellingen",
     "climate": "Klimaatafwijkingen",
     "liveWebcams": "Live Webcams"
   },
@@ -79,7 +78,6 @@
         "news": "Nieuws",
         "hotspot": "Hotspot",
         "market": "Markt",
-        "prediction": "Voorspelling",
         "conflict": "Conflict",
         "base": "Militaire basis",
         "pipeline": "Pijpleiding",
@@ -889,9 +887,6 @@
         "manufacturing": "Manufacturing"
       }
     },
-    "prediction": {
-      "infoTooltip": "<strong>Voorspellingsmarkten</strong> Voorspellingsmarkten voor echt geld:<ul><li>Prijzen weerspiegelen schattingen van de waarschijnlijkheid van het publiek</li><li>Hoger volume = betrouwbaarder signaal</li><li>Focus op geopolitieke en actuele gebeurtenissen</li></ul>Bron: Polymarket (polymarket.com)"
-    },
     "ucdpEvents": {
       "stateBased": "Staatsgebonden",
       "nonState": "Niet-statelijk",
@@ -984,13 +979,6 @@
       "stories": "verhalen",
       "tooltip": "<strong>Geopolitieke activiteitenhubs</strong><br>Toont regio's met de meeste nieuwsactiviteit.<br><br><em>Typen:</em><br>• 🏛️ Hoofdsteden — Hoofdsteden en regeringscentra<br>• ⚔️ Conflictzones — Actieve conflictgebieden<br>• ⚓ Strategisch — Knelpunten en belangrijke regio's<br>• 🏢 Organisaties — VN, NAVO, IAEA, etc.<br><br><em>Niveaus:</em><br>• <span style=\"color: #ff4444\">Hoog</span> — Actueel nieuws of score 70+<br>• <span style=\"color: #ff8844\">Verhoogd</span> — Score 40-69<br>• <span style=\"color: #888\">Laag</span> — Score onder 40<br><br>Klik op een hub om naar de locatie te zoomen.",
       "noActive": "Geen actieve geopolitieke hubs"
-    },
-    "predictions": {
-      "vol": "Vol",
-      "yes": "Ja",
-      "no": "Nee",
-      "tooltip": "<strong>Voorspellingsmarkten</strong><br>Markten met echt geld:<br><ul><li>Prijzen weerspiegelen waarschijnlijkheidsschattingen</li><li>Hoger volume = betrouwbaarder signaal</li><li>Geopolitieke en actuele evenementen</li></ul>Bron: Polymarket (polymarket.com)",
-      "error": "Voorspellingen laden mislukt"
     },
     "gdelt": {
       "empty": "Geen recente artikelen voor dit onderwerp"
@@ -1863,13 +1851,10 @@
     "topNews": "Topnieuws",
     "activeSignals": "Actieve signalen",
     "timeline": "7-daagse tijdlijn",
-    "predictionMarkets": "Voorspellingsmarkten",
-    "loadingMarkets": "Voorspellingsmarkten laden...",
     "infrastructure": "Blootstelling aan infrastructuur",
     "briefUnavailable": "AI-overzicht niet beschikbaar — configureer GROQ_API_KEY in Instellingen.",
     "cached": "In cache",
     "fresh": "Vers",
-    "noMarkets": "Geen voorspellingsmarkten gevonden",
     "loadingIndex": "Index laden...",
     "components": {
       "unrest": "Onrust",

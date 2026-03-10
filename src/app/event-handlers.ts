@@ -9,7 +9,6 @@ import {
   MobileWarningModal,
   PizzIntIndicator,
   CIIPanel,
-  PredictionPanel,
 } from '@/components';
 import {
   buildMapUrl,
@@ -442,7 +441,6 @@ export class EventHandlerManager implements AppModule {
     this.ctx.exportPanel = new ExportPanel(() => ({
       news: this.ctx.latestClusters.length > 0 ? this.ctx.latestClusters : this.ctx.allNews,
       markets: this.ctx.latestMarkets,
-      predictions: this.ctx.latestPredictions,
       timestamp: Date.now(),
     }));
 
@@ -522,10 +520,6 @@ export class EventHandlerManager implements AppModule {
         timestamp: Date.now(),
         events: this.ctx.latestClusters,
         marketPrices,
-        predictions: this.ctx.latestPredictions.map(p => ({
-          title: p.title,
-          yesPrice: p.yesPrice
-        })),
         hotspotLevels: this.ctx.map?.getHotspotLevels() ?? {}
       });
     };
@@ -542,16 +536,7 @@ export class EventHandlerManager implements AppModule {
     const events = snapshot.events as ClusteredEvent[];
     this.ctx.latestClusters = events;
 
-    const predictions = snapshot.predictions.map((p, i) => ({
-      id: `snap-${i}`,
-      title: p.title,
-      yesPrice: p.yesPrice,
-      noPrice: 100 - p.yesPrice,
-      volume24h: 0,
-      liquidity: 0,
-    }));
-    this.ctx.latestPredictions = predictions;
-    (this.ctx.panels['polymarket'] as PredictionPanel).renderPredictions(predictions);
+
 
     this.ctx.map?.setHotspotLevels(snapshot.hotspotLevels);
   }

@@ -1,7 +1,6 @@
 export * from './rss';
 export * from './trending-keywords';
 export * from './market';
-export * from './prediction';
 export * from './earthquakes';
 export * from './clustering';
 export * from './related-assets';

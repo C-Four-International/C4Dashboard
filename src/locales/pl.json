@@ -14,13 +14,10 @@
     "topNews": "Najważniejsze wiadomości",
     "activeSignals": "Aktywne sygnały",
     "timeline": "Oś czasu 7 dni",
-    "predictionMarkets": "Rynki prognostyczne",
-    "loadingMarkets": "Ładowanie rynków prognostycznych...",
     "infrastructure": "Ekspozycja infrastruktury",
     "briefUnavailable": "Raport AI niedostępny — skonfiguruj GROQ_API_KEY w Ustawieniach.",
     "cached": "Z pamięci podręcznej",
     "fresh": "Aktualne",
-    "noMarkets": "Nie znaleziono rynków prognostycznych",
     "loadingIndex": "Ładowanie indeksu...",
     "components": {
       "unrest": "Niepokoje",
@@ -163,7 +160,6 @@
     "energy": "Energia i Zasoby",
     "gov": "Rząd",
     "thinktanks": "Think Tanki",
-    "polymarket": "Prognozy",
     "commodities": "Towary",
     "economic": "Wskaźniki ekonomiczne",
     "tradePolicy": "Polityka Handlowa",
@@ -220,7 +216,6 @@
         "news": "Wiadomości",
         "hotspot": "Punkt zapalny",
         "market": "Rynek",
-        "prediction": "Prognoza",
         "conflict": "Konflikt",
         "base": "Baza wojskowa",
         "pipeline": "Rurociąg",
@@ -571,13 +566,6 @@
       "tooltip": "<strong>Działalność w centrum technicznym</strong><br>Pokazuje centra technologiczne z największą aktywnością w zakresie wiadomości.<br><br><em>Poziomy aktywności:</em><br>• <span style=\"color: #00ff88\">Wysoki</span> — Najświeższe wiadomości lub wynik 50+<br>• <span style=\"color: #ffc800\">Podwyższony</span> — Wynik 20–49<br>• <span style=\"color: #888\">Niski</span> — Wynik poniżej 20<br><br>Kliknij koncentrator, aby powiększyć jego lokalizację.",
       "noActive": "Brak aktywnych centrów technologicznych",
       "infoTooltip": "<strong>Działalność w centrum technicznym</strong><br>Pokazuje centra technologiczne z największą liczbą wiadomości.<br><br><em>Poziomy aktywności:</em><br>• <span style=\"color: {{highColor}}\">Wysoki</span> — Najświeższe wiadomości lub wynik 50+<br>• <span style=\"color: {{elevatedColor}}\">Podwyższony</span> — Wynik 20-49<br>• <span style=\"color: {{lowColor}}\">Niski</span> — Wynik poniżej 20<br><br>Kliknij centrum, aby powiększyć jego lokalizację."
-    },
-    "predictions": {
-      "tooltip": "<strong>Rynki prognostyczne</strong><br>Rynki prognostyczne realnych pieniędzy:<br><ul><li>Ceny odzwierciedlają szacunki prawdopodobieństwa tłumu</li><li>Większy wolumen = bardziej niezawodny sygnał</li><li>Nacisk na wydarzenia geopolityczne i bieżące</li></ul>Źródło: Polymarket (polymarket.com)",
-      "error": "Nie udało się wczytać prognoz",
-      "yes": "Tak",
-      "no": "NIE",
-      "vol": "Tom"
     },
     "deckgl": {
       "views": {
@@ -1083,9 +1071,6 @@
         "realEstate": "Real Estate",
         "manufacturing": "Manufacturing"
       }
-    },
-    "prediction": {
-      "infoTooltip": "<strong>Rynki prognostyczne</strong> Rynki prognostyczne realnych pieniędzy:<ul><li>Ceny odzwierciedlają szacunki prawdopodobieństwa tłumu</li><li>Większy wolumen = bardziej niezawodny sygnał</li><li>Nacisk na wydarzenia geopolityczne i bieżące</li></ul>Źródło: Polymarket (polymarket.com)"
     },
     "ucdpEvents": {
       "stateBased": "Państwowe",

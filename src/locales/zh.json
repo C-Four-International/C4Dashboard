@@ -14,13 +14,10 @@
     "topNews": "头条新闻",
     "activeSignals": "活跃信号",
     "timeline": "7天时间线",
-    "predictionMarkets": "预测市场",
-    "loadingMarkets": "正在加载预测市场...",
     "infrastructure": "基础设施暴露",
     "briefUnavailable": "AI简报不可用 — 请在设置中配置GROQ_API_KEY。",
     "cached": "已缓存",
     "fresh": "最新",
-    "noMarkets": "未找到预测市场",
     "loadingIndex": "正在加载指数...",
     "components": {
       "unrest": "动荡",
@@ -164,7 +161,6 @@
     "energy": "能源与资源",
     "gov": "政府",
     "thinktanks": "智库",
-    "polymarket": "预测",
     "commodities": "大宗商品",
     "economic": "经济指标",
     "tradePolicy": "贸易政策",
@@ -224,7 +220,6 @@
         "news": "新闻",
         "hotspot": "热点",
         "market": "市场",
-        "prediction": "预测",
         "conflict": "冲突",
         "base": "军事基地",
         "pipeline": "管道",
@@ -571,13 +566,6 @@
       "tooltip": "<strong>科技中心活动</strong><br>显示新闻活动最多的科技中心。<br><br><em>活动级别：</em><br>• <span style=\"color: #00ff88\">高</span> — 突发新闻或50+评分<br>• <span style=\"color: #ffc800\">升高</span> — 评分20-49<br>• <span style=\"color: #888\">低</span> — 评分低于20<br><br>点击中心可缩放到其位置。",
       "noActive": "无活跃的科技中心",
       "infoTooltip": "<strong>科技中心活动</strong><br>显示新闻活动最多的科技中心。<br><br><em>活动级别：</em><br>• <span style=\"color: {{highColor}}\">高</span> — 突发新闻或50+评分<br>• <span style=\"color: {{elevatedColor}}\">升高</span> — 评分20-49<br>• <span style=\"color: {{lowColor}}\">低</span> — 评分低于20<br><br>点击中心可缩放到其位置。"
-    },
-    "predictions": {
-      "tooltip": "<strong>预测市场</strong><br>真金白银的预测市场：<br><ul><li>价格反映群体概率估计</li><li>交易量越高 = 信号越可靠</li><li>聚焦地缘政治和时事</li></ul>数据来源：Polymarket (polymarket.com)",
-      "error": "加载预测失败",
-      "yes": "是",
-      "no": "否",
-      "vol": "交易量"
     },
     "stablecoins": {
       "pegHealth": "锚定健康度",
@@ -1170,9 +1158,6 @@
         "realEstate": "Real Estate",
         "manufacturing": "Manufacturing"
       }
-    },
-    "prediction": {
-      "infoTooltip": "<strong>预测市场</strong>真金白银的预测市场：<ul><li>价格反映群体概率估计</li><li>交易量越高 = 信号越可靠</li><li>聚焦地缘政治和时事</li></ul>来源：Polymarket (polymarket.com)"
     },
     "etfFlows": {
       "unavailable": "ETF数据暂时不可用",

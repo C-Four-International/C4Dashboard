@@ -14,13 +14,10 @@
     "topNews": "トップニュース",
     "activeSignals": "アクティブシグナル",
     "timeline": "7日間タイムライン",
-    "predictionMarkets": "予測市場",
-    "loadingMarkets": "予測市場を読み込み中...",
     "infrastructure": "インフラ露出度",
     "briefUnavailable": "AIブリーフ利用不可 — 設定でGROQ_API_KEYを構成してください。",
     "cached": "キャッシュ済",
     "fresh": "最新",
-    "noMarkets": "予測市場が見つからない",
     "loadingIndex": "指数を読み込み中...",
     "components": {
       "unrest": "騒乱",
@@ -164,7 +161,6 @@
     "energy": "エネルギー・資源",
     "gov": "政府",
     "thinktanks": "シンクタンク",
-    "polymarket": "予測",
     "commodities": "コモディティ",
     "economic": "経済指標",
     "tradePolicy": "通商政策",
@@ -224,7 +220,6 @@
         "news": "ニュース",
         "hotspot": "ホットスポット",
         "market": "市場",
-        "prediction": "予測",
         "conflict": "紛争",
         "base": "軍事基地",
         "pipeline": "パイプライン",
@@ -571,13 +566,6 @@
       "tooltip": "<strong>テックハブアクティビティ</strong><br>ニュース活動が最も活発なテックハブを表示。<br><br><em>活動レベル:</em><br>• <span style=\"color: #00ff88\">高</span> — 速報または50+スコア<br>• <span style=\"color: #ffc800\">上昇</span> — スコア20-49<br>• <span style=\"color: #888\">低</span> — スコア20未満<br><br>ハブをクリックするとその場所にズーム。",
       "noActive": "アクティブなテックハブなし",
       "infoTooltip": "<strong>テックハブアクティビティ</strong><br>ニュース活動が最も活発なテックハブを表示。<br><br><em>活動レベル:</em><br>• <span style=\"color: {{highColor}}\">高</span> — 速報または50+スコア<br>• <span style=\"color: {{elevatedColor}}\">上昇</span> — スコア20-49<br>• <span style=\"color: {{lowColor}}\">低</span> — スコア20未満<br><br>ハブをクリックするとその場所にズーム。"
-    },
-    "predictions": {
-      "tooltip": "<strong>予測市場</strong><br>リアルマネー予測市場:<br><ul><li>価格は群衆の確率推定を反映</li><li>取引量が多いほど信頼性の高いシグナル</li><li>地政学・時事問題に焦点</li></ul>ソース: Polymarket (polymarket.com)",
-      "error": "予測の読み込みに失敗",
-      "yes": "はい",
-      "no": "いいえ",
-      "vol": "出来高"
     },
     "stablecoins": {
       "pegHealth": "ペグ健全性",
@@ -1170,9 +1158,6 @@
         "realEstate": "Real Estate",
         "manufacturing": "Manufacturing"
       }
-    },
-    "prediction": {
-      "infoTooltip": "<strong>予測市場</strong> リアルマネー予測市場:<ul><li>価格は群衆の確率推定を反映</li><li>取引量が多いほど信頼性の高いシグナル</li><li>地政学・時事問題に焦点</li></ul>ソース: Polymarket (polymarket.com)"
     },
     "etfFlows": {
       "unavailable": "ETFデータは一時的に利用不可",

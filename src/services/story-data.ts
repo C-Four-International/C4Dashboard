@@ -28,10 +28,7 @@ export interface StoryData {
     awacs: number;
     strikeCapable: boolean;
   } | null;
-  markets: Array<{
-    title: string;
-    yesPrice: number;
-  }>;
+
   threats: {
     critical: number;
     high: number;
@@ -56,7 +53,6 @@ export function collectStoryData(
   countryName: string,
   allNews: ClusteredEvent[],
   theaterPostures: Array<{ theaterId: string; theaterName: string; shortName: string; targetNation: string | null; postureLevel: string; totalAircraft: number; totalVessels: number; fighters: number; tankers: number; awacs: number; strikeCapable: boolean }>,
-  predictionMarkets: Array<{ title: string; yesPrice: number }>,
   signals?: { protests: number; militaryFlights: number; militaryVessels: number; outages: number },
   convergence?: { score: number; signalTypes: string[]; regionalDescriptions: string[] } | null,
 ): StoryData {
@@ -81,10 +77,7 @@ export function collectStoryData(
     t.shortName?.toLowerCase() === countryCode.toLowerCase()
   ) || null;
 
-  const countryMarkets = predictionMarkets.filter(m => {
-    const lower = m.title.toLowerCase();
-    return keywords.some(kw => lower.includes(kw));
-  });
+
 
   const threatCounts = { critical: 0, high: 0, medium: 0, categories: new Set<string>() };
   for (const n of countryNews) {
@@ -122,10 +115,7 @@ export function collectStoryData(
       awacs: theater.awacs,
       strikeCapable: theater.strikeCapable,
     } : null,
-    markets: countryMarkets.slice(0, 4).map(m => ({
-      title: m.title,
-      yesPrice: m.yesPrice,
-    })),
+
     threats: {
       critical: threatCounts.critical,
       high: threatCounts.high,

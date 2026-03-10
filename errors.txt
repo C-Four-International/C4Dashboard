@@ -1,0 +1,50 @@
+﻿src/app/data-loader.ts(78,3): error TS2305: Module '"@/components"' has no exported member 'MarketPanel'.
+src/app/data-loader.ts(79,3): error TS2305: Module '"@/components"' has no exported member 'HeatmapPanel'.
+src/app/data-loader.ts(80,3): error TS2305: Module '"@/components"' has no exported member 'CommoditiesPanel'.
+src/app/data-loader.ts(81,3): error TS2305: Module '"@/components"' has no exported member 'CryptoPanel'.
+src/app/data-loader.ts(968,32): error TS2345: Argument of type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }[]' is not assignable to parameter of type 'CorrelationSignalCore[]'.
+  Type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }' is not assignable to type 'CorrelationSignalCore'.
+    Types of property 'type' are incompatible.
+      Type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/utils/analysis-constants").SignalType' is not assignable to type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/services/analysis-core").SignalType'.
+        Type '"prediction_leads_news"' is not assignable to type 'SignalType'.
+src/app/data-loader.ts(969,88): error TS2345: Argument of type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }[]' is not assignable to parameter of type 'CorrelationSignalCore[]'.
+  Type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }' is not assignable to type 'CorrelationSignalCore'.
+    Types of property 'type' are incompatible.
+      Type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/utils/analysis-constants").SignalType' is not assignable to type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/services/analysis-core").SignalType'.
+        Type '"prediction_leads_news"' is not assignable to type 'SignalType'.
+src/app/data-loader.ts(974,32): error TS2345: Argument of type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }[]' is not assignable to parameter of type 'CorrelationSignalCore[]'.
+  Type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }' is not assignable to type 'CorrelationSignalCore'.
+    Types of property 'type' are incompatible.
+      Type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/utils/analysis-constants").SignalType' is not assignable to type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/services/analysis-core").SignalType'.
+        Type '"prediction_leads_news"' is not assignable to type 'SignalType'.
+src/app/data-loader.ts(975,88): error TS2345: Argument of type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }[]' is not assignable to parameter of type 'CorrelationSignalCore[]'.
+  Type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }' is not assignable to type 'CorrelationSignalCore'.
+    Types of property 'type' are incompatible.
+      Type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/utils/analysis-constants").SignalType' is not assignable to type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/services/analysis-core").SignalType'.
+        Type '"prediction_leads_news"' is not assignable to type 'SignalType'.
+src/app/data-loader.ts(1352,30): error TS2345: Argument of type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }[]' is not assignable to parameter of type 'CorrelationSignalCore[]'.
+  Type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }' is not assignable to type 'CorrelationSignalCore'.
+    Types of property 'type' are incompatible.
+      Type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/utils/analysis-constants").SignalType' is not assignable to type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/services/analysis-core").SignalType'.
+        Type '"prediction_leads_news"' is not assignable to type 'SignalType'.
+src/app/data-loader.ts(1353,86): error TS2345: Argument of type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }[]' is not assignable to parameter of type 'CorrelationSignalCore[]'.
+  Type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }' is not assignable to type 'CorrelationSignalCore'.
+    Types of property 'type' are incompatible.
+      Type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/utils/analysis-constants").SignalType' is not assignable to type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/services/analysis-core").SignalType'.
+        Type '"prediction_leads_news"' is not assignable to type 'SignalType'.
+src/app/data-loader.ts(1358,30): error TS2345: Argument of type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }[]' is not assignable to parameter of type 'CorrelationSignalCore[]'.
+  Type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }' is not assignable to type 'CorrelationSignalCore'.
+    Types of property 'type' are incompatible.
+      Type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/utils/analysis-constants").SignalType' is not assignable to type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/services/analysis-core").SignalType'.
+        Type '"prediction_leads_news"' is not assignable to type 'SignalType'.
+src/app/data-loader.ts(1359,86): error TS2345: Argument of type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }[]' is not assignable to parameter of type 'CorrelationSignalCore[]'.
+  Type '{ id: string; type: SignalType; source: string; title: string; description: string; severity: "high" | "low" | "medium" | "critical"; confidence: number; category: string; timestamp: Date; location?: { ...; } | undefined; data: Record<...>; metadata: Record<...>; }' is not assignable to type 'CorrelationSignalCore'.
+    Types of property 'type' are incompatible.
+      Type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/utils/analysis-constants").SignalType' is not assignable to type 'import("C:/Users/lepko/Documents/GitHub/worldmonitor/src/services/analysis-core").SignalType'.
+        Type '"prediction_leads_news"' is not assignable to type 'SignalType'.
+src/app/data-loader.ts(1611,9): error TS2554: Expected 2 arguments, but got 3.
+src/app/panel-layout.ts(7,3): error TS2305: Module '"@/components"' has no exported member 'MarketPanel'.
+src/app/panel-layout.ts(8,3): error TS2305: Module '"@/components"' has no exported member 'HeatmapPanel'.
+src/app/panel-layout.ts(9,3): error TS2305: Module '"@/components"' has no exported member 'CommoditiesPanel'.
+src/app/panel-layout.ts(10,3): error TS2305: Module '"@/components"' has no exported member 'CryptoPanel'.
+src/app/panel-layout.ts(11,3): error TS2305: Module '"@/components"' has no exported member 'PredictionPanel'.

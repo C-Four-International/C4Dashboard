@@ -17,7 +17,6 @@ import {
   getFeedFailures,
   fetchMultipleStocks,
   fetchCrypto,
-  fetchPredictions,
   fetchEarthquakes,
   fetchWeatherAlerts,
   fetchFredData,
@@ -80,7 +79,6 @@ import {
   HeatmapPanel,
   CommoditiesPanel,
   CryptoPanel,
-  PredictionPanel,
   MonitorPanel,
   InsightsPanel,
   CIIPanel,
@@ -162,9 +160,6 @@ export class DataLoaderManager implements AppModule {
     if (SITE_VARIANT !== 'happy') {
       if (this.ctx.panelSettings['markets']?.enabled) {
         tasks.push({ name: 'markets', task: runGuarded('markets', () => this.loadMarkets()) });
-      }
-      if (this.ctx.panelSettings['polymarket']?.enabled) {
-        tasks.push({ name: 'predictions', task: runGuarded('predictions', () => this.loadPredictions()) });
       }
       if (this.ctx.panelSettings['pizzint']?.enabled) {
         tasks.push({ name: 'pizzint', task: runGuarded('pizzint', () => this.loadPizzInt()) });
@@ -738,25 +733,7 @@ export class DataLoaderManager implements AppModule {
     }
   }
 
-  async loadPredictions(): Promise<void> {
-    try {
-      const predictions = await fetchPredictions();
-      this.ctx.latestPredictions = predictions;
-      (this.ctx.panels['polymarket'] as PredictionPanel).renderPredictions(predictions);
 
-      this.ctx.statusPanel?.updateFeed('Polymarket', { status: 'ok', itemCount: predictions.length });
-      this.ctx.statusPanel?.updateApi('Polymarket', { status: 'ok' });
-      dataFreshness.recordUpdate('polymarket', predictions.length);
-      dataFreshness.recordUpdate('predictions', predictions.length);
-
-      void this.runCorrelationAnalysis();
-    } catch (error) {
-      this.ctx.statusPanel?.updateFeed('Polymarket', { status: 'error', errorMessage: String(error) });
-      this.ctx.statusPanel?.updateApi('Polymarket', { status: 'error' });
-      dataFreshness.recordError('polymarket', String(error));
-      dataFreshness.recordError('predictions', String(error));
-    }
-  }
 
   async loadNatural(): Promise<void> {
     const [earthquakeResult, eonetResult] = await Promise.allSettled([
@@ -1630,7 +1607,7 @@ export class DataLoaderManager implements AppModule {
 
       const signals = await analysisWorker.analyzeCorrelations(
         this.ctx.latestClusters,
-        this.ctx.latestPredictions,
+        [],
         this.ctx.latestMarkets
       );
 

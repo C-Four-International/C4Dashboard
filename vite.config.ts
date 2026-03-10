@@ -52,7 +52,7 @@ const VARIANT_META: Record<string, {
   full: {
     title: 'C⁴ Monitoring Dashboard - Real-Time Global Intelligence Dashboard',
     description: 'Real-time global intelligence dashboard with live news, markets, military tracking, infrastructure monitoring, and geopolitical data. OSINT in one view.',
-    keywords: 'global intelligence, geopolitical dashboard, world news, market data, military bases, nuclear facilities, undersea cables, conflict zones, real-time monitoring, situation awareness, OSINT, flight tracking, AIS ships, earthquake monitor, protest tracker, power outages, oil prices, government spending, polymarket predictions',
+    keywords: 'global intelligence, geopolitical dashboard, world news, market data, military bases, nuclear facilities, undersea cables, conflict zones, real-time monitoring, situation awareness, OSINT, flight tracking, AIS ships, earthquake monitor, protest tracker, power outages, oil prices, government spending',
     url: 'https://worldmonitor.app/',
     siteName: 'C⁴ Monitoring Dashboard',
     shortName: 'C4Dash',
@@ -69,7 +69,6 @@ const VARIANT_META: Record<string, {
       'Power outage monitoring',
       'Oil price analytics',
       'Government spending data',
-      'Prediction markets',
       'Infrastructure monitoring',
       'Geopolitical intelligence',
     ],
@@ -841,7 +840,6 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/yahoo/, ''),
       },
-      // Polymarket handled by polymarketPlugin() — no prod proxy needed
       // USGS Earthquake API
       '/api/earthquake': {
         target: 'https://earthquake.usgs.gov',

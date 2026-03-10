@@ -28,7 +28,6 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   energy: { name: 'Energy & Resources', enabled: true, priority: 1 },
   gov: { name: 'Government', enabled: true, priority: 1 },
   thinktanks: { name: 'Think Tanks', enabled: true, priority: 1 },
-  polymarket: { name: 'Predictions', enabled: false, priority: 1 },
   commodities: { name: 'Commodities', enabled: false, priority: 1 },
   markets: { name: 'Markets', enabled: false, priority: 1 },
   economic: { name: 'Economic Indicators', enabled: false, priority: 1 },
@@ -175,7 +174,6 @@ const TECH_PANELS: Record<string, PanelConfig> = {
   dev: { name: 'Developer Community', enabled: true, priority: 2 },
   github: { name: 'GitHub Trending', enabled: true, priority: 1 },
   ipo: { name: 'IPO & SPAC', enabled: true, priority: 2 },
-  polymarket: { name: 'Tech Predictions', enabled: true, priority: 2 },
   funding: { name: 'Funding & VC', enabled: true, priority: 1 },
   producthunt: { name: 'Product Hunt', enabled: true, priority: 1 },
   events: { name: 'Tech Events', enabled: true, priority: 1 },
@@ -317,7 +315,6 @@ const FINANCE_PANELS: Record<string, PanelConfig> = {
   stablecoins: { name: 'Stablecoins', enabled: true, priority: 2 },
   'gcc-investments': { name: 'GCC Investments', enabled: true, priority: 2 },
   gccNews: { name: 'GCC Business News', enabled: true, priority: 2 },
-  polymarket: { name: 'Predictions', enabled: true, priority: 2 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 
@@ -604,14 +601,14 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
   },
   techMarkets: {
     labelKey: 'header.panelCatMarkets',
-    panelKeys: ['markets', 'finance', 'crypto', 'economic', 'polymarket', 'macro-signals', 'etf-flows', 'stablecoins', 'layoffs', 'monitors'],
+    panelKeys: ['markets', 'finance', 'crypto', 'economic', 'macro-signals', 'etf-flows', 'stablecoins', 'layoffs', 'monitors'],
     variants: ['tech'],
   },
 
   // Finance variant
   finMarkets: {
     labelKey: 'header.panelCatMarkets',
-    panelKeys: ['markets', 'markets-news', 'heatmap', 'macro-signals', 'analysis', 'polymarket'],
+    panelKeys: ['markets', 'markets-news', 'heatmap', 'macro-signals', 'analysis'],
     variants: ['finance'],
   },
   fixedIncomeFx: {

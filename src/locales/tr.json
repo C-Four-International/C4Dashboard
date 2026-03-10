@@ -14,13 +14,10 @@
     "topNews": "Son Haberler",
     "activeSignals": "Aktif Sinyaller",
     "timeline": "7 Gunluk Zaman Cizelgesi",
-    "predictionMarkets": "Tahmin Piyasalari",
-    "loadingMarkets": "Tahmin piyasalari yukleniyor...",
     "infrastructure": "Altyapi Maruziyeti",
     "briefUnavailable": "Yapay zeka brifingi kullanilamaz — Ayarlar'dan GROQ_API_KEY yapilandiriniz.",
     "cached": "Onbellekten",
     "fresh": "Guncel",
-    "noMarkets": "Tahmin piyasasi bulunamadi",
     "loadingIndex": "Endeks yukleniyor...",
     "components": {
       "unrest": "Huzursuzluk",
@@ -164,7 +161,6 @@
     "energy": "Enerji ve Kaynaklar",
     "gov": "Hukumet",
     "thinktanks": "Dusunce Kuruluslari",
-    "polymarket": "Tahminler",
     "commodities": "Emtialar",
     "economic": "Ekonomik Gostergeler",
     "tradePolicy": "Ticaret Politikası",
@@ -224,7 +220,6 @@
         "news": "Haber",
         "hotspot": "Sicak Nokta",
         "market": "Piyasa",
-        "prediction": "Tahmin",
         "conflict": "Catisma",
         "base": "Askeri Us",
         "pipeline": "Boru Hatti",
@@ -571,13 +566,6 @@
       "tooltip": "<strong>Teknoloji Merkezi Aktivitesi</strong><br>En fazla haber aktivitesine sahip teknoloji merkezlerini gosterir.<br><br><em>Faaliyet seviyeleri:</em><br>• <span style=\"color: #00ff88\">Yuksek</span> — Son dakika haberleri veya 50+ puan<br>• <span style=\"color: #ffc800\">Artmis</span> — 20-49 puan<br>• <span style=\"color: #888\">Dusuk</span> — 20'nin altinda puan<br><br>Konumuna yaklasmak icin bir merkeze tiklayin.",
       "noActive": "Aktif teknoloji merkezi yok",
       "infoTooltip": "<strong>Teknoloji Merkezi Aktivitesi</strong><br>En fazla haber aktivitesine sahip teknoloji merkezlerini gosterir.<br><br><em>Faaliyet seviyeleri:</em><br>• <span style=\"color: {{highColor}}\">Yuksek</span> — Son dakika haberleri veya 50+ puan<br>• <span style=\"color: {{elevatedColor}}\">Artmis</span> — 20-49 puan<br>• <span style=\"color: {{lowColor}}\">Dusuk</span> — 20'nin altinda puan<br><br>Konumuna yaklasmak icin bir merkeze tiklayin."
-    },
-    "predictions": {
-      "tooltip": "<strong>Tahmin Piyasalari</strong><br>Gercek parali tahmin piyasalari:<br><ul><li>Fiyatlar kalabalik olasilik tahminlerini yansitir</li><li>Yuksek hacim = daha guvenilir sinyal</li><li>Jeopolitik ve guncel olaylara odakli</li></ul>Kaynak: Polymarket (polymarket.com)",
-      "error": "Tahminler yuklenemedi",
-      "yes": "Evet",
-      "no": "Hayir",
-      "vol": "Hacim"
     },
     "stablecoins": {
       "pegHealth": "Parite Sagligi",
@@ -1170,9 +1158,6 @@
         "realEstate": "Real Estate",
         "manufacturing": "Manufacturing"
       }
-    },
-    "prediction": {
-      "infoTooltip": "<strong>Tahmin Piyasalari</strong> Gercek parali tahmin piyasalari:<ul><li>Fiyatlar kalabalik olasilik tahminlerini yansitir</li><li>Yuksek hacim = daha guvenilir sinyal</li><li>Jeopolitik ve guncel olaylara odakli</li></ul>Kaynak: Polymarket (polymarket.com)"
     },
     "etfFlows": {
       "unavailable": "ETF verileri gecici olarak kullanilamiyor",

@@ -14,13 +14,10 @@
     "topNews": "Tin nổi bật",
     "activeSignals": "Tín hiệu Hoạt động",
     "timeline": "Dòng thời gian 7 ngày",
-    "predictionMarkets": "Thị trường Dự đoán",
-    "loadingMarkets": "Đang tải thị trường dự đoán...",
     "infrastructure": "Mức độ phơi bày Hạ tầng",
     "briefUnavailable": "Bản tin AI không khả dụng — cấu hình GROQ_API_KEY trong Cài đặt.",
     "cached": "Đã lưu cache",
     "fresh": "Mới cập nhật",
-    "noMarkets": "Không tìm thấy thị trường dự đoán",
     "loadingIndex": "Đang tải chỉ số...",
     "components": {
       "unrest": "Bất ổn",
@@ -164,7 +161,6 @@
     "energy": "Năng lượng & Tài nguyên",
     "gov": "Chính phủ",
     "thinktanks": "Viện Nghiên cứu",
-    "polymarket": "Dự đoán",
     "commodities": "Hàng hóa",
     "economic": "Chỉ số Kinh tế",
     "tradePolicy": "Chính sách Thương mại",
@@ -224,7 +220,6 @@
         "news": "Tin tức",
         "hotspot": "Điểm nóng",
         "market": "Thị trường",
-        "prediction": "Dự đoán",
         "conflict": "Xung đột",
         "base": "Căn cứ Quân sự",
         "pipeline": "Đường ống",
@@ -571,13 +566,6 @@
       "tooltip": "<strong>Hoạt động Trung tâm Công nghệ</strong><br>Hiển thị các trung tâm công nghệ có nhiều hoạt động tin tức nhất.<br><br><em>Mức hoạt động:</em><br>• <span style=\"color: #00ff88\">Cao</span> — Tin nóng hoặc điểm 50+<br>• <span style=\"color: #ffc800\">Nâng cao</span> — Điểm 20-49<br>• <span style=\"color: #888\">Thấp</span> — Điểm dưới 20<br><br>Nhấp vào trung tâm để phóng to vị trí.",
       "noActive": "Không có trung tâm công nghệ hoạt động",
       "infoTooltip": "<strong>Hoạt động Trung tâm Công nghệ</strong><br>Hiển thị các trung tâm công nghệ có nhiều hoạt động tin tức nhất.<br><br><em>Mức hoạt động:</em><br>• <span style=\"color: {{highColor}}\">Cao</span> — Tin nóng hoặc điểm 50+<br>• <span style=\"color: {{elevatedColor}}\">Nâng cao</span> — Điểm 20-49<br>• <span style=\"color: {{lowColor}}\">Thấp</span> — Điểm dưới 20<br><br>Nhấp vào trung tâm để phóng to vị trí."
-    },
-    "predictions": {
-      "tooltip": "<strong>Thị trường Dự đoán</strong><br>Thị trường dự báo bằng tiền thật:<br><ul><li>Giá phản ánh ước tính xác suất của đám đông</li><li>Khối lượng cao hơn = tín hiệu đáng tin cậy hơn</li><li>Tập trung vào địa chính trị và sự kiện thời sự</li></ul>Nguồn: Polymarket (polymarket.com)",
-      "error": "Không thể tải dự đoán",
-      "yes": "Có",
-      "no": "Không",
-      "vol": "KL"
     },
     "stablecoins": {
       "pegHealth": "Sức khỏe Neo giá",
@@ -1170,9 +1158,6 @@
         "realEstate": "Bất động sản",
         "manufacturing": "Sản xuất"
       }
-    },
-    "prediction": {
-      "infoTooltip": "<strong>Thị trường Dự đoán</strong> Thị trường dự báo bằng tiền thật:<ul><li>Giá phản ánh ước tính xác suất của đám đông</li><li>Khối lượng cao hơn = tín hiệu đáng tin cậy hơn</li><li>Tập trung vào địa chính trị và sự kiện thời sự</li></ul>Nguồn: Polymarket (polymarket.com)"
     },
     "etfFlows": {
       "unavailable": "Dữ liệu ETF tạm thời không khả dụng",

@@ -54,7 +54,7 @@ Rules:
 - No speculation beyond what data supports
 - Use plain language, not jargon`;
 
-  const result = await cachedFetchJson<GetCountryIntelBriefResponse>(cacheKey, INTEL_CACHE_TTL, async () => {
+  const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
     try {
       const resp = await fetch(GROQ_API_URL, {
         method: 'POST',
@@ -63,7 +63,7 @@ Rules:
           model: GROQ_MODEL,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Country: ${countryName} (${req.countryCode})` },
+            { role: 'user', content: `Country: ${countryName} (${req.countryCode})\n\nRecent Headlines:\n${req.headlines?.length ? req.headlines.map(h => '- ' + h).join('\n') : 'None provided.'}` },
           ],
           temperature: 0.4,
           max_tokens: 900,

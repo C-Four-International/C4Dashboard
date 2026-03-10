@@ -23,7 +23,6 @@ export const STOP_WORDS = new Set([
 ]);
 
 // Correlation constants
-export const PREDICTION_SHIFT_THRESHOLD = 5;
 export const MARKET_MOVE_THRESHOLD = 2;
 export const NEWS_VELOCITY_THRESHOLD = 3;
 export const FLOW_PRICE_THRESHOLD = 1.5;
@@ -230,7 +229,6 @@ export function generateDedupeKey(type: string, identifier: string, value: numbe
 // Signal context: "Why it matters" explanations (Quick Win #3)
 // Each signal type has a brief explanation of its analytical significance
 export type SignalType =
-  | 'prediction_leads_news'
   | 'news_leads_markets'
   | 'silent_divergence'
   | 'velocity_spike'
@@ -252,11 +250,6 @@ export interface SignalContext {
 }
 
 export const SIGNAL_CONTEXT: Record<SignalType, SignalContext> = {
-  prediction_leads_news: {
-    whyItMatters: 'Prediction markets often price in information before it becomes news—traders may have early access to developments.',
-    actionableInsight: 'Monitor for breaking news in the next 1-6 hours that could explain the market move.',
-    confidenceNote: 'Higher confidence if multiple prediction markets move in same direction.',
-  },
   news_leads_markets: {
     whyItMatters: 'News is breaking faster than markets are reacting—potential mispricing opportunity.',
     actionableInsight: 'Watch for market catch-up as algorithms and traders digest the news.',

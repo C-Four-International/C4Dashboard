@@ -11,7 +11,7 @@ import {
   analyzeCorrelationsCore,
   type NewsItemCore,
   type ClusteredEventCore,
-  type PredictionMarketCore,
+
   type MarketDataCore,
   type CorrelationSignalCore,
   type SourceType,
@@ -30,7 +30,7 @@ interface CorrelationMessage {
   type: 'correlation';
   id: string;
   clusters: ClusteredEventCore[];
-  predictions: PredictionMarketCore[];
+
   markets: MarketDataCore[];
   sourceTypes: Record<string, SourceType>;
 }
@@ -106,7 +106,7 @@ self.onmessage = (event: MessageEvent<WorkerMessage>) => {
 
       const { signals, snapshot } = analyzeCorrelationsCore(
         clusters,
-        message.predictions,
+
         message.markets,
         previousSnapshot,
         getSourceType,

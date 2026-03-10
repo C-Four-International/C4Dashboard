@@ -14,13 +14,10 @@
     "topNews": "Top News",
     "activeSignals": "Active Signals",
     "timeline": "7-Day Timeline",
-    "predictionMarkets": "Prediction Markets",
-    "loadingMarkets": "Loading prediction markets...",
     "infrastructure": "Infrastructure Exposure",
     "briefUnavailable": "AI brief unavailable — configure GROQ_API_KEY in Settings.",
     "cached": "Cached",
     "fresh": "Fresh",
-    "noMarkets": "No prediction markets found",
     "loadingIndex": "Loading index...",
     "components": {
       "unrest": "Unrest",
@@ -164,7 +161,6 @@
     "energy": "Energy & Resources",
     "gov": "Government",
     "thinktanks": "Think Tanks",
-    "polymarket": "Predictions",
     "commodities": "Commodities",
     "economic": "Economic Indicators",
     "tradePolicy": "Trade Policy",
@@ -226,7 +222,6 @@
         "news": "News",
         "hotspot": "Hotspot",
         "market": "Market",
-        "prediction": "Prediction",
         "conflict": "Conflict",
         "base": "Military Base",
         "pipeline": "Pipeline",
@@ -617,13 +612,6 @@
       "tooltip": "<strong>Tech Hub Activity</strong><br>Shows tech hubs with the most news activity.<br><br><em>Activity levels:</em><br>• <span style=\"color: #00ff88\">High</span> — Breaking news or 50+ score<br>• <span style=\"color: #ffc800\">Elevated</span> — Score 20-49<br>• <span style=\"color: #888\">Low</span> — Score below 20<br><br>Click a hub to zoom to its location.",
       "noActive": "No active tech hubs",
       "infoTooltip": "<strong>Tech Hub Activity</strong><br>Shows tech hubs with the most news activity.<br><br><em>Activity levels:</em><br>• <span style=\"color: {{highColor}}\">High</span> — Breaking news or 50+ score<br>• <span style=\"color: {{elevatedColor}}\">Elevated</span> — Score 20-49<br>• <span style=\"color: {{lowColor}}\">Low</span> — Score below 20<br><br>Click a hub to zoom to its location."
-    },
-    "predictions": {
-      "tooltip": "<strong>Prediction Markets</strong><br>Real-money forecasting markets:<br><ul><li>Prices reflect crowd probability estimates</li><li>Higher volume = more reliable signal</li><li>Geopolitical and current events focus</li></ul>Source: Polymarket (polymarket.com)",
-      "error": "Failed to load predictions",
-      "yes": "Yes",
-      "no": "No",
-      "vol": "Vol"
     },
     "stablecoins": {
       "pegHealth": "Peg Health",
@@ -1259,9 +1247,6 @@
         "realEstate": "Real Estate",
         "manufacturing": "Manufacturing"
       }
-    },
-    "prediction": {
-      "infoTooltip": "<strong>Prediction Markets</strong> Real-money forecasting markets:<ul><li>Prices reflect crowd probability estimates</li><li>Higher volume = more reliable signal</li><li>Geopolitical and current events focus</li></ul>Source: Polymarket (polymarket.com)"
     },
     "etfFlows": {
       "unavailable": "ETF data temporarily unavailable",
@@ -1969,7 +1954,7 @@
     "noDataAvailable": "No data available",
     "updated": "Updated just now",
     "ago": "{{time}} ago",
-    "retrying": "Retrying…",
+    "retrying": "Retrying...",
     "failedToLoad": "Failed to load data",
     "noDataShort": "No data",
     "upstreamUnavailable": "Upstream API unavailable — will retry automatically",
@@ -2019,7 +2004,6 @@
     "close": "Close",
     "currentVariant": "(current)",
     "retry": "Retry",
-    "retrying": "Retrying...",
     "refresh": "Refresh"
   }
 }

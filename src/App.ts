@@ -217,7 +217,7 @@ export class App {
       allNews: [],
       newsByCategory: {},
       latestMarkets: [],
-      latestPredictions: [],
+
       latestClusters: [],
       intelligenceCache: {},
       cyberThreatsCache: null,

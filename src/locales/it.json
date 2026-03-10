@@ -14,13 +14,10 @@
     "topNews": "Notizie principali",
     "activeSignals": "Segnali attivi",
     "timeline": "Timeline 7 giorni",
-    "predictionMarkets": "Mercati predittivi",
-    "loadingMarkets": "Caricamento mercati predittivi...",
     "infrastructure": "Esposizione infrastrutturale",
     "briefUnavailable": "Rapporto IA non disponibile — configura GROQ_API_KEY nelle Impostazioni.",
     "cached": "In cache",
     "fresh": "Aggiornato",
-    "noMarkets": "Nessun mercato predittivo trovato",
     "loadingIndex": "Caricamento indice...",
     "components": {
       "unrest": "Disordini",
@@ -163,7 +160,6 @@
     "energy": "Energia e Risorse",
     "gov": "Governo",
     "thinktanks": "Think Tank",
-    "polymarket": "Previsioni",
     "commodities": "Materie prime",
     "economic": "Indicatori economici",
     "tradePolicy": "Politica Commerciale",
@@ -220,7 +216,6 @@
         "news": "Notizie",
         "hotspot": "Punto caldo",
         "market": "Mercato",
-        "prediction": "Previsione",
         "conflict": "Conflitto",
         "base": "Base militare",
         "pipeline": "Oleodotto",
@@ -571,13 +566,6 @@
       "tooltip": "<strong>Attività hub tecnologico</strong><br>Mostra gli hub tecnologici con la maggior parte delle attività di notizie.<br><br><em>Livelli di attività:</em><br>• <span style=\"color: #00ff88\">Alto</span> — Ultime notizie o punteggio 50+<br>• <span style=\"color: #ffc800\">Elevato</span> — Punteggio 20-49<br>• <span style=\"color: #888\">Low</span> — Punteggio inferiore a 20<br><br>Fai clic su un hub per ingrandire la sua posizione.",
       "noActive": "Nessun hub tecnologico attivo",
       "infoTooltip": "<strong>Attività hub tecnologico</strong><br>Mostra gli hub tecnologici con la maggior parte delle attività di notizie.<br><br><em>Livelli di attività:</em><br>• <span style=\"color: {{highColor}}\">Alto</span> — Ultime notizie o punteggio 50+<br>• <span style=\"color: {{elevatedColor}}\">Elevato</span> - Punteggio 20-49<br>• <span style=\"color: {{lowColor}}\">Basso</span> - Punteggio inferiore a 20<br><br>Fai clic su un hub per ingrandire la sua posizione."
-    },
-    "predictions": {
-      "tooltip": "<strong>Mercati di previsione</strong><br>Mercati di previsione con denaro reale:<br><ul><li>I prezzi riflettono le stime della probabilità della folla</li><li>Volume più alto = segnale più affidabile</li><li>Focus su eventi geopolitici e attuali</li></ul>Fonte: Polymarket (polymarket.com)",
-      "error": "Impossibile caricare le previsioni",
-      "yes": "SÌ",
-      "no": "NO",
-      "vol": "vol"
     },
     "deckgl": {
       "views": {
@@ -1083,9 +1071,6 @@
         "realEstate": "Real Estate",
         "manufacturing": "Manufacturing"
       }
-    },
-    "prediction": {
-      "infoTooltip": "<strong>Mercati di previsione</strong> Mercati di previsione con denaro reale:<ul><li>I prezzi riflettono le stime della probabilità della folla</li><li>Volume più alto = segnale più affidabile</li><li>Focus su eventi geopolitici e attuali</li></ul>Fonte: Polymarket (polymarket.com)"
     },
     "ucdpEvents": {
       "stateBased": "Statale",

@@ -14,13 +14,10 @@
     "topNews": "Actualités principales",
     "activeSignals": "Signaux actifs",
     "timeline": "Chronologie 7 jours",
-    "predictionMarkets": "Marchés de prédiction",
-    "loadingMarkets": "Chargement des marchés...",
     "infrastructure": "Exposition infrastructure",
     "briefUnavailable": "Brief IA indisponible — configurez GROQ_API_KEY dans les paramètres.",
     "cached": "En cache",
     "fresh": "Frais",
-    "noMarkets": "Aucun marché trouvé",
     "loadingIndex": "Chargement index...",
     "components": {
       "unrest": "Troubles",
@@ -163,7 +160,6 @@
     "energy": "Énergie & Ressources",
     "gov": "Gouvernement",
     "thinktanks": "Groupes de Réflexion",
-    "polymarket": "Prédictions",
     "commodities": "Matières premières",
     "economic": "Indicateurs économiques",
     "tradePolicy": "Politique Commerciale",
@@ -220,7 +216,6 @@
         "news": "Actualités",
         "hotspot": "Point chaud",
         "market": "Marché",
-        "prediction": "Prédiction",
         "conflict": "Conflit",
         "base": "Base militaire",
         "pipeline": "Oléoduc",
@@ -571,13 +566,6 @@
       "tooltip": "<strong>Activité Hubs Tech</strong><br>Affiche les hubs tech avec le plus d'activité.<br><br><em>Niveaux:</em><br>• <span style=\"color: #00ff88\">Élevé</span> — Breaking news ou score 50+<br>• <span style=\"color: #ffc800\">Élevé</span> — Score 20-49<br>• <span style=\"color: #888\">Faible</span> — Score < 20",
       "noActive": "Aucun hub tech actif",
       "infoTooltip": "<strong>Activité du pôle technologique</strong><br>Affiche les pôles technologiques avec le plus d'activités d'actualité.<br><br><em>Niveaux d'activité :</em><br>• <span style=\"color: {{highColor}}\">Élevé</span> — Dernières nouvelles ou score de 50+<br>• <span style=\"color : {{elevatedColor}}\">Élevé</span> — Score 20-49<br>• <span style=\"color: {{lowColor}}\">Faible</span> — Score inférieur à 20<br><br>Cliquez sur un hub pour zoomer sur son emplacement."
-    },
-    "predictions": {
-      "tooltip": "<strong>Marchés de Prédiction</strong><br>Marchés de prévision en argent réel:<br><ul><li>Les prix reflètent les probabilités de la foule</li><li>Volume élevé = signal plus fiable</li><li>Focus géopolitique et actualités</li></ul>Source: Polymarket",
-      "error": "Échec du chargement",
-      "yes": "Oui",
-      "no": "Non",
-      "vol": "Vol"
     },
     "stablecoins": {
       "pegHealth": "Santé de l'ancrage",
@@ -1203,9 +1191,6 @@
         "realEstate": "Real Estate",
         "manufacturing": "Manufacturing"
       }
-    },
-    "prediction": {
-      "infoTooltip": "<strong>Marchés de prévision</strong> Marchés de prévision en argent réel :<ul><li>Les prix reflètent les estimations de probabilité de foule</li><li>Volume plus élevé = signal plus fiable</li><li>Orientation géopolitique et événements actuels</li></ul>Source : Polymarket (polymarket.com)"
     },
     "panel": {
       "showMethodologyInfo": "Show methodology info",

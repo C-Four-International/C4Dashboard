@@ -353,28 +353,7 @@ export async function renderStoryToCanvas(data: StoryData): Promise<HTMLCanvasEl
     }
   }
 
-  // ── PREDICTION MARKETS ──
-  if (data.markets.length > 0 && y < FOOTER_Y - 150) {
-    y += 40;
-    drawSeparator(ctx, y, PAD);
-    y += 46;
-    drawSectionHeader(ctx, 'PREDICTION MARKETS', PAD, y);
 
-    for (const m of data.markets.slice(0, 4)) {
-      y += 50;
-      ctx.fillStyle = '#ddd';
-      ctx.font = '400 26px Inter, system-ui, sans-serif';
-      ctx.fillText(truncateText(ctx, m.title, RIGHT - PAD - 120), PAD, y);
-
-      const pct = Math.round(m.yesPrice);
-      const pctStr = `${pct}%`;
-      const pctColor = pct >= 70 ? '#ef4444' : pct >= 40 ? '#eab308' : '#22c55e';
-      ctx.fillStyle = pctColor;
-      ctx.font = '700 28px Inter, system-ui, sans-serif';
-      const pctW = ctx.measureText(pctStr).width;
-      ctx.fillText(pctStr, RIGHT - pctW, y);
-    }
-  }
 
   // ── THREAT BREAKDOWN ──
   const hasThreats = data.threats.critical + data.threats.high + data.threats.medium > 0;
