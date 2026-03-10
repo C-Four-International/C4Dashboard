@@ -71,7 +71,12 @@ export function initLiveChannelsWindow(containerEl?: HTMLElement): void {
   if (!appEl) return;
 
   if (!containerEl) {
-    document.title = `${t('components.liveNews.manage') ?? 'Channel management'} - World Monitor`;
+    if (window.opener && window.opener.appContainer) {
+      document.title = `${t('components.liveNews.manage') ?? 'Channel management'} - C⁴ Monitoring Dashboard`;
+      document.documentElement.dataset.theme = window.opener.document.documentElement.dataset.theme || 'dark';
+    } else {
+      document.title = `${t('components.liveNews.manage') ?? 'Channel management'} - World Monitor`;
+    }
   }
 
   let channels = loadChannelsFromStorage();

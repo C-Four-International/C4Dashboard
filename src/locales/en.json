@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "World Monitor",
+    "title": "C⁴ Monitoring Dashboard",
     "description": "Global Situation with AI Insights"
   },
   "countryBrief": {
@@ -287,7 +287,7 @@
       "close": "Close",
       "shareTitle": "Share story",
       "save": "Save",
-      "whatsapp": "WhatsApp",
+      "whatsapp": "X",
       "twitter": "X",
       "linkedin": "LinkedIn",
       "copyLink": "Link",
@@ -322,7 +322,7 @@
         "some": "Some features need API keys"
       },
       "openSettings": "Open Settings",
-      "skipSetup": "Skip the setup \u2014 a single World Monitor license unlocks everything. Join the waitlist for early access.",
+      "skipSetup": "Skip the setup — a single World Monitor license unlocks everything. Join the waitlist for early access.",
       "summary": {
         "desktop": "Desktop mode",
         "web": "Web mode (read-only, server-managed credentials)",
@@ -366,9 +366,9 @@
       "noTraffic": "No traffic recorded yet.",
       "sidecarUnreachable": "Sidecar not reachable.",
       "logCleared": "Log cleared.",
-      "worldMonitor": {
-        "tabLabel": "World Monitor",
-        "heroTitle": "One key. Everything included.",
+      "licenses": {
+        "tabLabel": "C⁴ Monitoring Dashboard",
+        "title": "Global Intelligence. Zero Setup.",
         "heroDescription": "A single World Monitor license replaces every API key and LLM provider you'd otherwise configure yourself. AI summaries, real-time intelligence, market data, conflict tracking, fire detection, satellite imagery — all powered, all managed, zero setup.",
         "apiKey": {
           "title": "License Key",
