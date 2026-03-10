@@ -14,10 +14,13 @@
     "topNews": "Noticias principales",
     "activeSignals": "Señales activas",
     "timeline": "Cronograma de 7 días",
+    "predictionMarkets": "Mercados de predicción",
+    "loadingMarkets": "Cargando mercados de predicción...",
     "infrastructure": "Exposición de infraestructura",
     "briefUnavailable": "Resumen de IA no disponible: configure GROQ_API_KEY en Configuración.",
     "cached": "En caché",
     "fresh": "Actual",
+    "noMarkets": "No se encontraron mercados de predicción",
     "loadingIndex": "Cargando índice...",
     "components": {
       "unrest": "Disturbios",
@@ -160,6 +163,7 @@
     "energy": "Energía y Recursos",
     "gov": "Gobierno",
     "thinktanks": "Centros de Estudio",
+    "polymarket": "Predicciones",
     "commodities": "Materias primas",
     "economic": "Indicadores económicos",
     "tradePolicy": "Política Comercial",
@@ -216,6 +220,7 @@
         "news": "Noticias",
         "hotspot": "Punto caliente",
         "market": "Mercado",
+        "prediction": "Predicción",
         "conflict": "Conflicto",
         "base": "Base militar",
         "pipeline": "Tubería",
@@ -566,6 +571,13 @@
       "tooltip": "<strong>Actividad del centro tecnológico</strong><br>Muestra los centros tecnológicos con la mayor actividad de noticias.<br><br><em>Niveles de actividad:</em><br>• <span style=\"color: #00ff88\">Alto</span> — Noticias de última hora o puntuación de 50+<br>• <span style=\"color: #ffc800\">Elevado</span> — Puntuación 20-49<br>• <span style=\"color: #888\">Bajo</span>: puntuación inferior a 20<br><br>Haga clic en un centro para ampliar su ubicación.",
       "noActive": "No hay centros tecnológicos activos",
       "infoTooltip": "<strong>Actividad del centro tecnológico</strong><br>Muestra los centros tecnológicos con la mayor actividad de noticias.<br><br><em>Niveles de actividad:</em><br>• <span style=\"color: {{highColor}}\">Alto</span>: noticias de última hora o puntuación de 50+<br>• <span style=\"color: {{elevatedColor}}\">Elevado</span> — Puntuación 20-49<br>• <span style=\"color: {{lowColor}}\">Bajo</span> — Puntuación inferior a 20<br><br>Haga clic en un centro para ampliar su ubicación."
+    },
+    "predictions": {
+      "tooltip": "<strong>Mercados de predicción</strong><br>Mercados de pronóstico de dinero real:<br><ul><li>Los precios reflejan estimaciones de probabilidad de multitudes</li><li>Mayor volumen = señal más confiable</li><li>Enfoque en eventos geopolíticos y actuales</li></ul>Fuente: Polymarket (polymarket.com)",
+      "error": "No se pudieron cargar las predicciones",
+      "yes": "Sí",
+      "no": "No",
+      "vol": "volumen"
     },
     "deckgl": {
       "views": {
@@ -1071,6 +1083,9 @@
         "realEstate": "Real Estate",
         "manufacturing": "Manufacturing"
       }
+    },
+    "prediction": {
+      "infoTooltip": "<strong>Mercados de predicción</strong> Mercados de pronóstico de dinero real:<ul><li>Los precios reflejan estimaciones de probabilidad de multitudes</li><li>Mayor volumen = señal más confiable</li><li>Enfoque en eventos geopolíticos y actuales</li></ul>Fuente: Polymarket (polymarket.com)"
     },
     "ucdpEvents": {
       "stateBased": "Estatal",

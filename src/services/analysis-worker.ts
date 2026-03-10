@@ -4,6 +4,7 @@
  */
 
 import type { NewsItem, ClusteredEvent, MarketData } from '@/types';
+import type { PredictionMarket } from '@/services/prediction';
 import type { CorrelationSignal } from './correlation';
 import { SOURCE_TIERS, SOURCE_TYPES, type SourceType } from '@/config/feeds';
 
@@ -205,6 +206,7 @@ class AnalysisWorkerManager {
    */
   async analyzeCorrelations(
     clusters: ClusteredEvent[],
+    predictions: PredictionMarket[],
     markets: MarketData[]
   ): Promise<CorrelationSignal[]> {
     await this.waitForReady();
@@ -228,6 +230,7 @@ class AnalysisWorkerManager {
         type: 'correlation',
         id,
         clusters,
+        predictions,
         markets,
         sourceTypes: SOURCE_TYPES as Record<string, SourceType>,
       });

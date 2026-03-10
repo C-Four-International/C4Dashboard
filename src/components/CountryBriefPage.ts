@@ -3,6 +3,7 @@ import { t } from '@/services/i18n';
 import { getCSSColor } from '@/utils';
 import type { CountryScore } from '@/services/country-instability';
 import type { NewsItem } from '@/types';
+import type { PredictionMarket } from '@/services/prediction';
 import type { AssetType } from '@/types';
 import type { CountryBriefSignals } from '@/app/app-context';
 import type { StockIndexData } from '@/components/CountryIntelModal';
@@ -417,7 +418,32 @@ export class CountryBriefPage {
       </div>`;
   }
 
+  public updateMarkets(markets: PredictionMarket[]): void {
+    const section = this.overlay.querySelector('.cb-markets-content');
+    if (!section) return;
 
+    if (markets.length === 0) {
+      section.innerHTML = `<span class="cb-empty">${t('modals.countryBrief.noMarkets')}</span>`;
+      return;
+    }
+
+    section.innerHTML = markets.slice(0, 3).map(m => {
+      const pct = Math.round(m.yesPrice);
+      const noPct = 100 - pct;
+      const vol = m.volume ? `$${(m.volume / 1000).toFixed(0)}k vol` : '';
+      const safeUrl = sanitizeUrl(m.url || '');
+      const link = safeUrl ? ` <a href="${safeUrl}" target="_blank" rel="noopener" class="cb-market-link">↗</a>` : '';
+      return `
+        <div class="cb-market-item">
+          <div class="cb-market-title">${escapeHtml(m.title.slice(0, 100))}${link}</div>
+          <div class="market-bar">
+            <div class="market-yes" style="width:${pct}%">${pct}%</div>
+            <div class="market-no" style="width:${noPct}%">${noPct > 15 ? noPct + '%' : ''}</div>
+          </div>
+          ${vol ? `<div class="market-vol">${vol}</div>` : ''}
+        </div>`;
+    }).join('');
+  }
 
   public updateStock(data: StockIndexData): void {
     const el = this.overlay.querySelector('.stock-loading');

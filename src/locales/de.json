@@ -14,10 +14,13 @@
     "topNews": "Top-Nachrichten",
     "activeSignals": "Aktive Signale",
     "timeline": "7-Tage-Zeitleiste",
+    "predictionMarkets": "Prognosemärkte",
+    "loadingMarkets": "Prognosemärkte werden geladen...",
     "infrastructure": "Infrastrukturexposition",
     "briefUnavailable": "KI-Brief nicht verfügbar – konfigurieren Sie GROQ_API_KEY in den Einstellungen.",
     "cached": "Zwischengespeichert",
     "fresh": "Aktuell",
+    "noMarkets": "Keine Prognosemärkte gefunden",
     "loadingIndex": "Index wird geladen...",
     "components": {
       "unrest": "Unruhen",
@@ -160,6 +163,7 @@
     "energy": "Energie & Ressourcen",
     "gov": "Regierung",
     "thinktanks": "Denkfabriken",
+    "polymarket": "Vorhersagen",
     "commodities": "Rohstoffe",
     "economic": "Wirtschaftsindikatoren",
     "tradePolicy": "Handelspolitik",
@@ -216,6 +220,7 @@
         "news": "Nachrichten",
         "hotspot": "Hotspot",
         "market": "Markt",
+        "prediction": "Vorhersage",
         "conflict": "Konflikt",
         "base": "Militärbasis",
         "pipeline": "Pipeline",
@@ -566,6 +571,13 @@
       "tooltip": "<strong>Tech-Hub-Aktivität</strong><br>Zeigt Tech-Hubs mit der meisten Nachrichtenaktivität.<br><br><em>Aktivitätsstufen:</em><br>• <span style=\"color: #00ff88\">Hoch</span> – Aktuelle Nachrichten oder 50+ Punktzahl<br>• <span style=\"color: #ffc800\">Erhöht</span> – Punktzahl 20–49<br>• <span style=\"color: #888\">Niedrig</span> – Wert unter 20<br><br>Klicken Sie auf einen Hub, um zu dessen Position zu zoomen.",
       "noActive": "Keine aktiven Technologiezentren",
       "infoTooltip": "<strong>Tech-Hub-Aktivität</strong><br>Zeigt Tech-Hubs mit der meisten Nachrichtenaktivität.<br><br><em>Aktivitätsstufen:</em><br>• <span style=\"color: {{highColor}}\">Hoch</span> – Aktuelle Nachrichten oder 50+ Punktzahl<br>• <span style=\"color: {{elevatedColor}}\">Erhöht</span> – Punktzahl 20–49<br>• <span style=\"color: {{lowColor}}\">Niedrig</span> – Wert unter 20<br><br>Klicken Sie auf einen Hub, um zu dessen Position zu zoomen."
+    },
+    "predictions": {
+      "tooltip": "<strong>Prognosemärkte</strong><br>Echtgeld-Prognosemärkte:<br><ul><li>Preise spiegeln Schätzungen der Massenwahrscheinlichkeit wider</li><li>Höheres Volumen = zuverlässigeres Signal</li><li>Geopolitische und aktuelle Ereignisse konzentrieren sich</li></ul>Quelle: Polymarket (polymarket.com)",
+      "error": "Vorhersagen konnten nicht geladen werden",
+      "yes": "Ja",
+      "no": "NEIN",
+      "vol": "Bd"
     },
     "deckgl": {
       "views": {
@@ -1071,6 +1083,9 @@
         "realEstate": "Real Estate",
         "manufacturing": "Manufacturing"
       }
+    },
+    "prediction": {
+      "infoTooltip": "<strong>Prognosemärkte</strong> Echtgeld-Prognosemärkte:<ul><li>Preise spiegeln Schätzungen der Massenwahrscheinlichkeit wider</li><li>Höheres Volumen = zuverlässigeres Signal</li><li>Geopolitische und aktuelle Ereignisse im Fokus</li></ul>Quelle: Polymarket (polymarket.com)"
     },
     "ucdpEvents": {
       "stateBased": "Staatlich",

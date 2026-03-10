@@ -4,6 +4,7 @@
  */
 
 import type { ClusteredEvent, MarketData } from '@/types';
+import type { PredictionMarket } from '@/services/prediction';
 import { getSourceType } from '@/config/feeds';
 import {
   analyzeCorrelationsCore,
@@ -54,12 +55,14 @@ function markSignalSeen(key: string): void {
 
 export function analyzeCorrelations(
   events: ClusteredEvent[],
+  predictions: PredictionMarket[],
   markets: MarketData[]
 ): CorrelationSignal[] {
   const getSourceTypeFn = (source: string): SourceType => getSourceType(source) as SourceType;
 
   const { signals, snapshot } = analyzeCorrelationsCore(
     events,
+    predictions,
     markets,
     previousSnapshot,
     getSourceTypeFn,

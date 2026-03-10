@@ -104,7 +104,6 @@ export interface EventClassification {
 
 export interface GetCountryIntelBriefRequest {
   countryCode: string;
-  headlines?: string[];
 }
 
 export interface GetCountryIntelBriefResponse {

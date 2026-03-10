@@ -13,8 +13,6 @@ message GetCountryIntelBriefRequest {
     (buf.validate.field).string.len = 2,
     (buf.validate.field).string.pattern = "^[A-Z]{2}$"
   ];
-  // Recent news headlines to incorporate into the brief.
-  repeated string headlines = 2;
 }
 
 // GetCountryIntelBriefResponse contains an AI-generated intelligence brief for a country.

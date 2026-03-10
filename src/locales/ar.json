@@ -14,10 +14,13 @@
     "topNews": "أهم الأخبار",
     "activeSignals": "إشارات نشطة",
     "timeline": "الجدول الزمني لـ 7 أيام",
+    "predictionMarkets": "أسواق التنبؤ",
+    "loadingMarkets": "جارٍ تحميل أسواق التنبؤ...",
     "infrastructure": "التعرض البنيوي",
     "briefUnavailable": "الموجز الذكي غير متاح — قم بتهيئة GROQ_API_KEY في الإعدادات.",
     "cached": "مخزّن مؤقتاً",
     "fresh": "محدّث",
+    "noMarkets": "لم يتم العثور على أسواق تنبؤ",
     "loadingIndex": "جارٍ تحميل المؤشر...",
     "components": {
       "unrest": "اضطرابات",
@@ -161,6 +164,7 @@
     "energy": "الطاقة والموارد",
     "gov": "الحكومة",
     "thinktanks": "مراكز الأبحاث",
+    "polymarket": "التنبؤات",
     "commodities": "السلع",
     "economic": "المؤشرات الاقتصادية",
     "tradePolicy": "السياسة التجارية",
@@ -220,6 +224,7 @@
         "news": "أخبار",
         "hotspot": "بؤرة ساخنة",
         "market": "سوق",
+        "prediction": "تنبؤ",
         "conflict": "نزاع",
         "base": "قاعدة عسكرية",
         "pipeline": "خط أنابيب",
@@ -566,6 +571,13 @@
       "tooltip": "<strong>نشاط المراكز التقنية</strong><br>تعرض المراكز التقنية ذات أعلى نشاط إخباري.<br><br><em>مستويات النشاط:</em><br>• <span style=\"color: #00ff88\">مرتفع</span> — أخبار عاجلة أو درجة 50+<br>• <span style=\"color: #ffc800\">متصاعد</span> — درجة 20-49<br>• <span style=\"color: #888\">منخفض</span> — درجة أقل من 20<br><br>انقر على مركز للتقريب إلى موقعه.",
       "noActive": "لا توجد مراكز تقنية نشطة",
       "infoTooltip": "<strong>نشاط المراكز التقنية</strong><br>تعرض المراكز التقنية ذات أعلى نشاط إخباري.<br><br><em>مستويات النشاط:</em><br>• <span style=\"color: {{highColor}}\">مرتفع</span> — أخبار عاجلة أو درجة 50+<br>• <span style=\"color: {{elevatedColor}}\">متصاعد</span> — درجة 20-49<br>• <span style=\"color: {{lowColor}}\">منخفض</span> — درجة أقل من 20<br><br>انقر على مركز للتقريب إلى موقعه."
+    },
+    "predictions": {
+      "tooltip": "<strong>أسواق التنبؤ</strong><br>أسواق تنبؤ بأموال حقيقية:<br><ul><li>الأسعار تعكس تقديرات احتمالات الجمهور</li><li>حجم تداول أعلى = إشارة أكثر موثوقية</li><li>تركيز على الأحداث الجيوسياسية والجارية</li></ul>المصدر: Polymarket (polymarket.com)",
+      "error": "فشل تحميل التنبؤات",
+      "yes": "نعم",
+      "no": "لا",
+      "vol": "الحجم"
     },
     "stablecoins": {
       "pegHealth": "صحة الربط",
@@ -1158,6 +1170,9 @@
         "realEstate": "Real Estate",
         "manufacturing": "Manufacturing"
       }
+    },
+    "prediction": {
+      "infoTooltip": "<strong>أسواق التنبؤ</strong> أسواق تنبؤ بأموال حقيقية:<ul><li>الأسعار تعكس تقديرات احتمالات الجمهور</li><li>حجم تداول أعلى = إشارة أكثر موثوقية</li><li>تركيز على الأحداث الجيوسياسية والجارية</li></ul>المصدر: Polymarket (polymarket.com)"
     },
     "etfFlows": {
       "unavailable": "بيانات ETF غير متاحة مؤقتاً",

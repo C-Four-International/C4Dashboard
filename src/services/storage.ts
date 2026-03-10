@@ -171,6 +171,7 @@ export interface DashboardSnapshot {
   timestamp: number;
   events: unknown[];
   marketPrices: Record<string, number>;
+  predictions: Array<{ title: string; yesPrice: number }>;
   hotspotLevels: Record<string, string>;
 }
 

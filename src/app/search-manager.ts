@@ -514,6 +514,17 @@ export class SearchManager implements AppModule {
       data: n,
     }));
     console.log(`[Search] Indexing ${newsItems.length} news items (allNews total: ${this.ctx.allNews.length})`);
+    this.ctx.searchModal.registerSource('news', newsItems);
+
+    if (this.ctx.latestPredictions.length > 0) {
+      this.ctx.searchModal.registerSource('prediction', this.ctx.latestPredictions.map(p => ({
+        id: p.title,
+        title: p.title,
+        subtitle: `${Math.round(p.yesPrice)}% probability`,
+        data: p,
+      })));
+    }
+
     if (this.ctx.latestMarkets.length > 0) {
       this.ctx.searchModal.registerSource('market', this.ctx.latestMarkets.map(m => ({
         id: m.symbol,

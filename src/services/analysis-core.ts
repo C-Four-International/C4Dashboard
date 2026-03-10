@@ -11,6 +11,7 @@
 
 import {
   SIMILARITY_THRESHOLD,
+  PREDICTION_SHIFT_THRESHOLD,
   MARKET_MOVE_THRESHOLD,
   NEWS_VELOCITY_THRESHOLD,
   FLOW_PRICE_THRESHOLD,
@@ -23,6 +24,7 @@ import {
   jaccardSimilarity,
   includesKeyword,
   containsTopicKeyword,
+  findRelatedTopics,
   generateSignalId,
   generateDedupeKey,
 } from '@/utils/analysis-constants';
@@ -92,7 +94,11 @@ export interface ClusteredEventCore {
   lang?: string;
 }
 
-
+export interface PredictionMarketCore {
+  title: string;
+  yesPrice: number;
+  volume?: number;
+}
 
 export interface MarketDataCore {
   symbol: string;
@@ -103,6 +109,7 @@ export interface MarketDataCore {
 }
 
 export type SignalType =
+  | 'prediction_leads_news'
   | 'news_leads_markets'
   | 'silent_divergence'
   | 'velocity_spike'
@@ -127,6 +134,7 @@ export interface CorrelationSignalCore {
   data: {
     newsVelocity?: number;
     marketChange?: number;
+    predictionShift?: number;
     relatedTopics?: string[];
     correlatedEntities?: string[];
     correlatedNews?: string[];
@@ -143,6 +151,7 @@ export type SourceType = 'wire' | 'gov' | 'intel' | 'mainstream' | 'market' | 't
 export interface StreamSnapshot {
   newsVelocity: Map<string, number>;
   marketChanges: Map<string, number>;
+  predictionChanges: Map<string, number>;
   topicVelocityHistory: Map<string, TopicVelocityPoint[]>;
   timestamp: number;
 }
@@ -460,6 +469,7 @@ export function detectTriangulation(
  */
 export function analyzeCorrelationsCore(
   events: ClusteredEventCore[],
+  predictions: PredictionMarketCore[],
   markets: MarketDataCore[],
   previousSnapshot: StreamSnapshot | null,
   getSourceType: (source: string) => SourceType,
@@ -495,12 +505,44 @@ export function analyzeCorrelationsCore(
   const currentSnapshot: StreamSnapshot = {
     newsVelocity: newsTopics,
     marketChanges: new Map(markets.map(m => [m.symbol, m.change ?? 0])),
+    predictionChanges: new Map(predictions.map(p => [p.title.slice(0, 50), p.yesPrice])),
     topicVelocityHistory: currentHistory,
     timestamp: now,
   };
 
   if (!previousSnapshot) {
     return { signals: [], snapshot: currentSnapshot };
+  }
+
+  // Detect prediction shifts
+  for (const pred of predictions) {
+    const key = pred.title.slice(0, 50);
+    const prev = previousSnapshot.predictionChanges.get(key);
+    if (prev !== undefined) {
+      const shift = Math.abs(pred.yesPrice - prev);
+      if (shift >= PREDICTION_SHIFT_THRESHOLD) {
+        const related = findRelatedTopics(pred.title);
+        const newsActivity = related.reduce((sum, t) => sum + (newsTopics.get(t) ?? 0), 0);
+
+        const dedupeKey = generateDedupeKey('prediction_leads_news', key, shift);
+        if (newsActivity < NEWS_VELOCITY_THRESHOLD && !isRecentDuplicate(dedupeKey)) {
+          markSignalSeen(dedupeKey);
+          signals.push({
+            id: generateSignalId(),
+            type: 'prediction_leads_news',
+            title: 'Prediction Market Shift',
+            description: `"${pred.title.slice(0, 60)}..." moved ${shift > 0 ? '+' : ''}${shift.toFixed(1)}% with low news coverage`,
+            confidence: Math.min(0.9, 0.5 + shift / 20),
+            timestamp: new Date(),
+            data: {
+              predictionShift: shift,
+              newsVelocity: newsActivity,
+              relatedTopics: related,
+            },
+          });
+        }
+      }
+    }
   }
 
   // Detect news velocity spikes

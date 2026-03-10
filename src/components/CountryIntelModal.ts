@@ -3,9 +3,10 @@
  */
 import { escapeHtml } from '@/utils/sanitize';
 import { t } from '@/services/i18n';
+import { sanitizeUrl } from '@/utils/sanitize';
 import { getCSSColor } from '@/utils';
 import type { CountryScore } from '@/services/country-instability';
-
+import type { PredictionMarket } from '@/services/prediction';
 
 interface CountryIntelData {
   brief: string;
@@ -163,7 +164,7 @@ export class CountryIntelModal {
     chips.push(`<span class="signal-chip stock-loading">📈 ${t('modals.countryIntel.loadingIndex')}</span>`);
     html += `<div class="active-signals">${chips.join('')}</div>`;
 
-
+    html += `<div class="country-markets-section"><span class="intel-loading-text">${t('modals.countryIntel.loadingMarkets')}</span></div>`;
 
     html += `
       <div class="intel-brief-section">
@@ -216,7 +217,29 @@ export class CountryIntelModal {
     `;
   }
 
+  public updateMarkets(markets: PredictionMarket[]): void {
+    const section = this.contentEl.querySelector('.country-markets-section');
+    if (!section) return;
 
+    if (markets.length === 0) {
+      section.innerHTML = `<span class="intel-loading-text" style="opacity:0.5">${t('modals.countryIntel.noMarkets')}</span>`;
+      return;
+    }
+
+    const items = markets.map(market => {
+      const href = sanitizeUrl(market.url || '#') || '#';
+      return `
+      <div class="market-item">
+        <a href="${href}" target="_blank" rel="noopener noreferrer" class="prediction-market-card">
+        <div class="market-provider">Polymarket</div>
+        <div class="market-question">${escapeHtml(market.title)}</div>
+        <div class="market-prob">${market.yesPrice.toFixed(1)}%</div>
+      </a>
+    `;
+    }).join('');
+
+    section.innerHTML = `<div class="markets-label">📊 ${t('modals.countryIntel.predictionMarkets')}</div>${items}`;
+  }
 
   public updateStock(data: StockIndexData): void {
     const el = this.contentEl.querySelector('.stock-loading');
