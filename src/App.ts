@@ -97,7 +97,11 @@ export class App {
 
       // V1.91 Migration: force disable removed panels from old cache for the full variant
       if (currentVariant === 'full') {
-        const removedPanels = ['finance', 'crypto', 'ai'];
+        const removedPanels = [
+          'finance', 'crypto', 'ai', 'polymarket', 'commodities',
+          'markets', 'economic', 'trade-policy', 'supply-chain',
+          'heatmap', 'macro-signals', 'etf-flows', 'stablecoins'
+        ];
         removedPanels.forEach(p => {
           if (panelSettings[p] && panelSettings[p].enabled) {
             panelSettings[p].enabled = false;
