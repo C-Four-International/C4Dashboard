@@ -3,6 +3,7 @@ import './styles/happy-theme.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as Sentry from '@sentry/browser';
 import { inject } from '@vercel/analytics';
+import { injectSpeedInsights } from '@vercel/speed-insights';
 import { App } from './App';
 
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim();
@@ -154,6 +155,9 @@ const chunkReloadStorageKey = installChunkReloadGuard(__APP_VERSION__);
 
 // Initialize Vercel Analytics
 inject();
+
+// Initialize Vercel Speed Insights
+injectSpeedInsights();
 
 // Initialize PostHog product analytics
 void initAnalytics();
