@@ -2471,8 +2471,8 @@ function connectUpstream() {
 
 const wss = new WebSocketServer({ server });
 
-server.listen(PORT, () => {
-  console.log(`[Relay] WebSocket relay on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[Relay] WebSocket relay on port ${PORT} (IPv4 0.0.0.0)`);
   startTelegramPollLoop();
 });
 
