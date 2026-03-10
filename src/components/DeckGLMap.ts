@@ -3017,6 +3017,7 @@ export class DeckGLMap {
         { key: 'techEvents', label: t('components.deckgl.layers.techEvents'), icon: '&#128197;' },
         { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
         { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
+        { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
       ]
       : SITE_VARIANT === 'finance'
       ? [
@@ -3034,6 +3035,7 @@ export class DeckGLMap {
           { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
           { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
           { key: 'cyberThreats', label: t('components.deckgl.layers.cyberThreats'), icon: '&#128737;' },
+          { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
         ]
       : SITE_VARIANT === 'happy'
       ? [
