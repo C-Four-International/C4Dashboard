@@ -29,8 +29,6 @@ import { PanelLayoutManager } from '@/app/panel-layout';
 import { DataLoaderManager } from '@/app/data-loader';
 import { EventHandlerManager } from '@/app/event-handlers';
 
-const CYBER_LAYER_ENABLED = import.meta.env.VITE_ENABLE_CYBER_LAYER === 'true';
-
 export type { CountryBriefSignals } from '@/app/app-context';
 
 export class App {
@@ -187,9 +185,6 @@ export class App {
         });
       }
       mapLayers = initialUrlState.layers;
-    }
-    if (!CYBER_LAYER_ENABLED) {
-      mapLayers.cyberThreats = false;
     }
     const disabledSources = new Set(loadFromStorage<string[]>(STORAGE_KEYS.disabledFeeds, []));
 
@@ -378,9 +373,6 @@ export class App {
     if (isOutagesConfigured() === false) {
       this.state.map?.hideLayerToggle('outages');
     }
-    if (!CYBER_LAYER_ENABLED) {
-      this.state.map?.hideLayerToggle('cyberThreats');
-    }
 
     // Phase 7: Refresh scheduling
     this.setupRefreshIntervals();
@@ -492,27 +484,27 @@ export class App {
         { name: 'cables', fn: () => this.dataLoader.loadCableActivity(), intervalMs: 30 * 60 * 1000, condition: () => this.state.mapLayers.cables },
         { name: 'cableHealth', fn: () => this.dataLoader.loadCableHealth(), intervalMs: 5 * 60 * 1000, condition: () => this.state.mapLayers.cables },
         { name: 'flights', fn: () => this.dataLoader.loadFlightDelays(), intervalMs: 10 * 60 * 1000, condition: () => this.state.mapLayers.flights },
-      /*  { name: 'cyberThreats', fn: () => {
-          this.state.cyberThreatsCache = null;
-          return this.dataLoader.loadCyberThreats();
-        }, */ intervalMs: 10 * 60 * 1000, condition: () => CYBER_LAYER_ENABLED && this.state.mapLayers.cyberThreats },
+        /*  { name: 'cyberThreats', fn: () => {
+            this.state.cyberThreatsCache = null;
+            return this.dataLoader.loadCyberThreats();
+          }, intervalMs: 10 * 60 * 1000, condition: () => CYBER_LAYER_ENABLED && this.state.mapLayers.cyberThreats }, */
       ]);
-  }
+    }
 
-  // WTO trade policy data — annual data, poll every 10 min to avoid hammering upstream
-  /*    if (SITE_VARIANT === 'full' || SITE_VARIANT === 'finance') {
-        this.refreshScheduler.scheduleRefresh('tradePolicy', () => this.dataLoader.loadTradePolicy(), 10 * 60 * 1000);
-        this.refreshScheduler.scheduleRefresh('supplyChain', () => this.dataLoader.loadSupplyChain(), 10 * 60 * 1000);
-      }
-  */
-  // Refresh intelligence signals for CII (geopolitical variant only)
-  if(SITE_VARIANT === 'full') {
-  this.refreshScheduler.scheduleRefresh('intelligence', () => {
-    const { military } = this.state.intelligenceCache;
-    this.state.intelligenceCache = {};
-    if (military) this.state.intelligenceCache.military = military;
-    return this.dataLoader.loadIntelligenceSignals();
-  }, 15 * 60 * 1000);
-}
+    // WTO trade policy data — annual data, poll every 10 min to avoid hammering upstream
+    /*    if (SITE_VARIANT === 'full' || SITE_VARIANT === 'finance') {
+          this.refreshScheduler.scheduleRefresh('tradePolicy', () => this.dataLoader.loadTradePolicy(), 10 * 60 * 1000);
+          this.refreshScheduler.scheduleRefresh('supplyChain', () => this.dataLoader.loadSupplyChain(), 10 * 60 * 1000);
+        }
+    */
+    // Refresh intelligence signals for CII (geopolitical variant only)
+    if (SITE_VARIANT === 'full') {
+      this.refreshScheduler.scheduleRefresh('intelligence', () => {
+        const { military } = this.state.intelligenceCache;
+        this.state.intelligenceCache = {};
+        if (military) this.state.intelligenceCache.military = military;
+        return this.dataLoader.loadIntelligenceSignals();
+      }, 15 * 60 * 1000);
+    }
   }
 }
