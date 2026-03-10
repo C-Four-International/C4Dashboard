@@ -312,7 +312,8 @@ function sebufApiPlugin(): Plugin {
       ...militaryServerMod.createMilitaryServiceRoutes(militaryHandlerMod.militaryHandler, serverOptions),
       ...positiveEventsServerMod.createPositiveEventsServiceRoutes(positiveEventsHandlerMod.positiveEventsHandler, serverOptions),
       ...givingServerMod.createGivingServiceRoutes(givingHandlerMod.givingHandler, serverOptions),
-      cachedCorsMod = corsMod;
+      cachedCorsMod = corsMod
+    ]
     return routerMod.createRouter(allRoutes);
   }
 
