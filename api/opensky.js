@@ -8,7 +8,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
 });
 
-async function fetchWithTimeout(url, options, timeoutMs = 8000) {
+async function fetchWithTimeout(url, options, timeoutMs = 15000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -51,7 +51,7 @@ async function getOpenSkyToken() {
         'User-Agent': 'WorldMonitor/EdgeProxy',
       },
       body: postData,
-    }, 8000);
+    }, 15000);
 
     if (!response.ok) {
       console.error(`[OpenSky Edge] Auth failed: ${response.status} ${response.statusText}`);
@@ -110,7 +110,7 @@ export default async function handler(req) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetchWithTimeout(upstreamUrl, { headers }, 8000);
+    const response = await fetchWithTimeout(upstreamUrl, { headers }, 15000);
 
     const body = await response.text();
     const finalHeaders = {
