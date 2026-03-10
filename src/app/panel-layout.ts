@@ -189,8 +189,9 @@ export class PanelLayoutManager implements AppModule {
       <div class="main-content">
         <div class="map-section" id="mapSection">
           <div class="panel-header">
-            <div class="panel-header-left">
-              <span class="panel-title">${SITE_VARIANT === 'tech' ? t('panels.techMap') : SITE_VARIANT === 'happy' ? 'Good News Map' : t('panels.map')}</span>
+            <div class="panel-header-left" style="display: flex; align-items: center;">
+              <img src="/favico/favicon-32x32.png" alt="Logo" style="height: 20px; margin-right: 8px;">
+              <span class="panel-title">Monitoring Dashboard</span>
             </div>
             <span class="header-clock" id="headerClock"></span>
             <button class="map-pin-btn" id="mapPinBtn" title="${t('header.pinMap')}">
