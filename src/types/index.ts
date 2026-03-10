@@ -233,6 +233,7 @@ export interface ConflictZone {
   parties?: string[];
   casualties?: string;
   displaced?: string;
+  countryCodes?: string[];
   keywords?: string[];
   startDate?: string;
   location?: string;

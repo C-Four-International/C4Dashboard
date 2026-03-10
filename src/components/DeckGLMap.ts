@@ -1277,16 +1277,52 @@ export class DeckGLMap {
   private createConflictZonesLayer(): GeoJsonLayer {
     const cacheKey = 'conflict-zones-layer';
 
+    const features: any[] = [];
+
+    for (const zone of CONFLICT_ZONES) {
+      let addedFromGeometry = false;
+
+      if (zone.countryCodes && zone.countryCodes.length > 0 && this.countriesGeoJsonData) {
+        // Attempt to find country features mapping to these ISO codes
+        const countryFeatures = this.countriesGeoJsonData.features.filter((f: any) => 
+          f.properties && 
+          f.properties['ISO3166-1-Alpha-2'] && 
+          zone.countryCodes!.includes(f.properties['ISO3166-1-Alpha-2'])
+        );
+
+        if (countryFeatures.length > 0) {
+          // Copy the region polygons, but inject the ConflictZone metadata so popups still work
+          for (const feature of countryFeatures) {
+            features.push({
+              ...feature,
+              properties: { 
+                ...feature.properties,
+                id: zone.id, 
+                name: zone.name, 
+                intensity: zone.intensity 
+              }
+            });
+          }
+          addedFromGeometry = true;
+        }
+      }
+
+      // Fallback to bounding box if it's a zone without a mapped country, or geometry hasn't loaded yet
+      if (!addedFromGeometry) {
+         features.push({
+          type: 'Feature' as const,
+          properties: { id: zone.id, name: zone.name, intensity: zone.intensity },
+          geometry: {
+            type: 'Polygon' as const,
+            coordinates: [zone.coords]
+          }
+        });
+      }
+    }
+
     const geojsonData = {
       type: 'FeatureCollection' as const,
-      features: CONFLICT_ZONES.map(zone => ({
-        type: 'Feature' as const,
-        properties: { id: zone.id, name: zone.name, intensity: zone.intensity },
-        geometry: {
-          type: 'Polygon' as const,
-          coordinates: [zone.coords],
-        },
-      })),
+      features
     };
 
     const layer = new GeoJsonLayer({
@@ -1301,7 +1337,11 @@ export class DeckGLMap {
       getLineWidth: 2,
       lineWidthMinPixels: 1,
       pickable: true,
+      updateTriggers: {
+        data: features.length // Ensure DeckGL notices if features swap from rect->multi-polygon mid-session
+      }
     });
+
     return layer;
   }
 
@@ -4092,6 +4132,8 @@ export class DeckGLMap {
       .then((geojson) => {
         if (!this.maplibreMap || !geojson) return;
         this.countriesGeoJsonData = geojson;
+        // Schedule layer rebuild so Conflict Zones can switch from boxes to precise country polygons
+        this.debouncedRebuildLayers();
         this.maplibreMap.addSource('country-boundaries', {
           type: 'geojson',
           data: geojson,
