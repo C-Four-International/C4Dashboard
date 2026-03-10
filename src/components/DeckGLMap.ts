@@ -465,33 +465,22 @@ export class DeckGLMap {
     });
 
     this.maplibreMap.on('moveend', () => {
-      this.lastSCZoom = -1;
-      this.rafUpdateLayers();
-    });
-
-    this.maplibreMap.on('move', () => {
       if (this.moveTimeoutId) clearTimeout(this.moveTimeoutId);
       this.moveTimeoutId = setTimeout(() => {
-        this.lastSCZoom = -1;
-        this.rafUpdateLayers();
-      }, 100);
-    });
+        // Only trigger a re-render if clustering boundaries actually require new data calculation
+        const oldZoom = this.lastSCZoom;
+        const oldBoundsKey = this.lastSCBoundsKey;
+        const oldMask = this.lastSCMask;
 
-    this.maplibreMap.on('zoom', () => {
-      if (this.moveTimeoutId) clearTimeout(this.moveTimeoutId);
-      this.moveTimeoutId = setTimeout(() => {
-        this.lastSCZoom = -1;
-        this.rafUpdateLayers();
-      }, 100);
-    });
+        this.updateClusterData();
 
-    this.maplibreMap.on('zoomend', () => {
-      const currentZoom = Math.floor(this.maplibreMap?.getZoom() || 2);
-      const thresholdCrossed = Math.abs(currentZoom - this.lastZoomThreshold) >= 1;
-      if (thresholdCrossed) {
-        this.lastZoomThreshold = currentZoom;
-        this.debouncedRebuildLayers();
-      }
+        const zoomThresholdCrossed = Math.abs((this.maplibreMap?.getZoom() || 2) - this.lastZoomThreshold) >= 1;
+
+        if (zoomThresholdCrossed || this.lastSCZoom !== oldZoom || this.lastSCBoundsKey !== oldBoundsKey || this.lastSCMask !== oldMask) {
+           this.lastZoomThreshold = Math.floor(this.maplibreMap?.getZoom() || 2);
+           this.debouncedRebuildLayers();
+        }
+      }, 100);
     });
   }
 
