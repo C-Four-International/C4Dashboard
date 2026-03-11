@@ -45,6 +45,7 @@ Write a concise intelligence brief for the requested country covering:
 3. Key Risk Factors
 4. Regional Context
 5. Outlook & Watch Items
+6. Sources - list the relevant GDELT data streams and news feeds used, if available
 
 Rules:
 - STRICT REQUIREMENT: Your briefing must be fed ONLY from GDELT data streams and news feeds for the designated country.
