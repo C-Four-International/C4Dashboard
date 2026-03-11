@@ -7,7 +7,7 @@ import type {
 } from '../../../../src/generated/server/worldmonitor/intelligence/v1/service_server';
 
 import { cachedFetchJson } from '../../../_shared/redis';
-import { UPSTREAM_TIMEOUT_MS, GROQ_API_URL, GROQ_MODEL, TIER1_COUNTRIES } from './_shared';
+import { UPSTREAM_TIMEOUT_MS, GROQ_API_URL, TIER1_COUNTRIES } from './_shared';
 import { CHROME_UA } from '../../../_shared/constants';
 
 // ========================================================================
@@ -18,6 +18,8 @@ const INTEL_CACHE_TTL = 1800; // 30 minutes
 // RPC handler
 // ========================================================================
 
+const GROQ_MODELS = ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
+
 export async function getCountryIntelBrief(
   _ctx: ServerContext,
   req: GetCountryIntelBriefRequest,
@@ -26,7 +28,7 @@ export async function getCountryIntelBrief(
     countryCode: req.countryCode,
     countryName: '',
     brief: '',
-    model: GROQ_MODEL,
+    model: GROQ_MODELS[0],
     generatedAt: Date.now(),
   };
 
@@ -63,37 +65,40 @@ Rules:
 - Use plain language, not jargon`;
 
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
-    try {
-      const resp = await fetch(GROQ_API_URL, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'User-Agent': CHROME_UA },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Country: ${countryName} (${req.countryCode})` },
-          ],
-          temperature: 0.4,
-          max_tokens: 900,
-        }),
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      });
+    for (const model of GROQ_MODELS) {
+      try {
+        const resp = await fetch(GROQ_API_URL, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'User-Agent': CHROME_UA },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: `Country: ${countryName} (${req.countryCode})` },
+            ],
+            temperature: 0.4,
+            max_tokens: 900,
+          }),
+          signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+        });
 
-      if (!resp.ok) return null;
-      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      const brief = data.choices?.[0]?.message?.content?.trim() || '';
-      if (!brief) return null;
+        if (!resp.ok) continue;
+        const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+        const brief = data.choices?.[0]?.message?.content?.trim() || '';
+        if (!brief) continue;
 
-      return {
-        countryCode: req.countryCode,
-        countryName,
-        brief,
-        model: GROQ_MODEL,
-        generatedAt: Date.now(),
-      };
-    } catch {
-      return null;
+        return {
+          countryCode: req.countryCode,
+          countryName,
+          brief,
+          model: model,
+          generatedAt: Date.now(),
+        };
+      } catch {
+        continue;
+      }
     }
+    return null;
   });
 
   return result || empty;
