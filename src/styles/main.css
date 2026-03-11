@@ -15118,6 +15118,7 @@ body.has-critical-banner .panels-grid {
 
 .cb-flag {
   font-size: 28px;
+  font-family: "Twemoji Mozilla", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", emoji;
 }
 
 .cb-country-name {

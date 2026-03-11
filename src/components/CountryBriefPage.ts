@@ -237,6 +237,7 @@ export class CountryBriefPage {
     this.currentHeadlines = [];
     this.currentHeadlineCount = 0;
     const flag = this.countryFlag(code);
+    const flagSpan = code === 'XC' ? '' : `<span class="cb-flag">${flag}</span>`;
 
     const tierBadge = !signals.isTier1
       ? `<span class="cb-tier-badge">${t('modals.countryBrief.limitedCoverage')}</span>`
@@ -246,7 +247,7 @@ export class CountryBriefPage {
       <div class="country-brief-page">
         <div class="cb-header">
           <div class="cb-header-left">
-            <span class="cb-flag">${flag}</span>
+            ${flagSpan}
             <span class="cb-country-name">${escapeHtml(country)}</span>
             
             
@@ -303,11 +304,6 @@ export class CountryBriefPage {
                 <div class="cb-signals-grid">
                   ${this.signalChips(signals)}
                 </div>
-              </section>
-
-              <section class="cb-section cb-timeline-section">
-                <h3 class="cb-section-title">${t('modals.countryBrief.timeline')}</h3>
-                <div class="cb-timeline-mount"></div>
               </section>
 
               <section class="cb-section cb-markets-section">
@@ -528,10 +524,6 @@ export class CountryBriefPage {
 
     content.innerHTML = html;
     section.style.display = '';
-  }
-
-  public getTimelineMount(): HTMLElement | null {
-    return this.overlay.querySelector('.cb-timeline-mount');
   }
 
   public getCode(): string | null {

@@ -236,7 +236,6 @@ export class App {
       mobileWarningModal: null,
       pizzintIndicator: null,
       countryBriefPage: null,
-      countryTimeline: null,
       positivePanel: null,
       countersPanel: null,
       progressPanel: null,

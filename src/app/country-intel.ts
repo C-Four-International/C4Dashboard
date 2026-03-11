@@ -1,6 +1,4 @@
 import type { AppContext, AppModule, CountryBriefSignals } from '@/app/app-context';
-import type { TimelineEvent } from '@/components/CountryTimeline';
-import { CountryTimeline } from '@/components/CountryTimeline';
 import { CountryBriefPage } from '@/components/CountryBriefPage';
 import { reverseGeocode } from '@/utils/reverse-geocode';
 import { getCountryAtCoordinates, hasCountryGeometry, isCoordinateInCountry } from '@/services/country-geometry';
@@ -37,8 +35,6 @@ export class CountryIntelManager implements AppModule {
   }
 
   destroy(): void {
-    this.ctx.countryTimeline?.destroy();
-    this.ctx.countryTimeline = null;
     this.ctx.countryBriefPage = null;
   }
 
@@ -86,8 +82,6 @@ export class CountryIntelManager implements AppModule {
       this.briefRequestToken++;
       this.ctx.map?.clearCountryHighlight();
       this.ctx.map?.setRenderPaused(false);
-      this.ctx.countryTimeline?.destroy();
-      this.ctx.countryTimeline = null;
     });
   }
 
@@ -173,8 +167,6 @@ export class CountryIntelManager implements AppModule {
 
     this.ctx.countryBriefPage.updateInfrastructure(code);
 
-    this.mountCountryTimeline(code, country);
-
     try {
       const context: Record<string, unknown> = {};
       /*
@@ -256,84 +248,6 @@ export class CountryIntelManager implements AppModule {
       console.error('[CountryBrief] fetch error:', err);
       this.ctx.countryBriefPage!.updateBrief({ brief: '', country, code, error: 'Failed to generate brief' });
     }
-  }
-
-  private mountCountryTimeline(code: string, country: string): void {
-    this.ctx.countryTimeline?.destroy();
-    this.ctx.countryTimeline = null;
-
-    const mount = this.ctx.countryBriefPage?.getTimelineMount();
-    if (!mount) return;
-
-    const events: TimelineEvent[] = [];
-    const countryLower = country.toLowerCase();
-    const hasGeoShape = hasCountryGeometry(code) || !!CountryIntelManager.COUNTRY_BOUNDS[code];
-    const inCountry = (lat: number, lon: number) => hasGeoShape && this.isInCountry(lat, lon, code);
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-
-    if (this.ctx.intelligenceCache.protests?.events) {
-      for (const e of this.ctx.intelligenceCache.protests.events) {
-        if (e.country?.toLowerCase() === countryLower || inCountry(e.lat, e.lon)) {
-          events.push({
-            timestamp: new Date(e.time).getTime(),
-            lane: 'protest',
-            label: e.title || `${e.eventType} in ${e.city || e.country}`,
-            severity: e.severity === 'high' ? 'high' : e.severity === 'medium' ? 'medium' : 'low',
-          });
-        }
-      }
-    }
-
-    if (this.ctx.intelligenceCache.earthquakes) {
-      for (const eq of this.ctx.intelligenceCache.earthquakes) {
-        if (inCountry(eq.location?.latitude ?? 0, eq.location?.longitude ?? 0) || eq.place?.toLowerCase().includes(countryLower)) {
-          events.push({
-            timestamp: eq.occurredAt,
-            lane: 'natural',
-            label: `M${eq.magnitude.toFixed(1)} ${eq.place}`,
-            severity: eq.magnitude >= 6 ? 'critical' : eq.magnitude >= 5 ? 'high' : eq.magnitude >= 4 ? 'medium' : 'low',
-          });
-        }
-      }
-    }
-
-    if (this.ctx.intelligenceCache.military) {
-      for (const f of this.ctx.intelligenceCache.military.flights) {
-        if (hasGeoShape ? this.isInCountry(f.lat, f.lon, code) : f.operatorCountry?.toUpperCase() === code) {
-          events.push({
-            timestamp: new Date(f.lastSeen).getTime(),
-            lane: 'military',
-            label: `${f.callsign} (${f.aircraftModel || f.aircraftType})`,
-            severity: f.isInteresting ? 'high' : 'low',
-          });
-        }
-      }
-      for (const v of this.ctx.intelligenceCache.military.vessels) {
-        if (hasGeoShape ? this.isInCountry(v.lat, v.lon, code) : v.operatorCountry?.toUpperCase() === code) {
-          events.push({
-            timestamp: new Date(v.lastAisUpdate).getTime(),
-            lane: 'military',
-            label: `${v.name} (${v.vesselType})`,
-            severity: v.isDark ? 'high' : 'low',
-          });
-        }
-      }
-    }
-
-    const ciiData = getCountryData(code);
-    if (ciiData?.conflicts) {
-      for (const c of ciiData.conflicts) {
-        events.push({
-          timestamp: new Date(c.time).getTime(),
-          lane: 'conflict',
-          label: `${c.eventType}: ${c.location || c.country}`,
-          severity: c.fatalities > 0 ? 'critical' : 'high',
-        });
-      }
-    }
-
-    this.ctx.countryTimeline = new CountryTimeline(mount);
-    this.ctx.countryTimeline.render(events.filter(e => e.timestamp >= sevenDaysAgo));
   }
 
   getCountrySignals(code: string, country: string): CountryBriefSignals {

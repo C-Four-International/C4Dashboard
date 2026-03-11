@@ -37,6 +37,14 @@ let sortedCountryNames: Array<{ name: string; code: string; regex: RegExp }> = [
 function normalizeCode(properties: GeoJsonProperties | null | undefined): string | null {
   if (!properties) return null;
   const rawCode = properties['ISO3166-1-Alpha-2'] ?? properties.ISO_A2 ?? properties.iso_a2;
+  
+  if (rawCode === '-99') {
+    const nameStr = properties.name ?? properties.NAME ?? properties.admin;
+    if (typeof nameStr === 'string' && nameStr.trim() === 'Northern Cyprus') {
+      return 'XC';
+    }
+  }
+
   if (typeof rawCode !== 'string') return null;
   const trimmed = rawCode.trim().toUpperCase();
   const overridden = POLITICAL_OVERRIDES[trimmed] ?? trimmed;

@@ -6,7 +6,6 @@ import type { PredictionMarket } from '@/services/prediction';
 import type { TimeRange } from '@/components';
 import type { Earthquake } from '@/services/earthquakes';
 import type { CountryBriefPage } from '@/components/CountryBriefPage';
-import type { CountryTimeline } from '@/components/CountryTimeline';
 import type { PlaybackControl } from '@/components';
 import type { ExportPanel } from '@/utils';
 import type { UnifiedSettings } from '@/components/UnifiedSettings';
@@ -84,7 +83,6 @@ export interface AppContext {
   mobileWarningModal: MobileWarningModal | null;
   pizzintIndicator: PizzIntIndicator | null;
   countryBriefPage: CountryBriefPage | null;
-  countryTimeline: CountryTimeline | null;
 
   // Happy variant state
   positivePanel: PositiveNewsFeedPanel | null;
