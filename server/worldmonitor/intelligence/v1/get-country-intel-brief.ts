@@ -81,7 +81,7 @@ Rules:
               { role: 'system', content: systemPrompt },
               { role: 'user', content: `Country: ${countryName} (${req.countryCode})` },
             ],
-            temperature: 0.4,
+            temperature: 0.1,
             max_tokens: 900,
             compound_custom: {
               tools: {
