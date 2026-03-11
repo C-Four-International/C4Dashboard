@@ -35,22 +35,27 @@ export async function getCountryIntelBrief(
 
   const cacheKey = `ci-sebuf:v1:${req.countryCode}`;
   const countryName = TIER1_COUNTRIES[req.countryCode] || req.countryCode;
-  const dateStr = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const dateStr = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
 
   const systemPrompt = `You are a senior intelligence analyst providing comprehensive country situation briefs. Current date: ${dateStr}. Provide geopolitical context appropriate for the current date.
 
 Write a concise intelligence brief for the requested country covering:
-1. Current Situation - what is happening right now
-2. Military & Security Posture
-3. Key Risk Factors
-4. Regional Context
-5. Outlook & Watch Items
-6. Sources - list the relevant GDELT data streams and news feeds used, if available
+1. Heading - Must be exactly:
+   <Country Name> Intelligence Briefing
+   Dated: ${dateStr}
+2. Current Situation - what is happening right now
+3. Military & Security Posture
+4. Key Risk Factors
+5. Regional Context
+6. Outlook & Watch Items
+7. Sources - list the relevant GDELT data streams and news feeds used, if available, and provide the specific dates of the sourced data to assure the user of its recency.
 
 Rules:
 - STRICT REQUIREMENT: Your briefing must be fed ONLY from GDELT data streams and news feeds for the designated country.
 - STRICT REQUIREMENT: If no recent data (within 3 days of ${dateStr}) is available, you must simply output: "NO CURRENT DATA IS AVAILABLE, CHECK BACK LATER."
 - STRICT REQUIREMENT: You are explicitly prohibited from providing made up names, places, or information in place of real data. Do not hallucinate.
+- STRICT REQUIREMENT: Do not include any preambles, introductory phrases, or courtesy text (e.g., "Here is the briefing", "Certainly"). Start immediately with the Heading.
 - Be specific and analytical
 - 4-5 paragraphs, 250-350 words (unless outputting the no data available message)
 - No speculation beyond what data supports
