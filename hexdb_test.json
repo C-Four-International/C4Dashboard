@@ -1,0 +1,37 @@
+[
+  {
+    "status": "404",
+    "error": "Aircraft not found."
+  },
+  {
+    "ModeS": "C2BFC1",
+    "Registration": "188730",
+    "Manufacturer": "McDonnell Douglas",
+    "ICAOTypeCode": "F18H",
+    "Type": "CF-18A Hornet",
+    "RegisteredOwners": "Royal Canadian Air Force",
+    "OperatorFlagCode": "F18H"
+  },
+  {
+    "ModeS": "A00001",
+    "Registration": "N1",
+    "Manufacturer": "Cessna",
+    "ICAOTypeCode": "C680",
+    "Type": "Citation Sovereign+",
+    "RegisteredOwners": "Federal Aviation Administration",
+    "OperatorFlagCode": "C680"
+  },
+  {
+    "ModeS": "E40093",
+    "Registration": "6704",
+    "Manufacturer": "Embraer",
+    "ICAOTypeCode": "E145",
+    "Type": "ERJ-145 E-99M",
+    "RegisteredOwners": "Brazilian Air Force",
+    "OperatorFlagCode": "BRS"
+  },
+  {
+    "status": "404",
+    "error": "Aircraft not found."
+  }
+]

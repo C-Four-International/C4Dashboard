@@ -120,26 +120,26 @@ export interface RawFlight {
 export const UPSTREAM_TIMEOUT_MS = 20_000;
 
 // ========================================================================
-// Wingbits response mapper (shared by single + batch RPCs)
+// HexDB response mapper (shared by single + batch RPCs)
 // ========================================================================
 
-export function mapWingbitsDetails(icao24: string, data: Record<string, unknown>): AircraftDetails {
+export function mapHexdbDetails(icao24: string, data: Record<string, unknown>): AircraftDetails {
   return {
     icao24,
-    registration: String(data.registration ?? ''),
-    manufacturerIcao: String(data.manufacturerIcao ?? ''),
-    manufacturerName: String(data.manufacturerName ?? ''),
-    model: String(data.model ?? ''),
-    typecode: String(data.typecode ?? ''),
-    serialNumber: String(data.serialNumber ?? ''),
-    icaoAircraftType: String(data.icaoAircraftType ?? ''),
-    operator: String(data.operator ?? ''),
-    operatorCallsign: String(data.operatorCallsign ?? ''),
-    operatorIcao: String(data.operatorIcao ?? ''),
-    owner: String(data.owner ?? ''),
-    built: String(data.built ?? ''),
-    engines: String(data.engines ?? ''),
-    categoryDescription: String(data.categoryDescription ?? ''),
+    registration: String(data.Registration ?? ''),
+    manufacturerIcao: String(data.Manufacturer ?? ''),
+    manufacturerName: String(data.Manufacturer ?? ''),
+    model: String(data.Type ?? ''),
+    typecode: String(data.ICAOTypeCode ?? ''),
+    serialNumber: '',
+    icaoAircraftType: String(data.ICAOTypeCode ?? ''),
+    operator: String(data.RegisteredOwners ?? ''),
+    operatorCallsign: '',
+    operatorIcao: String(data.OperatorFlagCode ?? ''),
+    owner: String(data.RegisteredOwners ?? ''),
+    built: '',
+    engines: '',
+    categoryDescription: '',
   };
 }
 

@@ -7,7 +7,7 @@ import type {
   AircraftDetails,
 } from '../../../../src/generated/server/worldmonitor/military/v1/service_server';
 
-import { mapWingbitsDetails } from './_shared';
+import { mapHexdbDetails } from './_shared';
 import { CHROME_UA } from '../../../_shared/constants';
 import { getCachedJsonBatch, cachedFetchJson } from '../../../_shared/redis';
 
@@ -20,9 +20,6 @@ export async function getAircraftDetailsBatch(
   _ctx: ServerContext,
   req: GetAircraftDetailsBatchRequest,
 ): Promise<GetAircraftDetailsBatchResponse> {
-  const apiKey = process.env.WINGBITS_API_KEY;
-  if (!apiKey) return { results: {}, fetched: 0, requested: 0, configured: false };
-
   const normalized = req.icao24s
     .map((id) => id.trim().toLowerCase())
     .filter((id) => id.length > 0);
@@ -30,7 +27,7 @@ export async function getAircraftDetailsBatch(
   const limitedList = uniqueSorted.slice(0, 10);
 
   // Redis shared cache — batch GET all keys in a single pipeline round-trip
-  const SINGLE_KEY = 'military:aircraft:v1';
+  const SINGLE_KEY = 'military:aircraft:v1:hexdb';
   const SINGLE_TTL = 24 * 60 * 60;
   const results: Record<string, AircraftDetails> = {};
   const toFetch: string[] = [];
@@ -56,22 +53,30 @@ export async function getAircraftDetailsBatch(
 
   for (let i = 0; i < toFetch.length; i++) {
     const icao24 = toFetch[i]!;
-    const cacheResult = await cachedFetchJson<CachedAircraftDetails>(
+    const cacheResult = await cachedFetchJson<CachedAircraftDetails | null>(
       `${SINGLE_KEY}:${icao24}`,
       SINGLE_TTL,
       async () => {
         try {
-          const resp = await fetch(`https://customer-api.wingbits.com/v1/flights/details/${icao24}`, {
-            headers: { 'x-api-key': apiKey, Accept: 'application/json', 'User-Agent': CHROME_UA },
+          const resp = await fetch(`https://hexdb.io/api/v1/aircraft/${icao24}`, {
+            headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
             signal: AbortSignal.timeout(10_000),
           });
           if (resp.status === 404) {
             return { details: null, configured: true };
           }
           if (resp.ok) {
-            const data = (await resp.json()) as Record<string, unknown>;
-            const details = mapWingbitsDetails(icao24, data);
-            return { details, configured: true };
+            const text = await resp.text();
+            try {
+              const data = JSON.parse(text) as Record<string, unknown>;
+              if (data.status === '404' || data.error === 'Aircraft not found.') {
+                return { details: null, configured: true };
+              }
+              const details = mapHexdbDetails(icao24, data);
+              return { details, configured: true };
+            } catch {
+              return null;
+            }
           }
         } catch { /* skip failed lookups */ }
         return null;

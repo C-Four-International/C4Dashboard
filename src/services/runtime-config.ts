@@ -164,9 +164,9 @@ export const RUNTIME_FEATURES: RuntimeFeatureDefinition[] = [
   },
   {
     id: 'wingbitsEnrichment',
-    name: 'Wingbits aircraft enrichment',
+    name: 'HexDB aircraft enrichment',
     description: 'Military flight operator/aircraft enrichment metadata.',
-    requiredSecrets: ['WINGBITS_API_KEY'],
+    requiredSecrets: [],
     fallback: 'Flight map still renders with heuristic-only classification.',
   },
   {

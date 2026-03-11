@@ -105,7 +105,7 @@ let wingbitsConfigured: boolean | null = null;
 
 // Circuit breaker for API calls
 const breaker = createCircuitBreaker<WingbitsAircraftDetails | null>({
-  name: 'Wingbits Enrichment',
+  name: 'HexDB Enrichment',
   maxFailures: 5,
   cooldownMs: 5 * 60 * 1000,
 });
@@ -193,7 +193,7 @@ export async function checkWingbitsStatus(): Promise<boolean> {
     const resp = await client.getWingbitsStatus({});
     wingbitsConfigured = resp.configured;
     dataFreshness.setEnabled('wingbits', wingbitsConfigured);
-    console.log(`[Wingbits] Status: ${wingbitsConfigured ? 'configured' : 'not configured'}`);
+    console.log(`[HexDB] Status: ${wingbitsConfigured ? 'configured' : 'not configured'}`);
     return wingbitsConfigured;
   } catch {
     wingbitsConfigured = false;
@@ -290,13 +290,13 @@ export async function getAircraftDetailsBatch(icao24List: string[]): Promise<Map
         setLocalCache(key, createNegativeDetailsEntry(key));
       }
     }
-
-    console.log(`[Wingbits] Batch: ${results.size} enriched, ${resp.fetched || 0} fetched`);
+    
+    console.log(`[HexDB] Batch: ${results.size} enriched, ${resp.fetched || 0} fetched`);
     if (results.size > 0) {
       dataFreshness.recordUpdate('wingbits', results.size);
     }
   } catch (error) {
-    console.warn('[Wingbits] Batch fetch failed:', error);
+    console.warn('[HexDB] Batch fetch failed:', error);
     dataFreshness.recordError('wingbits', error instanceof Error ? error.message : 'Unknown error');
   }
 

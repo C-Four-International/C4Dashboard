@@ -10,6 +10,5 @@ export async function getWingbitsStatus(
   _ctx: ServerContext,
   _req: GetWingbitsStatusRequest,
 ): Promise<GetWingbitsStatusResponse> {
-  const apiKey = process.env.WINGBITS_API_KEY;
-  return { configured: !!apiKey };
+  return { configured: true };
 }
