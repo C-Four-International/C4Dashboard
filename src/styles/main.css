@@ -5490,7 +5490,7 @@ a.prediction-link:hover {
   background: rgba(255, 68, 68, 0.1);
 }
 
-.popup-header.hotspot {
+.popup-header.hotspot-theme {
   background: rgba(68, 255, 136, 0.1);
 }
 
@@ -5510,7 +5510,7 @@ a.prediction-link:hover {
   flex: 1;
 }
 
-.popup-header.hotspot .popup-title {
+.popup-header.hotspot-theme .popup-title {
   color: var(--green);
 }
 

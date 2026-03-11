@@ -623,7 +623,7 @@ export class MapPopup {
     ` : '';
 
     return `
-      <div class="popup-header hotspot">
+      <div class="popup-header hotspot-theme">
         <span class="popup-title">${escapeHtml(hotspot.name.toUpperCase())}</span>
         <span class="popup-badge ${severityClass}">${severityLabel}</span>
         <button class="popup-close">×</button>
