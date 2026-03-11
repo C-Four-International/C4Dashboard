@@ -18,7 +18,7 @@ const INTEL_CACHE_TTL = 1800; // 30 minutes
 // RPC handler
 // ========================================================================
 
-const GROQ_MODELS = ['groq/compound-mini', 'llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
+const GROQ_MODELS = ['groq/compound-mini'];
 
 export async function getCountryIntelBrief(
   _ctx: ServerContext,
@@ -51,10 +51,10 @@ Write a concise intelligence brief for the requested country covering:
 4. Key Risk Factors
 5. Regional Context
 6. Outlook & Watch Items
-7. Sources - list the relevant GDELT data streams and news feeds used, if available, and provide the specific dates of the sourced data to assure the user of its recency.
+7. Sources - list the relevant news feeds used, if available, and provide the specific dates of the sourced data to assure the user of its recency.
 
 Rules:
-- STRICT REQUIREMENT: Your briefing must be fed ONLY from GDELT data streams and news feeds for the designated country.
+- STRICT REQUIREMENT: Your briefing must be fed ONLY news feeds (BBC, NPR, CBC, SkyNews, AP, Reuters, Al Jazeera, Al Arabiya, ABC, CBS) for the designated country.
 - STRICT REQUIREMENT: If no recent data (within 3 days of ${dateStr}) is available, you must simply output: "NO CURRENT DATA IS AVAILABLE, CHECK BACK LATER."
 - STRICT REQUIREMENT: You are explicitly prohibited from providing made up names, places, or information in place of real data. Do not hallucinate.
 - STRICT REQUIREMENT: Do not include any preambles, introductory phrases, or courtesy text (e.g., "Here is the briefing", "Certainly"). Start immediately with the Heading.
@@ -69,9 +69,9 @@ Rules:
       try {
         const resp = await fetch(GROQ_API_URL, {
           method: 'POST',
-          headers: { 
-            Authorization: `Bearer ${apiKey}`, 
-            'Content-Type': 'application/json', 
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
             'User-Agent': CHROME_UA,
             'Groq-Model-Version': 'latest'
           },
