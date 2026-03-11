@@ -78,6 +78,11 @@ Rules:
             ],
             temperature: 0.4,
             max_tokens: 900,
+            tools: [
+              {
+                type: 'web_search',
+              },
+            ],
           }),
           signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
         });
