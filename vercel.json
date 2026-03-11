@@ -64,5 +64,10 @@
         { "key": "Cache-Control", "value": "public, max-age=86400" }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/worldmonitor/intelligence/v1/get-country-intel-brief.js": {
+      "maxDuration": 60
+    }
+  }
 }

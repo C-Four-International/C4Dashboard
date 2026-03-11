@@ -83,11 +83,11 @@ Rules:
               { role: 'user', content: `Country: ${countryName} (${req.countryCode})` },
             ],
             temperature: 0.7,
-            max_tokens: 1536,
+            max_tokens: 1024,
             top_p: 0.8,
             compound_custom: {
               tools: {
-                enabled_tools: ['browser_automation', 'web_search', 'visit_website']
+                enabled_tools: ['web_search']
               }
             }
           }),
