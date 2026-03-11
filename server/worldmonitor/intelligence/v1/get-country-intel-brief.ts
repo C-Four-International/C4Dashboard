@@ -18,7 +18,7 @@ const INTEL_CACHE_TTL = 1800; // 30 minutes
 // RPC handler
 // ========================================================================
 
-const INTEL_BRIEF_MODELS = ['groq/compound-mini'];
+const INTEL_BRIEF_MODELS = ['groq/compound-mini', 'llama-3.3-70b-versatile'];
 
 export async function getCountryIntelBrief(
   _ctx: ServerContext,
@@ -54,7 +54,8 @@ Write a concise intelligence brief for the requested country covering:
 7. Sources - list the relevant news feeds used, if available, and provide the specific dates of the sourced data to assure the user of its recency.
 
 Rules:
-- STRICT REQUIREMENT: Your briefing must be fed ONLY news feeds (BBC, NPR, CBC, SkyNews, AP, Reuters, Al Jazeera, Al Arabiya, ABC, CBS) for the designated country.
+- SEARCH REQUIREMENT: Use your web search and browser tools to find the latest verified news and situation reports for the designated country. Focus on reputable news agencies (BBC, NPR, CBC, SkyNews, AP, Reuters, Al Jazeera, Al Arabiya, ABC, CBS).
+- RECENT DATA ONLY: Prioritize information from the last 24-72 hours.
 - STRICT REQUIREMENT: You are explicitly prohibited from providing made up names, places, or information in place of real data. This includes making up articles from the news agencies listed. Do not hallucinate. If you cannot find data, simply output "NO RELIABLE DATA AT THIS TIME", and provide reasoning.
 - STRICT REQUIREMENT: Do not include any preambles, introductory phrases, or courtesy text (e.g., "Here is the briefing", "Certainly"). Start immediately with the Heading.
 - STRICT REQUIREMENT: You are specifically prohibited from fabricating stories, events, or statistics about ongoing protests, civil unrest, or demonstrations. If no verified reports exist in your source data, do not mention them.
@@ -81,9 +82,9 @@ Rules:
               { role: 'system', content: systemPrompt },
               { role: 'user', content: `Country: ${countryName} (${req.countryCode})` },
             ],
-            temperature: 1,
-            max_tokens: 1024,
-            top_p: 0.2,
+            temperature: 0.7,
+            max_tokens: 1536,
+            top_p: 0.8,
             compound_custom: {
               tools: {
                 enabled_tools: ['browser_automation', 'web_search', 'visit_website']
