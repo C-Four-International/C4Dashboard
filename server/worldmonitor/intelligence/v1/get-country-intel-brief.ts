@@ -85,7 +85,7 @@ Rules:
             max_tokens: 900,
             compound_custom: {
               tools: {
-                enabled_tools: ['browser_automation', 'web_search']
+                enabled_tools: ['browser_automation', 'web_search', 'visit_website']
               }
             }
           }),
