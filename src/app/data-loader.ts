@@ -64,9 +64,9 @@ import { updateAndCheck } from '@/services/temporal-baseline';
 import { fetchAllFires, flattenFires, computeRegionStats, toMapFires } from '@/services/wildfires';
 import { analyzeFlightsForSurge, surgeAlertToSignal, detectForeignMilitaryPresence, foreignPresenceToSignal, type TheaterPostureSummary } from '@/services/military-surge';
 import { fetchCachedTheaterPosture } from '@/services/cached-theater-posture';
-import { ingestProtestsForCII, ingestMilitaryForCII, ingestNewsForCII, ingestOutagesForCII, ingestConflictsForCII, ingestUcdpForCII, ingestHapiForCII, ingestDisplacementForCII, ingestClimateForCII, isInLearningMode } from '@/services/country-instability';
+import { ingestProtestsForCII, ingestMilitaryForCII, ingestNewsForCII, ingestOutagesForCII, ingestDisplacementForCII, ingestClimateForCII, isInLearningMode } from '@/services/country-instability';
 import { dataFreshness, type DataSourceId } from '@/services/data-freshness';
-import { fetchConflictEvents, fetchUcdpClassifications, fetchHapiSummary, fetchUcdpEvents, deduplicateAgainstAcled } from '@/services/conflict';
+// import { fetchConflictEvents, fetchUcdpClassifications, fetchHapiSummary, fetchUcdpEvents, deduplicateAgainstAcled } from '@/services/conflict';
 import { fetchUnhcrPopulation } from '@/services/displacement';
 import { fetchClimateAnomalies } from '@/services/climate';
 import { enrichEventsWithExposure } from '@/services/population-exposure';
@@ -87,7 +87,7 @@ import {
   StrategicPosturePanel,
   EconomicPanel,
   TechReadinessPanel,
-  UcdpEventsPanel,
+  // UcdpEventsPanel,
   DisplacementPanel,
   ClimateAnomalyPanel,
   PopulationExposurePanel,
@@ -911,6 +911,7 @@ export class DataLoaderManager implements AppModule {
     })();
     tasks.push(protestsTask.then(() => undefined));
 
+    /*
     tasks.push((async () => {
       try {
         const conflictData = await fetchConflictEvents();
@@ -943,6 +944,7 @@ export class DataLoaderManager implements AppModule {
         dataFreshness.recordError('hapi', String(error));
       }
     })());
+    */
 
     tasks.push((async () => {
       try {
@@ -1004,6 +1006,7 @@ export class DataLoaderManager implements AppModule {
       }
     })());
 
+    /*
     tasks.push((async () => {
       try {
         const protestEvents = await protestsTask;
@@ -1030,6 +1033,7 @@ export class DataLoaderManager implements AppModule {
         dataFreshness.recordError('ucdp_events', String(error));
       }
     })());
+    */
 
     tasks.push((async () => {
       try {
@@ -1074,13 +1078,10 @@ export class DataLoaderManager implements AppModule {
     await Promise.allSettled(tasks);
 
     try {
-      const ucdpEvts = (this.ctx.panels['ucdp-events'] as UcdpEventsPanel)?.getEvents?.() || [];
+      // const ucdpEvts = (this.ctx.panels['ucdp-events'] as UcdpEventsPanel)?.getEvents?.() || [];
       const events = [
         ...(this.ctx.intelligenceCache.protests?.events || []).slice(0, 10).map(e => ({
           id: e.id, lat: e.lat, lon: e.lon, type: 'conflict' as const, name: e.title || 'Protest',
-        })),
-        ...ucdpEvts.slice(0, 10).map(e => ({
-          id: e.id, lat: e.latitude, lon: e.longitude, type: e.type_of_violence as string, name: `${e.side_a} vs ${e.side_b}`,
         })),
       ];
       if (events.length > 0) {
@@ -1095,7 +1096,7 @@ export class DataLoaderManager implements AppModule {
       dataFreshness.recordError('worldpop', String(error));
     }
 
-    (this.ctx.panels['cii'] as CIIPanel)?.refresh();
+    // (this.ctx.panels['cii'] as CIIPanel)?.refresh();
     console.log('[Intelligence] All signals loaded for CII calculation');
   }
 

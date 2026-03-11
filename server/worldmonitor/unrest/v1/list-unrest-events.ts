@@ -167,13 +167,10 @@ export async function listUnrestEvents(
       cacheKey,
       REDIS_CACHE_TTL,
       async () => {
-        const [acledEvents, gdeltEvents] = await Promise.all([
-          fetchAcledProtests(req),
-          fetchGdeltEvents(),
-        ]);
-        const merged = deduplicateEvents([...acledEvents, ...gdeltEvents]);
+        const gdeltEvents = await fetchGdeltEvents();
+        const merged = deduplicateEvents([...gdeltEvents]);
         const sorted = sortBySeverityAndRecency(merged);
-        return sorted.length > 0 ? { events: sorted, clusters: [], pagination: undefined } : null;
+        return { events: sorted, clusters: [], pagination: undefined };
       },
     );
     return result || { events: [], clusters: [], pagination: undefined };
