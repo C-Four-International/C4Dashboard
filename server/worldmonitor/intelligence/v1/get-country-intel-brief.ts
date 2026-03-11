@@ -27,7 +27,7 @@ export async function getCountryIntelBrief(
     countryCode: req.countryCode,
     countryName: '',
     brief: '',
-    model: GROQ_MODEL,
+    model: GROQ_MODEL[0],
     generatedAt: Date.now(),
   };
 
