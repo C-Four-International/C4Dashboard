@@ -27,6 +27,7 @@ export const TIER1_COUNTRIES: Record<string, string> = {
   AI: 'Anguilla',
   MS: 'Montserrat',
   XC: 'Northern Cyprus',
+  XS: 'Somaliland',
   NI: 'Nicaragua',
   PA: 'Panama',
   SR: 'Suriname',

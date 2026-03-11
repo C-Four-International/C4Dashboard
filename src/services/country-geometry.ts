@@ -43,6 +43,10 @@ function normalizeCode(properties: GeoJsonProperties | null | undefined): string
     if (typeof nameStr === 'string' && nameStr.trim() === 'Northern Cyprus') {
       return 'XC';
     }
+    // Handle Somaliland custom assignment
+    if (typeof nameStr === 'string' && nameStr.trim() === 'Somaliland') {
+      return 'XS';
+    }
   }
 
   if (typeof rawCode !== 'string') return null;
