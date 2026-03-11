@@ -23,7 +23,7 @@ export const DEFAULT_PANELS: Record<string, PanelConfig> = {
   'gdelt-intel': { name: 'Live Intelligence', enabled: false, priority: 1 },
   cii: { name: 'Country Instability', enabled: true, priority: 1 },
   cascade: { name: 'Infrastructure Cascade', enabled: true, priority: 1 },
-  'strategic-risk': { name: 'Strategic Risk Overview', enabled: true, priority: 1 },
+  'strategic-risk': { name: 'Strategic Risk Overview', enabled: false, priority: 1 },
   politics: { name: 'World News', enabled: true, priority: 1 },
   us: { name: 'United States', enabled: true, priority: 1 },
   europe: { name: 'Europe', enabled: true, priority: 1 },
