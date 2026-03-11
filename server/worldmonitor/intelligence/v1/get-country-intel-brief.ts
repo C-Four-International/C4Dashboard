@@ -18,7 +18,7 @@ const INTEL_CACHE_TTL = 1800; // 30 minutes
 // RPC handler
 // ========================================================================
 
-const GROQ_MODELS = ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
+const GROQ_MODELS = ['groq/compound-mini', 'llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
 
 export async function getCountryIntelBrief(
   _ctx: ServerContext,
@@ -69,7 +69,12 @@ Rules:
       try {
         const resp = await fetch(GROQ_API_URL, {
           method: 'POST',
-          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'User-Agent': CHROME_UA },
+          headers: { 
+            Authorization: `Bearer ${apiKey}`, 
+            'Content-Type': 'application/json', 
+            'User-Agent': CHROME_UA,
+            'Groq-Model-Version': 'latest'
+          },
           body: JSON.stringify({
             model: model,
             messages: [
@@ -78,11 +83,11 @@ Rules:
             ],
             temperature: 0.4,
             max_tokens: 900,
-            tools: [
-              {
-                type: 'web_search',
-              },
-            ],
+            compound_custom: {
+              tools: {
+                enabled_tools: ['browser_automation', 'web_search']
+              }
+            }
           }),
           signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
         });
