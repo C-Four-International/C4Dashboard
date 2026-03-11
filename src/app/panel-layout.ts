@@ -14,7 +14,7 @@ import {
   GdeltIntelPanel,
   LiveNewsPanel,
   LiveWebcamsPanel,
-  CIIPanel,
+  // CIIPanel,
   CascadePanel,
   StrategicRiskPanel,
   StrategicPosturePanel,
@@ -26,7 +26,7 @@ import {
   MacroSignalsPanel,
   ETFFlowsPanel,
   StablecoinPanel,
-  UcdpEventsPanel,
+  // UcdpEventsPanel,
   DisplacementPanel,
   ClimateAnomalyPanel,
   PopulationExposurePanel,
@@ -498,11 +498,13 @@ export class PanelLayoutManager implements AppModule {
       const gdeltIntelPanel = new GdeltIntelPanel();
       this.ctx.panels['gdelt-intel'] = gdeltIntelPanel;
 
+      /*
       const ciiPanel = new CIIPanel();
       ciiPanel.setShareStoryHandler((code, name) => {
         this.callbacks.openCountryStory(code, name);
       });
       this.ctx.panels['cii'] = ciiPanel;
+      */
 
       const cascadePanel = new CascadePanel();
       this.ctx.panels['cascade'] = cascadePanel;
@@ -523,11 +525,13 @@ export class PanelLayoutManager implements AppModule {
       });
       this.ctx.panels['strategic-posture'] = strategicPosturePanel;
 
+      /*
       const ucdpEventsPanel = new UcdpEventsPanel();
       ucdpEventsPanel.setEventClickHandler((lat, lon) => {
         this.ctx.map?.setCenter(lat, lon, 5);
       });
       this.ctx.panels['ucdp-events'] = ucdpEventsPanel;
+      */
 
       const displacementPanel = new DisplacementPanel();
       displacementPanel.setCountryClickHandler((lat, lon) => {

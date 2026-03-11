@@ -13,7 +13,6 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'live-webcams': { name: 'Live Webcams', enabled: true, priority: 1 },
   insights: { name: 'AI Insights', enabled: true, priority: 1 },
   'strategic-posture': { name: 'AI Strategic Posture', enabled: false, priority: 1 },
-  cii: { name: 'Country Instability', enabled: false, priority: 1 },
   'strategic-risk': { name: 'Strategic Risk Overview', enabled: true, priority: 1 },
   intel: { name: 'Intel Feed', enabled: true, priority: 1 },
   'gdelt-intel': { name: 'Live Intelligence', enabled: false, priority: 1 },
@@ -45,7 +44,6 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'macro-signals': { name: 'Market Radar', enabled: false, priority: 2 },
   'etf-flows': { name: 'BTC ETF Tracker', enabled: false, priority: 2 },
   stablecoins: { name: 'Stablecoins', enabled: false, priority: 2 },
-  'ucdp-events': { name: 'UCDP Conflict Events', enabled: false, priority: 2 },
   giving: { name: 'Global Giving', enabled: false, priority: 2 },
   displacement: { name: 'UNHCR Displacement', enabled: true, priority: 2 },
   climate: { name: 'Climate Anomalies', enabled: true, priority: 2 },
@@ -567,7 +565,7 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
   // Full (geopolitical) variant
   intelligence: {
     labelKey: 'header.panelCatIntelligence',
-    panelKeys: ['cii', 'strategic-risk', 'intel', 'gdelt-intel', 'cascade'],
+    panelKeys: ['strategic-risk', 'intel', 'gdelt-intel', 'cascade'],
     variants: ['full'],
   },
   regionalNews: {
@@ -582,7 +580,7 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
   },
   dataTracking: {
     labelKey: 'header.panelCatDataTracking',
-    panelKeys: ['monitors', 'satellite-fires', 'ucdp-events', 'displacement', 'climate', 'population-exposure'],
+    panelKeys: ['monitors', 'satellite-fires', 'displacement', 'climate', 'population-exposure'],
     variants: ['full'],
   },
 
