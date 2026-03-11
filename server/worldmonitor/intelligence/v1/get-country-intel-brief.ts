@@ -7,9 +7,8 @@ import type {
 } from '../../../../src/generated/server/worldmonitor/intelligence/v1/service_server';
 
 import { cachedFetchJson } from '../../../_shared/redis';
-import { UPSTREAM_TIMEOUT_MS, GROQ_API_URL, GROQ_MODEL, TIER1_COUNTRIES } from './_shared';
+import { UPSTREAM_TIMEOUT_MS, GROQ_API_URL, TIER1_COUNTRIES } from './_shared';
 import { CHROME_UA } from '../../../_shared/constants';
-import { gray } from 'd3';
 
 // ========================================================================
 // Constants
@@ -19,6 +18,8 @@ const INTEL_CACHE_TTL = 1800; // 30 minutes
 // RPC handler
 // ========================================================================
 
+const INTEL_BRIEF_MODELS = ['groq/compound-mini'];
+
 export async function getCountryIntelBrief(
   _ctx: ServerContext,
   req: GetCountryIntelBriefRequest,
@@ -27,7 +28,7 @@ export async function getCountryIntelBrief(
     countryCode: req.countryCode,
     countryName: '',
     brief: '',
-    model: GROQ_MODEL[0],
+    model: INTEL_BRIEF_MODELS[0],
     generatedAt: Date.now(),
   };
 
@@ -64,7 +65,7 @@ Rules:
 - Use plain language, not jargon`;
 
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
-    for (const model of GROQ_MODEL) {
+    for (const model of INTEL_BRIEF_MODELS) {
       try {
         const resp = await fetch(GROQ_API_URL, {
           method: 'POST',
