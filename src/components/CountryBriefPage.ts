@@ -1,7 +1,7 @@
 import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
 import { t } from '@/services/i18n';
 import { getCSSColor } from '@/utils';
-import type { CountryScore } from '@/services/country-instability';
+// import type { CountryScore } from '@/services/country-instability';
 import type { NewsItem } from '@/types';
 import type { PredictionMarket } from '@/services/prediction';
 import type { AssetType } from '@/types';
@@ -67,7 +67,7 @@ export class CountryBriefPage {
   private currentCode: string | null = null;
   private currentName: string | null = null;
   private currentHeadlineCount = 0;
-  private currentScore: CountryScore | null = null;
+  private currentScore: any | null = null;
   private currentSignals: CountryBriefSignals | null = null;
   private currentBrief: string | null = null;
   private currentHeadlines: NewsItem[] = [];
@@ -103,6 +103,7 @@ export class CountryBriefPage {
     }
   }
 
+  /*
   private levelColor(level: string): string {
     const varMap: Record<string, string> = {
       critical: '--semantic-critical',
@@ -134,21 +135,21 @@ export class CountryBriefPage {
     const pct = Math.min(100, Math.max(0, score));
     const circumference = 2 * Math.PI * 42;
     const dashOffset = circumference * (1 - pct / 100);
-    return `
+    return \`
       <div class="cb-score-ring">
         <svg viewBox="0 0 100 100" width="120" height="120">
           <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
-          <circle cx="50" cy="50" r="42" fill="none" stroke="${color}" stroke-width="6"
-            stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"
+          <circle cx="50" cy="50" r="42" fill="none" stroke="\${color}" stroke-width="6"
+            stroke-dasharray="\${circumference}" stroke-dashoffset="\${dashOffset}"
             stroke-linecap="round" transform="rotate(-90 50 50)"
             style="transition: stroke-dashoffset 0.8s ease"/>
         </svg>
-        <div class="cb-score-value" style="color:${color}">${score}</div>
+        <div class="cb-score-value" style="color:\${color}">\${score}</div>
         <div class="cb-score-label">/ 100</div>
-      </div>`;
+      </div>\`;
   }
 
-  private componentBars(components: CountryScore['components']): string {
+  private componentBars(components: any): string {
     const items = [
       { label: t('modals.countryBrief.components.unrest'), value: components.unrest, icon: '📢' },
       { label: t('modals.countryBrief.components.conflict'), value: components.conflict, icon: '⚔' },
@@ -158,15 +159,16 @@ export class CountryBriefPage {
     return items.map(({ label, value, icon }) => {
       const pct = Math.min(100, Math.max(0, value));
       const color = pct >= 70 ? getCSSColor('--semantic-critical') : pct >= 50 ? getCSSColor('--semantic-high') : pct >= 30 ? getCSSColor('--semantic-elevated') : getCSSColor('--semantic-normal');
-      return `
+      return \`
         <div class="cb-comp-row">
-          <span class="cb-comp-icon">${icon}</span>
-          <span class="cb-comp-label">${label}</span>
-          <div class="cb-comp-bar"><div class="cb-comp-fill" style="width:${pct}%;background:${color}"></div></div>
-          <span class="cb-comp-val">${Math.round(value)}</span>
-        </div>`;
+          <span class="cb-comp-icon">\${icon}</span>
+          <span class="cb-comp-label">\${label}</span>
+          <div class="cb-comp-bar"><div class="cb-comp-fill" style="width:\${pct}%;background:\${color}"></div></div>
+          <span class="cb-comp-val">\${Math.round(value)}</span>
+        </div>\`;
     }).join('');
   }
+  */
 
   private signalChips(signals: CountryBriefSignals): string {
     const chips: string[] = [];
@@ -224,7 +226,7 @@ export class CountryBriefPage {
     return this.abortController.signal;
   }
 
-  public show(country: string, code: string, score: CountryScore | null, signals: CountryBriefSignals): void {
+  public show(country: string, code: string, score: any | null, signals: CountryBriefSignals): void {
     this.abortController.abort();
     this.abortController = new AbortController();
     this.currentCode = code;
@@ -246,8 +248,8 @@ export class CountryBriefPage {
           <div class="cb-header-left">
             <span class="cb-flag">${flag}</span>
             <span class="cb-country-name">${escapeHtml(country)}</span>
-            ${score ? this.levelBadge(score.level) : ''}
-            ${score ? this.trendIndicator(score.trend) : ''}
+            
+            
             ${tierBadge}
           </div>
           <div class="cb-header-right">
@@ -274,23 +276,7 @@ export class CountryBriefPage {
         <div class="cb-body">
           <div class="cb-grid">
             <div class="cb-col-left">
-              ${score ? `
-                <section class="cb-section cb-risk-section">
-                  <h3 class="cb-section-title">${t('modals.countryBrief.instabilityIndex')}</h3>
-                  <div class="cb-risk-content">
-                    ${this.scoreRing(score.score, score.level)}
-                    <div class="cb-components">
-                      ${this.componentBars(score.components)}
-                    </div>
-                  </div>
-                </section>` : signals.isTier1 ? '' : `
-                <section class="cb-section cb-risk-section">
-                  <h3 class="cb-section-title">${t('modals.countryBrief.instabilityIndex')}</h3>
-                  <div class="cb-not-tracked">
-                    <span class="cb-not-tracked-icon">📊</span>
-                    <span>${t('modals.countryBrief.notTracked', { country: escapeHtml(country) })}</span>
-                  </div>
-                </section>`}
+              ${''}
 
               <section class="cb-section cb-brief-section">
                 <h3 class="cb-section-title">${t('modals.countryBrief.intelBrief')}</h3>
@@ -593,10 +579,7 @@ export class CountryBriefPage {
       generatedAt: new Date().toISOString(),
     };
     if (this.currentScore) {
-      data.score = this.currentScore.score;
-      data.level = this.currentScore.level;
-      data.trend = this.currentScore.trend;
-      data.components = this.currentScore.components;
+      // Disabled score exports
     }
     if (this.currentSignals) {
       data.signals = {

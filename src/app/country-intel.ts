@@ -4,7 +4,7 @@ import { CountryTimeline } from '@/components/CountryTimeline';
 import { CountryBriefPage } from '@/components/CountryBriefPage';
 import { reverseGeocode } from '@/utils/reverse-geocode';
 import { getCountryAtCoordinates, hasCountryGeometry, isCoordinateInCountry } from '@/services/country-geometry';
-import { calculateCII, getCountryData, TIER1_COUNTRIES } from '@/services/country-instability';
+import { getCountryData, TIER1_COUNTRIES } from '@/services/country-instability';
 import { signalAggregator } from '@/services/signal-aggregator';
 import { dataFreshness } from '@/services/data-freshness';
 import { fetchCountryMarkets } from '@/services/prediction';
@@ -123,8 +123,8 @@ export class CountryIntelManager implements AppModule {
     const canonicalName = TIER1_COUNTRIES[code] || CountryIntelManager.resolveCountryName(code);
     if (canonicalName !== code) country = canonicalName;
 
-    const scores = calculateCII();
-    const score = scores.find((s) => s.code === code) ?? null;
+    // const scores = calculateCII();
+    const score = null;
     const signals = this.getCountrySignals(code, country);
 
     this.ctx.countryBriefPage.show(country, code, score, signals);
@@ -177,6 +177,7 @@ export class CountryIntelManager implements AppModule {
 
     try {
       const context: Record<string, unknown> = {};
+      /*
       if (score) {
         context.score = score.score;
         context.level = score.level;
@@ -184,6 +185,7 @@ export class CountryIntelManager implements AppModule {
         context.components = score.components;
         context.change24h = score.change24h;
       }
+      */
       Object.assign(context, signals);
 
       const countryCluster = signalAggregator.getCountryClusters().find((c) => c.country === code);
@@ -232,7 +234,7 @@ export class CountryIntelManager implements AppModule {
           this.ctx.countryBriefPage!.updateBrief({ brief: fallbackBrief, country, code, fallback: true });
         } else {
           const lines: string[] = [];
-          if (score) lines.push(t('countryBrief.fallback.instabilityIndex', { score: String(score.score), level: t(`countryBrief.levels.${score.level}`), trend: t(`countryBrief.trends.${score.trend}`) }));
+          // if (score) lines.push(t('countryBrief.fallback.instabilityIndex', { score: String(score.score), level: t(`countryBrief.levels.${score.level}`), trend: t(`countryBrief.trends.${score.trend}`) }));
           if (signals.protests > 0) lines.push(t('countryBrief.fallback.protestsDetected', { count: String(signals.protests) }));
           if (signals.militaryFlights > 0) lines.push(t('countryBrief.fallback.aircraftTracked', { count: String(signals.militaryFlights) }));
           if (signals.militaryVessels > 0) lines.push(t('countryBrief.fallback.vesselsTracked', { count: String(signals.militaryVessels) }));

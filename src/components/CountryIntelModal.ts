@@ -4,8 +4,8 @@
 import { escapeHtml } from '@/utils/sanitize';
 import { t } from '@/services/i18n';
 import { sanitizeUrl } from '@/utils/sanitize';
-import { getCSSColor } from '@/utils';
-import type { CountryScore } from '@/services/country-instability';
+// import { getCSSColor } from '@/utils';
+// import type { CountryScore } from '@/services/country-instability';
 import type { PredictionMarket } from '@/services/prediction';
 
 interface CountryIntelData {
@@ -83,6 +83,7 @@ export class CountryIntelModal {
     }
   }
 
+  /*
   private levelBadge(level: string): string {
     const varMap: Record<string, string> = {
       critical: '--semantic-critical',
@@ -94,7 +95,9 @@ export class CountryIntelModal {
     const color = getCSSColor(varMap[level] || '--text-dim');
     return `<span class="cii-badge" style="background:${color}20;color:${color};border:1px solid ${color}40">${level.toUpperCase()}</span>`;
   }
+  */
 
+  /*
   private scoreBar(score: number): string {
     const pct = Math.min(100, Math.max(0, score));
     const color = pct >= 70 ? getCSSColor('--semantic-critical') : pct >= 50 ? getCSSColor('--semantic-high') : pct >= 30 ? getCSSColor('--semantic-elevated') : getCSSColor('--semantic-normal');
@@ -105,6 +108,7 @@ export class CountryIntelModal {
       <span class="cii-score-value">${score}/100</span>
     `;
   }
+  */
 
   public showLoading(): void {
     this.currentCode = '__loading__';
@@ -124,7 +128,7 @@ export class CountryIntelModal {
     this.overlay.classList.add('active');
   }
 
-  public show(country: string, code: string, score: CountryScore | null, signals?: ActiveSignals): void {
+  public show(country: string, code: string, _score: any | null, signals?: ActiveSignals): void {
     this.currentCode = code;
     this.currentName = country;
     const flag = this.countryFlag(code);
@@ -134,24 +138,12 @@ export class CountryIntelModal {
     this.headerEl.innerHTML = `
       <span class="country-flag">${flag}</span>
       <span class="country-name">${escapeHtml(country)}</span>
-      ${score ? this.levelBadge(score.level) : ''}
+      
       <button class="country-intel-share-btn" title="${t('modals.story.shareTitle')}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
     `;
 
-    if (score) {
-      html += `
-        <div class="cii-section">
-          <div class="cii-label">${t('modals.countryIntel.instabilityIndex')} ${this.scoreBar(score.score)}</div>
-          <div class="cii-components">
-            <span title="${t('common.unrest')}">📢 ${score.components.unrest.toFixed(0)}</span>
-            <span title="${t('common.conflict')}">⚔ ${score.components.conflict.toFixed(0)}</span>
-            <span title="${t('common.security')}">🛡️ ${score.components.security.toFixed(0)}</span>
-            <span title="${t('common.information')}">📡 ${score.components.information.toFixed(0)}</span>
-            <span class="cii-trend ${score.trend}">${score.trend === 'rising' ? '↗' : score.trend === 'falling' ? '↘' : '→'} ${score.trend}</span>
-          </div>
-        </div>
-      `;
-    }
+      // No CII UI displayed
+      html += '';
 
     const chips: string[] = [];
     if (signals) {
