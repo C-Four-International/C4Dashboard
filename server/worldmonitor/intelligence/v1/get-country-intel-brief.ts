@@ -18,7 +18,7 @@ const INTEL_CACHE_TTL = 1800; // 30 minutes
 // RPC handler
 // ========================================================================
 
-const GROQ_MODELS = ['groq/compound-mini'];
+const GROQ_MODEL = ['groq/compound-mini'];
 
 export async function getCountryIntelBrief(
   _ctx: ServerContext,
@@ -28,7 +28,7 @@ export async function getCountryIntelBrief(
     countryCode: req.countryCode,
     countryName: '',
     brief: '',
-    model: GROQ_MODELS[0],
+    model: GROQ_MODEL[0],
     generatedAt: Date.now(),
   };
 
@@ -65,7 +65,7 @@ Rules:
 - Use plain language, not jargon`;
 
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
-    for (const model of GROQ_MODELS) {
+    for (const model of GROQ_MODEL) {
       try {
         const resp = await fetch(GROQ_API_URL, {
           method: 'POST',
