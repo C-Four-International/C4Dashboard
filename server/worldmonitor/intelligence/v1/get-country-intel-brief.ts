@@ -47,12 +47,15 @@ Write a concise intelligence brief for the requested country covering:
 5. Outlook & Watch Items
 
 Rules:
+- STRICT REQUIREMENT: Your briefing must be fed ONLY from GDELT data streams and news feeds for the designated country.
+- STRICT REQUIREMENT: If no recent data (within 3 days of ${dateStr}) is available, you must simply output: "NO CURRENT DATA IS AVAILABLE, CHECK BACK LATER."
+- STRICT REQUIREMENT: You are explicitly prohibited from providing made up names, places, or information in place of real data. Do not hallucinate.
 - Be specific and analytical
-- 4-5 paragraphs, 250-350 words
+- 4-5 paragraphs, 250-350 words (unless outputting the no data available message)
 - No speculation beyond what data supports
 - Use plain language, not jargon`;
 
-  const result = await cachedFetchJson<GetCountryIntelBriefResponse>(cacheKey, INTEL_CACHE_TTL, async () => {
+  const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
     try {
       const resp = await fetch(GROQ_API_URL, {
         method: 'POST',
