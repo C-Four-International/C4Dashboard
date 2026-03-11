@@ -7,8 +7,9 @@ import type {
 } from '../../../../src/generated/server/worldmonitor/intelligence/v1/service_server';
 
 import { cachedFetchJson } from '../../../_shared/redis';
-import { UPSTREAM_TIMEOUT_MS, GROQ_API_URL, TIER1_COUNTRIES } from './_shared';
+import { UPSTREAM_TIMEOUT_MS, GROQ_API_URL, GROQ_MODEL, TIER1_COUNTRIES } from './_shared';
 import { CHROME_UA } from '../../../_shared/constants';
+import { gray } from 'd3';
 
 // ========================================================================
 // Constants
@@ -18,8 +19,6 @@ const INTEL_CACHE_TTL = 1800; // 30 minutes
 // RPC handler
 // ========================================================================
 
-const GROQ_MODEL = ['groq/compound-mini'];
-
 export async function getCountryIntelBrief(
   _ctx: ServerContext,
   req: GetCountryIntelBriefRequest,
@@ -28,7 +27,7 @@ export async function getCountryIntelBrief(
     countryCode: req.countryCode,
     countryName: '',
     brief: '',
-    model: GROQ_MODEL[0],
+    model: GROQ_MODEL,
     generatedAt: Date.now(),
   };
 
