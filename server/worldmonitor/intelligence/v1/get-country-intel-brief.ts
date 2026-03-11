@@ -55,8 +55,8 @@ Write a concise intelligence brief for the requested country covering:
 
 Rules:
 - STRICT REQUIREMENT: Your briefing must be fed ONLY news feeds (BBC, NPR, CBC, SkyNews, AP, Reuters, Al Jazeera, Al Arabiya, ABC, CBS) for the designated country.
-- STRICT REQUIREMENT: If no recent data (within 3 days of ${dateStr}) is available, you must simply output: "NO CURRENT DATA IS AVAILABLE, CHECK BACK LATER."
 - STRICT REQUIREMENT: You are explicitly prohibited from providing made up names, places, or information in place of real data. Do not hallucinate.
+- STRICT REQUIREMENT: If no recent data (within 3 days of ${dateStr}) is available, you must simply output: "NO CURRENT DATA IS AVAILABLE, CHECK BACK LATER."
 - STRICT REQUIREMENT: Do not include any preambles, introductory phrases, or courtesy text (e.g., "Here is the briefing", "Certainly"). Start immediately with the Heading.
 - STRICT REQUIREMENT: You are specifically prohibited from fabricating stories, events, or statistics about ongoing protests, civil unrest, or demonstrations. If no verified reports exist in your source data, do not mention them.
 - Be specific and analytical
@@ -81,8 +81,8 @@ Rules:
               { role: 'system', content: systemPrompt },
               { role: 'user', content: `Country: ${countryName} (${req.countryCode})` },
             ],
-            temperature: 0.1,
-            max_tokens: 900,
+            temperature: 1,
+            max_tokens: 1024,
             compound_custom: {
               tools: {
                 enabled_tools: ['browser_automation', 'web_search', 'visit_website']
