@@ -981,12 +981,30 @@ canvas,
   letter-spacing: 0.5px;
   pointer-events: none;
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .header-clock {
+    position: relative;
+    left: auto;
+    transform: none;
+    margin-right: auto;
+    padding-left: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .map-section .panel-title {
+    display: none;
+  }
 }
 
 .panel-header-left {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0; /* Allow shrinking */
 }
 
 .panel-title {
@@ -995,6 +1013,9 @@ canvas,
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .panel-count {
