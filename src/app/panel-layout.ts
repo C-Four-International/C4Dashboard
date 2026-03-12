@@ -193,27 +193,7 @@ export class PanelLayoutManager implements AppModule {
               <img src="/favico/favicon-32x32.png" alt="Logo" style="height: 20px; margin-right: 8px;">
               <span class="panel-title">Monitoring Dashboard</span>
             </div>
-            <div class="world-clocks-bar">
-              <div class="world-clock-item">
-                <iframe src="https://free.timeanddate.com/clock/iabova1c/n137/szw60/szh60/hocfff/hbw0/cf100/hgr0/fas20/facfff/fdi86/mqc000/mqs2/mql3/mqw4/mqd70/mhc000/mhs4/mhl3/mhw4/mhd70/mmv0/hhs3/hms3" frameborder="0" width="60" height="60"></iframe>
-                <span class="world-clock-label">Los Angeles</span>
-              </div>
-              <div class="world-clock-item">
-                <iframe src="https://free.timeanddate.com/clock/iabova1c/n179/szw60/szh60/hocfff/hbw0/cf100/hgr0/fas20/facfff/fdi86/mqc000/mqs2/mql3/mqw4/mqd70/mhc000/mhs4/mhl3/mhw4/mhd70/mmv0/hhs3/hms3" frameborder="0" width="60" height="60"></iframe>
-                <span class="world-clock-label">New York</span>
-              </div>
-              <div class="world-clock-center">
-                <span class="header-clock" id="headerClock"></span>
-              </div>
-              <div class="world-clock-item">
-                <iframe src="https://free.timeanddate.com/clock/iabova1c/n776/szw60/szh60/hocfff/hbw0/cf100/hgr0/fas20/facfff/fdi86/mqc000/mqs2/mql3/mqw4/mqd70/mhc000/mhs4/mhl3/mhw4/mhd70/mmv0/hhs3/hms3" frameborder="0" width="60" height="60"></iframe>
-                <span class="world-clock-label">Dubai</span>
-              </div>
-              <div class="world-clock-item">
-                <iframe src="https://free.timeanddate.com/clock/iabovl35/n248/szw60/szh60/hocfff/hbw0/cf100/hgr0/fas20/facfff/fdi86/mqc000/mqs2/mql3/mqw4/mqd70/mhc000/mhs4/mhl3/mhw4/mhd70/mmv0/hhs3/hms3" frameborder="0" width="60" height="60"></iframe>
-                <span class="world-clock-label">Tokyo</span>
-              </div>
-            </div>
+            <span class="header-clock" id="headerClock" style="margin-right: auto; padding-left: 12px;"></span>
             <div style="display: flex; gap: 8px;">
               <a href="https://c-four.org/" target="_blank" class="map-pin-btn" style="text-decoration: none; font-size: 11px; font-weight: 600;">Home</a>
               <button class="map-pin-btn" id="mapPinBtn" title="${t('header.pinMap')}">
