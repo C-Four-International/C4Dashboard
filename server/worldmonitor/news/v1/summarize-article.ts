@@ -55,6 +55,7 @@ export async function summarizeArticle(
 
   const credentials = getProviderCredentials(provider);
   if (!credentials) {
+    console.warn(`[SummarizeArticle:${provider}] Provider skipped: ${skipReasons[provider] || 'Credentials missing'}`);
     return {
       summary: '',
       model: '',
@@ -92,7 +93,7 @@ export async function summarizeArticle(
 
     // Single atomic call — source tracking happens inside cachedFetchJsonWithMeta,
     // eliminating the TOCTOU race between a separate getCachedJson and cachedFetchJson.
-    const { data: result, source } = await cachedFetchJsonWithMeta<{ summary: string; model: string; tokens: number }>(
+    const { data: result, source } = await cachedFetchJsonWithMeta<{ summary: string; model: string; tokens: number } | null>(
       cacheKey,
       CACHE_TTL_SECONDS,
       async () => {

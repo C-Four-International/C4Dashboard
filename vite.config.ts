@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, type Plugin, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { resolve, dirname, extname } from 'path';
 import { mkdir, readFile, writeFile } from 'fs/promises';
@@ -11,6 +11,10 @@ const isDesktopBuild = process.env.VITE_DESKTOP_RUNTIME === '1';
 
 const brotliCompressAsync = promisify(brotliCompress);
 const BROTLI_EXTENSIONS = new Set(['.js', '.mjs', '.css', '.html', '.svg', '.json', '.txt', '.xml', '.wasm']);
+
+// Load environment variables early so they are available to plugin logic and server handlers
+// Use an empty prefix to load ALL variables from .env
+Object.assign(process.env, loadEnv(process.env.NODE_ENV || 'development', process.cwd(), ''));
 
 function brotliPrecompressPlugin(): Plugin {
   return {
@@ -226,10 +230,16 @@ function htmlVariantPlugin(): Plugin {
  */
 function sebufApiPlugin(): Plugin {
   // Cache router across requests (H-13 fix). Invalidated by Vite's module graph on HMR.
-  let cachedRouter: Awaited<ReturnType<typeof buildRouter>> | null = null;
+  let cachedRouter: any = null;
   let cachedCorsMod: any = null;
+  const isE2E = process.env.VITE_E2E === '1';
 
   async function buildRouter() {
+    console.log('[sebuf-api] Building router...');
+    console.log(`  - Groq: ${process.env.GROQ_API_KEY ? 'CONFIGURED' : 'MISSING'}`);
+    console.log(`  - OpenRouter: ${process.env.OPENROUTER_API_KEY ? 'CONFIGURED' : 'MISSING'}`);
+    console.log(`  - Redis: ${process.env.UPSTASH_REDIS_REST_URL ? 'CONFIGURED' : 'MISSING'}`);
+
     const [
       routerMod, corsMod, errorMod,
       seismologyServerMod, seismologyHandlerMod,
