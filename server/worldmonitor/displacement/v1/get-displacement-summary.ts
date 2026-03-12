@@ -15,7 +15,7 @@ import type {
 import { CHROME_UA } from '../../../_shared/constants';
 import { cachedFetchJson } from '../../../_shared/redis';
 
-const REDIS_CACHE_KEY = 'displacement:summary:v1';
+const REDIS_CACHE_KEY = 'displacement:summary:v2';
 const REDIS_CACHE_TTL = 43200; // 12 hr — annual UNHCR data, very slow-moving
 
 // ---------- Country centroids (ISO3 -> [lat, lon]) ----------
@@ -56,7 +56,7 @@ async function fetchUnhcrYearItems(year: number): Promise<UnhcrRawItem[] | null>
 
   for (let page = 1; page <= maxPageGuard; page++) {
     const response = await fetch(
-      `https://api.unhcr.org/population/v1/population/?year=${year}&limit=${limit}&page=${page}`,
+      `https://api.unhcr.org/population/v1/population/?year=${year}&limit=${limit}&page=${page}&coo_all=true&coa_all=true`,
       { headers: { Accept: 'application/json', 'User-Agent': CHROME_UA } },
     );
 
@@ -168,7 +168,7 @@ export async function getDisplacementSummary(
         }
       }
 
-      if (rawItems.length === 0) return null;
+      if (rawItems.length === 0) return emptyResponse;
 
       // 2. Aggregate by origin and asylum
       const byOrigin: Record<string, OriginAgg> = {};

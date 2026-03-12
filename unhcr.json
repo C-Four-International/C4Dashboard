@@ -1,0 +1,28 @@
+{
+  "page": 1,
+  "short-url": "290IxA",
+  "maxPages": 1,
+  "total": [],
+  "items": [
+    {
+      "year": 2023,
+      "coo_id": "-",
+      "coo_name": "-",
+      "coo": "-",
+      "coo_iso": "-",
+      "coa_id": "-",
+      "coa_name": "-",
+      "coa": "-",
+      "coa_iso": "-",
+      "refugees": 31637408,
+      "asylum_seekers": 6858500,
+      "returned_refugees": 1126551,
+      "idps": 63251367,
+      "returned_idps": 5092064,
+      "stateless": 4358195,
+      "ooc": 5945550,
+      "oip": 5755363,
+      "hst": 26095474
+    }
+  ]
+}
