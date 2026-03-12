@@ -160,8 +160,19 @@ export async function generateSummary(
   lang: string = 'en',
   options?: SummarizeOptions,
 ): Promise<SummarizationResult | null> {
-  if (!headlines || headlines.length < 2) {
+  if (!headlines || headlines.length < 1) {
     return null;
+  }
+
+  // If only one headline, return it as the "summary" immediately.
+  // AI summarization needs at least 2 headlines for context-aware distillation.
+  if (headlines.length === 1) {
+    return {
+      summary: headlines[0] || '',
+      provider: 'cache', // Label as cache/instant
+      model: 'passthrough',
+      cached: true,
+    };
   }
 
   lastAttemptedProvider = 'none';
