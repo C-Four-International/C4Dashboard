@@ -108,10 +108,10 @@ export class PanelLayoutManager implements AppModule {
       <div class="header">
         <div class="header-left">
           <div class="variant-switcher">${(() => {
-            const local = this.ctx.isDesktopApp || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-            const vHref = (v: string, prod: string) => local || SITE_VARIANT === v ? '#' : prod;
-            const vTarget = (v: string) => !local && SITE_VARIANT !== v ? 'target="_blank" rel="noopener"' : '';
-            return `
+        const local = this.ctx.isDesktopApp || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        const vHref = (v: string, prod: string) => local || SITE_VARIANT === v ? '#' : prod;
+        const vTarget = (v: string) => !local && SITE_VARIANT !== v ? 'target="_blank" rel="noopener"' : '';
+        return `
             <a href="${vHref('full', 'https://worldmonitor.app')}"
                class="variant-option ${SITE_VARIANT === 'full' ? 'active' : ''}"
                data-variant="full"
@@ -147,7 +147,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-icon">☀️</span>
               <span class="variant-label">Good News</span>
             </a>` : ''}`;
-          })()}</div>
+      })()}</div>
           <span class="logo">MONITOR</span><span class="version">v${__APP_VERSION__}</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}
           <a href="https://x.com/eliehabib" target="_blank" rel="noopener" class="credit-link">
             <svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
@@ -194,24 +194,23 @@ export class PanelLayoutManager implements AppModule {
               <span class="panel-title">Monitoring Dashboard</span>
             </div>
             <div class="world-clocks-bar">
-              <div class="world-clock-item">
-                <iframe src="https://free.timeanddate.com/clock/iabova1c/n137/szw60/szh60/hocfff/hbw0/cf100/hgr0/fas20/facfff/fdi86/mqc000/mqs2/mql3/mqw4/mqd70/mhc000/mhs4/mhl3/mhw4/mhd70/mmv0/hhs3/hms3" frameborder="0" width="60" height="60"></iframe>
+              <script src="https://time.now/static/js/widget-loader.js" async defer></script>
+                <a href="https://time.now/" class="time-now-widget" data-timezone="America/Los_Angeles" data-style="default-numeral" data-width="20" data-show-numerals="false">
                 <span class="world-clock-label">Los Angeles</span>
               </div>
               <div class="world-clock-item">
-                <iframe src="https://free.timeanddate.com/clock/iabova1c/n179/szw60/szh60/hocfff/hbw0/cf100/hgr0/fas20/facfff/fdi86/mqc000/mqs2/mql3/mqw4/mqd70/mhc000/mhs4/mhl3/mhw4/mhd70/mmv0/hhs3/hms3" frameborder="0" width="60" height="60"></iframe>
+                <a href="https://time.now/" class="time-now-widget" data-timezone="America/New_York" data-style="default-numeral" data-width="20" data-show-numerals="false">
                 <span class="world-clock-label">New York</span>
               </div>
               <div class="world-clock-center">
                 <span class="header-clock" id="headerClock"></span>
               </div>
               <div class="world-clock-item">
-                <iframe src="https://free.timeanddate.com/clock/iabova1c/n776/szw60/szh60/hocfff/hbw0/cf100/hgr0/fas20/facfff/fdi86/mqc000/mqs2/mql3/mqw4/mqd70/mhc000/mhs4/mhl3/mhw4/mhd70/mmv0/hhs3/hms3" frameborder="0" width="60" height="60"></iframe>
+                <a href="https://time.now/" class="time-now-widget" data-timezone="Asia/Dubai" data-style="default-numeral" data-width="20" data-show-numerals="false">
                 <span class="world-clock-label">Dubai</span>
               </div>
               <div class="world-clock-item">
-                <iframe src="https://free.timeanddate.com/clock/iabovl35/n248/szw60/szh60/hocfff/hbw0/cf100/hgr0/fas20/facfff/fdi86/mqc000/mqs2/mql3/mqw4/mqd70/mhc000/mhs4/mhl3/mhw4/mhd70/mmv0/hhs3/hms3" frameborder="0" width="60" height="60"></iframe>
-                <span class="world-clock-label">Tokyo</span>
+                <a href="https://time.now/" class="time-now-widget" data-timezone="Asia/Tokyo" data-style="default-numeral" data-width="20" data-show-numerals="false">
               </div>
             </div>
             <div style="display: flex; gap: 8px;">
