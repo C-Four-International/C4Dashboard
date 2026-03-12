@@ -243,11 +243,13 @@ function sebufApiPlugin(): Plugin {
       conflictServerMod, conflictHandlerMod,
       maritimeServerMod, maritimeHandlerMod,
       infrastructureServerMod, infrastructureHandlerMod,
+      marketServerMod, marketHandlerMod,
       newsServerMod, newsHandlerMod,
       intelligenceServerMod, intelligenceHandlerMod,
       militaryServerMod, militaryHandlerMod,
       positiveEventsServerMod, positiveEventsHandlerMod,
       givingServerMod, givingHandlerMod,
+      tradeServerMod, tradeHandlerMod,
     ] = await Promise.all([
       import('./server/router'),
       import('./server/cors'),
@@ -272,10 +274,6 @@ function sebufApiPlugin(): Plugin {
       import('./server/worldmonitor/conflict/v1/handler'),
       import('./src/generated/server/worldmonitor/maritime/v1/service_server'),
       import('./server/worldmonitor/maritime/v1/handler'),
-      import('./src/generated/server/worldmonitor/cyber/v1/service_server'),
-      import('./server/worldmonitor/cyber/v1/handler'),
-      import('./src/generated/server/worldmonitor/economic/v1/service_server'),
-      import('./server/worldmonitor/economic/v1/handler'),
       import('./src/generated/server/worldmonitor/infrastructure/v1/service_server'),
       import('./server/worldmonitor/infrastructure/v1/handler'),
       import('./src/generated/server/worldmonitor/market/v1/service_server'),
@@ -307,13 +305,15 @@ function sebufApiPlugin(): Plugin {
       ...conflictServerMod.createConflictServiceRoutes(conflictHandlerMod.conflictHandler, serverOptions),
       ...maritimeServerMod.createMaritimeServiceRoutes(maritimeHandlerMod.maritimeHandler, serverOptions),
       ...infrastructureServerMod.createInfrastructureServiceRoutes(infrastructureHandlerMod.infrastructureHandler, serverOptions),
+      ...marketServerMod.createMarketServiceRoutes(marketHandlerMod.marketHandler, serverOptions),
       ...newsServerMod.createNewsServiceRoutes(newsHandlerMod.newsHandler, serverOptions),
       ...intelligenceServerMod.createIntelligenceServiceRoutes(intelligenceHandlerMod.intelligenceHandler, serverOptions),
       ...militaryServerMod.createMilitaryServiceRoutes(militaryHandlerMod.militaryHandler, serverOptions),
       ...positiveEventsServerMod.createPositiveEventsServiceRoutes(positiveEventsHandlerMod.positiveEventsHandler, serverOptions),
       ...givingServerMod.createGivingServiceRoutes(givingHandlerMod.givingHandler, serverOptions),
-      cachedCorsMod = corsMod
-    ]
+      ...tradeServerMod.createTradeServiceRoutes(tradeHandlerMod.tradeHandler, serverOptions),
+    ];
+    cachedCorsMod = corsMod;
     return routerMod.createRouter(allRoutes);
   }
 
@@ -371,7 +371,7 @@ function sebufApiPlugin(): Plugin {
             body: body || undefined,
           });
 
-          const corsHeaders = corsMod.getCorsHeaders(webRequest);
+          const corsHeaders = corsMod.getCorsHeaders(webRequest) as Record<string, string>;
 
           // OPTIONS preflight
           if (req.method === 'OPTIONS') {

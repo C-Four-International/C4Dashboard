@@ -1,0 +1,266 @@
+Navigating to http://localhost:5176...
+[Browser Console] [vite] connecting...
+[Browser Console Error] Loading the script 'https://va.vercel-scripts.com/v1/script.debug.js' violates the following Content Security Policy directive: "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.youtube.com https://static.cloudflareinsights.com https://vercel.live https://us-assets.i.posthog.com". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.
+[Browser Console Error] Loading the script 'https://va.vercel-scripts.com/v1/speed-insights/script.debug.js' violates the following Content Security Policy directive: "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.youtube.com https://static.cloudflareinsights.com https://vercel.live https://us-assets.i.posthog.com". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.
+[Browser Console] [MetaTags] Reset to defaults
+[Browser Console] [App] Variant check: stored="null", current="full"
+[Browser Console] [App] Variant changed - resetting to defaults
+[Browser Console] [vite] connected.
+[Browser Console] 🌐 i18next is maintained with support from Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+[Browser Console] i18next: languageChanged en-US
+[Browser Console] i18next: initialized {debug: true, initAsync: true, ns: Array(1), defaultNS: Array(1), fallbackLng: Array(1)}
+[Browser Console] [MapContainer] Initializing deck.gl map (desktop mode)
+[Browser Console] [StrategicPosturePanel] setLocationClickHandler called, handler: function
+[Browser Console] [StrategicPosturePanel] Handler stored, onLocationClick now: function
+[Browser Console Warning] [.WebGL-0x68403badb00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+[Browser Console Error] Failed to load resource: the server responded with a status of 404 (Not Found)
+[Browser Console] [CachedRiskScores] Loaded via sebuf RPC
+[Browser Console] [StrategicRiskPanel] Using cached scores from backend
+[Browser Console] [Military Vessels] Initializing tracking via shared AIS stream...
+[Browser Console] [Military Vessels] fetchMilitaryVessels called - isTracking: true, isAisConfigured: true, trackedVessels.size: 0
+[Browser Console] [Military Vessels] After cleanup, returning 0 vessels (trackedVessels.size: 0)
+[Browser Console] [CachedTheaterPosture] Loaded via sebuf RPC 0 theaters, 0 flights
+[Browser Console Warning] [.WebGL-0x68403badb00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+[Browser Console Warning] [.WebGL-0x68403badb00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+[Browser Console Warning] [.WebGL-0x68403badb00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)
+[Browser Console] [Vercel Web Analytics] Failed to load script from https://va.vercel-scripts.com/v1/script.debug.js. Please check if any ad blockers are enabled and try again.
+[Browser Console] [Vercel Speed Insights] Failed to load script from https://va.vercel-scripts.com/v1/speed-insights/script.debug.js. Please check if any content blockers are enabled and try again.
+[Browser Console] [Military Vessels] USNI merge: 0 AIS + 32 USNI → 32 total
+[Browser Console Error] Failed to load resource: the server responded with a status of 410 (Gone)
+[Browser Console Error] Failed to load resource: the server responded with a status of 410 (Gone)
+[Browser Console Warning] [Military Flights] PACIFIC failed, no usable stale data
+[Browser Console Warning] [Military Flights] WESTERN failed, no usable stale data
+[Browser Console Error] [Military Flight Tracking] Failed: Error: All regions failed — upstream may be down
+[Browser Console] [DeckGLMap] Country boundaries loaded
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "oil"
+[Browser Console] [Intelligence] All signals loaded for CII calculation
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "war"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "ships"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "release"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "strikes"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "attacks"
+[Browser Console] [Summarization] Browser ML not available
+[Browser Console Warning] [Summarization] All providers failed
+[Browser Console] [Summarization] Browser ML not available
+[Browser Console Warning] [Summarization] All providers failed
+[Browser Console] [Summarization] Browser ML not available
+[Browser Console Warning] [Summarization] All providers failed
+[Browser Console] [Summarization] Browser ML not available
+[Browser Console Warning] [Summarization] All providers failed
+[Browser Console] [Summarization] Browser ML not available
+[Browser Console Warning] [Summarization] All providers failed
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "energy"
+[Browser Console Warning] Unrecognized feature: 'web-share'.
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "drone"
+[Browser Console Error] Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+[Browser Console Error] Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "agent"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "conflict"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "gov"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "military"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "one"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "experts"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "reserves"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "attack"
+[Browser Console Warning] Parse error for War on the Rocks
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "aid"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "ambassador"
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch Premium Times: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 0)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async DataLoaderManager.loadNewsCategory (http://localhost:5176/src/app/data-loader.ts:422:21)
+    at async Promise.allSettled (index 1)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:477:28)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch Vanguard Nigeria: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 1)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async DataLoaderManager.loadNewsCategory (http://localhost:5176/src/app/data-loader.ts:422:21)
+    at async Promise.allSettled (index 1)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:477:28)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch Channels TV: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 2)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async DataLoaderManager.loadNewsCategory (http://localhost:5176/src/app/data-loader.ts:422:21)
+    at async Promise.allSettled (index 1)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:477:28)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch Daily Trust: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 3)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async DataLoaderManager.loadNewsCategory (http://localhost:5176/src/app/data-loader.ts:422:21)
+    at async Promise.allSettled (index 1)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:477:28)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch ThisDay: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 4)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async DataLoaderManager.loadNewsCategory (http://localhost:5176/src/app/data-loader.ts:422:21)
+    at async Promise.allSettled (index 1)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:477:28)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch Mexico News Daily: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 0)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async DataLoaderManager.loadNewsCategory (http://localhost:5176/src/app/data-loader.ts:422:21)
+    at async Promise.allSettled (index 2)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:477:28)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "across"
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch InSight Crime: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 3)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async DataLoaderManager.loadNewsCategory (http://localhost:5176/src/app/data-loader.ts:422:21)
+    at async Promise.allSettled (index 2)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:477:28)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "right"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "far"
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch Japan Today: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 1)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async DataLoaderManager.loadNewsCategory (http://localhost:5176/src/app/data-loader.ts:422:21)
+    at async Promise.allSettled (index 3)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:477:28)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch Indian Express: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 4)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async DataLoaderManager.loadNewsCategory (http://localhost:5176/src/app/data-loader.ts:422:21)
+    at async Promise.allSettled (index 3)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:477:28)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "drones"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "supply"
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch India News Network: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 0)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async DataLoaderManager.loadNewsCategory (http://localhost:5176/src/app/data-loader.ts:422:21)
+    at async Promise.allSettled (index 3)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:477:28)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch Island Times (Palau): Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 4)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async DataLoaderManager.loadNewsCategory (http://localhost:5176/src/app/data-loader.ts:422:21)
+    at async Promise.allSettled (index 3)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:477:28)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch The War Zone: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 2)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:505:29)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch Breaking Defense: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 1)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:505:29)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "lessons"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "missile"
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch gCaptain: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 3)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:505:29)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "probe"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "questions"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "school"
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch NTI: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 2)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:505:29)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "political"
+[Browser Console] [TrendingKeywords] Suppressed non-entity term: "regional"
+[Browser Console Error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+[Browser Console Error] Failed to fetch Ransomware.live: Error: HTTP 403
+    at fetchFeed (http://localhost:5176/src/services/rss.ts:205:29)
+    at async Promise.all (index 3)
+    at async fetchCategoryFeeds (http://localhost:5176/src/services/rss.ts:300:21)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadNews (http://localhost:5176/src/app/data-loader.ts:505:29)
+    at async runGuarded (http://localhost:5176/src/app/data-loader.ts:113:9)
+    at async Promise.allSettled (index 0)
+    at async DataLoaderManager.loadAllData (http://localhost:5176/src/app/data-loader.ts:216:21)
+    at async App.init (http://localhost:5176/src/App.ts:329:5)

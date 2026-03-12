@@ -78,7 +78,6 @@ const TECH_LIVE_CHANNELS: LiveChannel[] = [
 // Optional channels users can add from the "Available Channels" tab UI
 export const OPTIONAL_LIVE_CHANNELS: LiveChannel[] = [
   // North America
-  { id: 'newsmax', name: 'Newsmax', handle: '@NEWSMAX', fallbackVideoId: 'cZikyozILOY', useFallbackOnly: true },
   { id: 'abc-news', name: 'ABC News', handle: '@ABCNews' },
   { id: 'cbs-news', name: 'CBS News', handle: '@CBSNews' },
   { id: 'nbc-news', name: 'NBC News', handle: '@NBCNews' },
@@ -86,24 +85,20 @@ export const OPTIONAL_LIVE_CHANNELS: LiveChannel[] = [
   { id: 'bbc-news', name: 'BBC News', handle: '@BBCNews' },
   { id: 'france24-en', name: 'France 24 English', handle: '@FRANCE24English' },
   { id: 'welt', name: 'WELT', handle: '@WELTNachrichtensender' },
-  { id: 'rtve', name: 'RTVE 24H', handle: '@RTVENoticias', fallbackVideoId: '7_srED6k0bE' },
   { id: 'trt-haber', name: 'TRT Haber', handle: '@trthaber' },
   { id: 'ntv-turkey', name: 'NTV', handle: '@NTV' },
   { id: 'cnn-turk', name: 'CNN TURK', handle: '@cnnturk' },
   { id: 'tv-rain', name: 'TV Rain', handle: '@tvrain' },
   // Latin America & Portuguese
-  { id: 'cnn-brasil', name: 'CNN Brasil', handle: '@CNNbrasil', fallbackVideoId: '1kWRw-DA6Ns' },
   { id: 'jovem-pan', name: 'Jovem Pan News', handle: '@jovempannews' },
   { id: 'record-news', name: 'Record News', handle: '@recordnewsoficial' },
   { id: 'band-jornalismo', name: 'Band Jornalismo', handle: '@BandJornalismo' },
   { id: 'tn-argentina', name: 'TN (Todo Noticias)', handle: '@todonoticias', fallbackVideoId: 'cb12KmMMDJA' },
-  { id: 'c5n', name: 'C5N', handle: '@c5n', fallbackVideoId: 'NdQSOItOQ5Y' },
   { id: 'milenio', name: 'MILENIO', handle: '@MILENIO' },
   { id: 'noticias-caracol', name: 'Noticias Caracol', handle: '@NoticiasCaracol' },
   { id: 'ntn24', name: 'NTN24', handle: '@NTN24' },
   { id: 't13', name: 'T13', handle: '@T13' },
   // Asia
-  { id: 'tbs-news', name: 'TBS NEWS DIG', handle: '@tbsnewsdig', fallbackVideoId: 'ohI356mwBp8' },
   { id: 'ann-news', name: 'ANN News', handle: '@ANNnewsCH' },
   { id: 'ntv-news', name: 'NTV News (Japan)', handle: '@ntv_news' },
   { id: 'cti-news', name: 'CTI News (Taiwan)', handle: '@CtiTv', fallbackVideoId: 'wUPPkSANpyo', useFallbackOnly: true },
@@ -126,10 +121,10 @@ export const OPTIONAL_LIVE_CHANNELS: LiveChannel[] = [
 ];
 
 export const OPTIONAL_CHANNEL_REGIONS: { key: string; labelKey: string; channelIds: string[] }[] = [
-  { key: 'na', labelKey: 'components.liveNews.regionNorthAmerica', channelIds: ['newsmax', 'abc-news', 'cbs-news', 'nbc-news'] },
-  { key: 'eu', labelKey: 'components.liveNews.regionEurope', channelIds: ['bbc-news', 'france24-en', 'welt', 'rtve', 'trt-haber', 'ntv-turkey', 'cnn-turk', 'tv-rain'] },
-  { key: 'latam', labelKey: 'components.liveNews.regionLatinAmerica', channelIds: ['cnn-brasil', 'jovem-pan', 'record-news', 'band-jornalismo', 'tn-argentina', 'c5n', 'milenio', 'noticias-caracol', 'ntn24', 't13'] },
-  { key: 'asia', labelKey: 'components.liveNews.regionAsia', channelIds: ['tbs-news', 'ann-news', 'ntv-news', 'cti-news', 'wion', 'vtc-now', 'cna-asia', 'nhk-world'] },
+  { key: 'na', labelKey: 'components.liveNews.regionNorthAmerica', channelIds: ['abc-news', 'cbs-news', 'nbc-news'] },
+  { key: 'eu', labelKey: 'components.liveNews.regionEurope', channelIds: ['bbc-news', 'france24-en', 'welt', 'trt-haber', 'ntv-turkey', 'cnn-turk', 'tv-rain'] },
+  { key: 'latam', labelKey: 'components.liveNews.regionLatinAmerica', channelIds: ['jovem-pan', 'record-news', 'band-jornalismo', 'tn-argentina', 'milenio', 'noticias-caracol', 'ntn24', 't13'] },
+  { key: 'asia', labelKey: 'components.liveNews.regionAsia', channelIds: ['ann-news', 'ntv-news', 'cti-news', 'wion', 'vtc-now', 'cna-asia', 'nhk-world'] },
   { key: 'me', labelKey: 'components.liveNews.regionMiddleEast', channelIds: ['al-hadath', 'sky-news-arabia', 'trt-world', 'iran-intl', 'cgtn-arabic'] },
   { key: 'africa', labelKey: 'components.liveNews.regionAfrica', channelIds: ['africanews', 'channels-tv', 'ktn-news', 'enca', 'sabc-news'] },
 ];
