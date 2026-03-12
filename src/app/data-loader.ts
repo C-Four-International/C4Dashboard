@@ -1189,6 +1189,7 @@ export class DataLoaderManager implements AppModule {
         const unhcrResult = await fetchUnhcrPopulation();
         if (!unhcrResult.ok) {
           dataFreshness.recordError('unhcr', 'UNHCR displacement unavailable (retaining prior displacement state)');
+          (this.ctx.panels['displacement'] as DisplacementPanel)?.showError('UNHCR data temporarily unavailable');
           return;
         }
         const data = unhcrResult.data;
@@ -1201,6 +1202,7 @@ export class DataLoaderManager implements AppModule {
       } catch (error) {
         console.error('[Intelligence] UNHCR displacement fetch failed:', error);
         dataFreshness.recordError('unhcr', String(error));
+        (this.ctx.panels['displacement'] as DisplacementPanel)?.showError('Failed to load UNHCR data');
       }
     })());
 
@@ -1209,6 +1211,7 @@ export class DataLoaderManager implements AppModule {
         const climateResult = await fetchClimateAnomalies();
         if (!climateResult.ok) {
           dataFreshness.recordError('climate', 'Climate anomalies unavailable (retaining prior climate state)');
+          (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.showError('Climate data temporarily unavailable');
           return;
         }
         const anomalies = climateResult.anomalies;
@@ -1221,6 +1224,7 @@ export class DataLoaderManager implements AppModule {
       } catch (error) {
         console.error('[Intelligence] Climate anomalies fetch failed:', error);
         dataFreshness.recordError('climate', String(error));
+        (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.showError('Failed to load climate data');
       }
     })());
 
