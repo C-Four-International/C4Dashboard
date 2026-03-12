@@ -12749,7 +12749,37 @@ a.prediction-link:hover {
   vertical-align: middle;
 }
 
+/* Insights Panel - Stats */
+.insights-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: var(--overlay-subtle);
+  border-radius: 4px;
+}
 
+.insight-stat {
+  text-align: center;
+  flex: 1;
+}
+
+.insight-stat-value {
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.insight-stat-label {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.insight-stat.alert .insight-stat-value {
+  color: var(--red);
+}
 
 /* Insights Panel - Stories */
 .insight-story {

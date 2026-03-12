@@ -425,6 +425,7 @@ export class InsightsPanel extends Panel {
     const convergenceHtml = this.renderConvergenceZones();
     const sentimentOverview = this.renderSentimentOverview(sentiments);
     const breakingHtml = this.renderBreakingStories(clusters, sentiments);
+    const statsHtml = this.renderStats(clusters);
     const missedHtml = this.renderMissedStories();
 
     this.setContent(`
@@ -432,6 +433,7 @@ export class InsightsPanel extends Panel {
       ${focalPointsHtml}
       ${convergenceHtml}
       ${sentimentOverview}
+      ${statsHtml}
       <div class="insights-section">
         <div class="insights-section-title">BREAKING & CONFIRMED</div>
         ${breakingHtml}
@@ -528,7 +530,30 @@ export class InsightsPanel extends Panel {
     `;
   }
 
+  private renderStats(clusters: ClusteredEvent[]): string {
+    const multiSource = clusters.filter(c => c.sourceCount >= 2).length;
+    const fastMoving = clusters.filter(c => c.velocity && c.velocity.level !== 'normal').length;
+    const alerts = clusters.filter(c => c.isAlert).length;
 
+    return `
+      <div class="insights-stats">
+        <div class="insight-stat">
+          <span class="insight-stat-value">${multiSource}</span>
+          <span class="insight-stat-label">Multi-source</span>
+        </div>
+        <div class="insight-stat">
+          <span class="insight-stat-value">${fastMoving}</span>
+          <span class="insight-stat-label">Fast-moving</span>
+        </div>
+        ${alerts > 0 ? `
+        <div class="insight-stat alert">
+          <span class="insight-stat-value">${alerts}</span>
+          <span class="insight-stat-label">Alerts</span>
+        </div>
+        ` : ''}
+      </div>
+    `;
+  }
 
   private renderMissedStories(): string {
     if (this.lastMissedStories.length === 0) {
