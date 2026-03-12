@@ -73,7 +73,10 @@ import { enrichEventsWithExposure } from '@/services/population-exposure';
 import { debounce, getCircuitBreakerCooldownInfo } from '@/utils';
 import { isFeatureAvailable } from '@/services/runtime-config';
 import { getAiFlowSettings } from '@/services/ai-flow-settings';
-import { t } from '@/services/i18n';
+import { t, getCurrentLanguage } from '@/services/i18n';
+import { canQueueAiClassification, AI_CLASSIFY_MAX_PER_FEED } from '@/services/ai-classify-queue';
+import { classifyWithAI } from '@/services/threat-classifier';
+import { ingestHeadlines } from '@/services/trending-keywords';
 import { ResearchServiceClient } from '@/generated/client/worldmonitor/research/v1/service_client';
 import {
   MarketPanel,
@@ -110,7 +113,7 @@ import { fetchPositiveGeoEvents, geocodePositiveNewsItems } from '@/services/pos
 import { fetchKindnessData } from '@/services/kindness-data';
 import { getPersistentCache, setPersistentCache } from '@/services/persistent-cache';
 import type { ThreatLevel as ClientThreatLevel } from '@/services/threat-classifier';
-import type { NewsItem as ProtoNewsItem, ThreatLevel as ProtoThreatLevel } from '@/generated/client/worldmonitor/news/v1/service_client';
+import type { NewsItem as ProtoNewsItem, ThreatLevel as ProtoThreatLevel, ListFeedDigestResponse } from '@/generated/client/worldmonitor/news/v1/service_client';
 
 const PROTO_TO_CLIENT_LEVEL: Record<ProtoThreatLevel, ClientThreatLevel> = {
   THREAT_LEVEL_UNSPECIFIED: 'info',
@@ -168,6 +171,54 @@ export class DataLoaderManager implements AppModule {
   init(): void {}
 
   destroy(): void {}
+
+  private async tryFetchDigest(): Promise<ListFeedDigestResponse | null> {
+    const now = Date.now();
+
+    if (this.digestBreaker.state === 'open') {
+      if (now < this.digestBreaker.cooldownUntil) {
+        return this.lastGoodDigest ?? await this.loadPersistedDigest();
+      }
+      this.digestBreaker.state = 'half-open';
+    }
+
+    try {
+      const resp = await fetch(
+        `/api/news/v1/list-feed-digest?variant=${SITE_VARIANT}&lang=${getCurrentLanguage()}`,
+        { signal: AbortSignal.timeout(3000) },
+      );
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json() as ListFeedDigestResponse;
+      const catCount = Object.keys(data.categories ?? {}).length;
+      console.info(`[News] Digest fetched: ${catCount} categories`);
+      this.lastGoodDigest = data;
+      this.persistDigest(data);
+      this.digestBreaker = { state: 'closed', failures: 0, cooldownUntil: 0 };
+      return data;
+    } catch (e) {
+      console.warn('[News] Digest fetch failed, using fallback:', e);
+      this.digestBreaker.failures++;
+      if (this.digestBreaker.failures >= 2) {
+        this.digestBreaker.state = 'open';
+        this.digestBreaker.cooldownUntil = now + 60_000;
+      }
+      return this.lastGoodDigest ?? await this.loadPersistedDigest();
+    }
+  }
+
+  private persistDigest(data: ListFeedDigestResponse): void {
+    setPersistentCache('digest:last-good', data).catch(() => {});
+  }
+
+  private async loadPersistedDigest(): Promise<ListFeedDigestResponse | null> {
+    try {
+      const envelope = await getPersistentCache<ListFeedDigestResponse>('digest:last-good');
+      if (!envelope) return null;
+      if (Date.now() - envelope.updatedAt > 30 * 60 * 1000) return null;
+      this.lastGoodDigest = envelope.data;
+      return envelope.data;
+    } catch { return null; }
+  }
 
   private shouldShowIntelligenceNotifications(): boolean {
     return !this.ctx.isMobile && !!this.ctx.findingsBadge?.isPopupEnabled();
@@ -514,7 +565,6 @@ export class DataLoaderManager implements AppModule {
           }).catch(() => {});
         }
 
-        checkBatchForBreakingAlerts(items);
         this.flashMapForNews(items);
         this.renderNewsForCategory(category, items);
 
@@ -674,7 +724,6 @@ export class DataLoaderManager implements AppModule {
         const intel = (digest.categories['intel']?.items ?? [])
           .map(protoItemToNewsItem)
           .filter(i => enabledNames.has(i.source));
-        checkBatchForBreakingAlerts(intel);
         this.renderNewsForCategory('intel', intel);
         if (intelPanel) {
           try {

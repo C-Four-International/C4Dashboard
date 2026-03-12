@@ -1,0 +1,70 @@
+diff a/src/app/data-loader.ts b/src/app/data-loader.ts	(rejected hunks)
+@@ -79,8 +79,12 @@ import { enrichEventsWithExposure } from '@/services/population-exposure';
+ import { debounce, getCircuitBreakerCooldownInfo } from '@/utils';
+ import { isFeatureAvailable } from '@/services/runtime-config';
+ import { getAiFlowSettings } from '@/services/ai-flow-settings';
+-import { t } from '@/services/i18n';
++import { t, getCurrentLanguage } from '@/services/i18n';
+ import { getHydratedData } from '@/services/bootstrap';
++import { canQueueAiClassification, AI_CLASSIFY_MAX_PER_FEED } from '@/services/ai-classify-queue';
++import { classifyWithAI } from '@/services/threat-classifier';
++import { ingestHeadlines } from '@/services/trending-keywords';
++import type { ListFeedDigestResponse } from '@/generated/client/worldmonitor/news/v1/service_client';
+ import type { GetSectorSummaryResponse } from '@/generated/client/worldmonitor/market/v1/service_client';
+ import { maybeShowDownloadBanner } from '@/components/DownloadBanner';
+ import { mountCommunityWidget } from '@/components/CommunityWidget';
+@@ -152,6 +188,54 @@ export class DataLoaderManager implements AppModule {
+     stopOrefPolling();
+   }
+ 
++  private async tryFetchDigest(): Promise<ListFeedDigestResponse | null> {
++    const now = Date.now();
++
++    if (this.digestBreaker.state === 'open') {
++      if (now < this.digestBreaker.cooldownUntil) {
++        return this.lastGoodDigest ?? await this.loadPersistedDigest();
++      }
++      this.digestBreaker.state = 'half-open';
++    }
++
++    try {
++      const resp = await fetch(
++        `/api/news/v1/list-feed-digest?variant=${SITE_VARIANT}&lang=${getCurrentLanguage()}`,
++        { signal: AbortSignal.timeout(3000) },
++      );
++      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
++      const data = await resp.json() as ListFeedDigestResponse;
++      const catCount = Object.keys(data.categories ?? {}).length;
++      console.info(`[News] Digest fetched: ${catCount} categories`);
++      this.lastGoodDigest = data;
++      this.persistDigest(data);
++      this.digestBreaker = { state: 'closed', failures: 0, cooldownUntil: 0 };
++      return data;
++    } catch (e) {
++      console.warn('[News] Digest fetch failed, using fallback:', e);
++      this.digestBreaker.failures++;
++      if (this.digestBreaker.failures >= 2) {
++        this.digestBreaker.state = 'open';
++        this.digestBreaker.cooldownUntil = now + 60_000;
++      }
++      return this.lastGoodDigest ?? await this.loadPersistedDigest();
++    }
++  }
++
++  private persistDigest(data: ListFeedDigestResponse): void {
++    setPersistentCache('digest:last-good', data).catch(() => {});
++  }
++
++  private async loadPersistedDigest(): Promise<ListFeedDigestResponse | null> {
++    try {
++      const envelope = await getPersistentCache<ListFeedDigestResponse>('digest:last-good');
++      if (!envelope) return null;
++      if (Date.now() - envelope.updatedAt > 30 * 60 * 1000) return null;
++      this.lastGoodDigest = envelope.data;
++      return envelope.data;
++    } catch { return null; }
++  }
++
+   private shouldShowIntelligenceNotifications(): boolean {
+     return !this.ctx.isMobile && !!this.ctx.findingsBadge?.isPopupEnabled();
+   }
