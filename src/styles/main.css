@@ -802,6 +802,12 @@ canvas,
   opacity: 1;
 }
 
+.map-section.pinned {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
 .map-pin-btn {
   background: transparent;
   border: 1px solid var(--border);
@@ -821,6 +827,16 @@ canvas,
   border-color: var(--text-dim);
 }
 
+.map-pin-btn.active {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--bg);
+}
+
+.map-pin-btn.active:hover {
+  background: var(--green-dim);
+}
+
 .panels-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -833,6 +849,7 @@ canvas,
   min-height: 0;
   position: relative;
   z-index: 1;
+  /* This ensures panels scroll UNDER the pinned map (z-index: 100) */
 }
 
 .panel {
@@ -15800,6 +15817,10 @@ body.has-critical-banner .panels-grid {
     min-height: 0;
     max-height: none;
     overflow: hidden;
+  }
+
+  .map-section.pinned {
+    position: relative;
   }
 
   .map-resize-handle {

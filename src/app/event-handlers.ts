@@ -243,6 +243,7 @@ export class EventHandlerManager implements AppModule {
     window.addEventListener('resize', this.boundResizeHandler);
 
     this.setupMapResize();
+    this.setupMapPin();
 
     this.boundVisibilityHandler = () => {
       document.body.classList.toggle('animations-paused', document.hidden);
@@ -677,6 +678,23 @@ export class EventHandlerManager implements AppModule {
     });
   }
 
+  setupMapPin(): void {
+    const mapSection = document.getElementById('mapSection');
+    const pinBtn = document.getElementById('mapPinBtn');
+    if (!mapSection || !pinBtn) return;
+
+    const isPinned = localStorage.getItem('map-pinned') === 'true';
+    if (isPinned) {
+      mapSection.classList.add('pinned');
+      pinBtn.classList.add('active');
+    }
+
+    pinBtn.addEventListener('click', () => {
+      const nowPinned = mapSection.classList.toggle('pinned');
+      pinBtn.classList.toggle('active', nowPinned);
+      localStorage.setItem('map-pinned', String(nowPinned));
+    });
+  }
 
   getLocalizedPanelName(panelKey: string, fallback: string): string {
     if (panelKey === 'runtime-config') {
