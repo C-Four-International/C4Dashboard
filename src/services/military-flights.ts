@@ -335,6 +335,109 @@ async function fetchFromOpenSky(): Promise<MilitaryFlight[]> {
   return allFlights;
 }
 
+interface AdsbFiResponse {
+  ac: Array<{
+    hex: string;
+    flight?: string;
+    lat?: number;
+    lon?: number;
+    alt_baro?: number | 'ground';
+    gs?: number;
+    track?: number;
+    baro_rate?: number;
+    squawk?: string;
+  }>;
+}
+
+/**
+ * Fallback to ADSB.lol global military endpoint when OpenSky fails.
+ * Retains region filtering so we don't overwhelm the map.
+ */
+async function fetchFromAdsbFi(): Promise<MilitaryFlight[]> {
+  const url = 'https://api.adsb.lol/v2/mil';
+  const response = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': 'WorldMonitor' } });
+  
+  if (!response.ok) {
+    throw new Error(`ADSB.lol returned ${response.status}`);
+  }
+
+  const data = await response.json() as AdsbFiResponse;
+  if (!data.ac) return [];
+
+  const flights: MilitaryFlight[] = [];
+  const now = new Date();
+  const seenHexCodes = new Set<string>();
+  
+  for (const plane of data.ac) {
+    if (!plane.lat || !plane.lon) continue;
+    
+    // Check if within our regions of interest
+    const inRegion = MILITARY_QUERY_REGIONS.some(r => 
+      plane.lat! >= r.lamin && plane.lat! <= r.lamax && 
+      plane.lon! >= r.lomin && plane.lon! <= r.lomax
+    );
+    if (!inRegion) continue;
+
+    const callsign = (plane.flight || '').trim();
+    const icao24 = plane.hex.toLowerCase();
+    
+    if (seenHexCodes.has(icao24)) continue;
+    seenHexCodes.add(icao24);
+    
+    const info = determineAircraftInfo(callsign, icao24);
+    
+    // Update flight history for trails
+    const historyKey = icao24;
+    let history = flightHistory.get(historyKey);
+    if (!history) {
+      history = { positions: [], lastUpdate: Date.now() };
+      flightHistory.set(historyKey, history);
+    }
+
+    // Add position to history
+    history.positions.push([plane.lat, plane.lon]);
+    if (history.positions.length > HISTORY_MAX_POINTS) {
+      history.positions.shift();
+    }
+    history.lastUpdate = Date.now();
+
+    // Check if near interesting hotspot
+    const nearbyHotspot = getNearbyHotspot(plane.lat, plane.lon);
+    const isInteresting = nearbyHotspot?.priority === 'high' ||
+      info.type === 'bomber' ||
+      info.type === 'reconnaissance' ||
+      info.type === 'awacs';
+      
+    const flight: MilitaryFlight = {
+      id: `adsbfi-${icao24}`,
+      callsign: callsign || `UNKN-${icao24.substring(0, 4).toUpperCase()}`,
+      hexCode: icao24.toUpperCase(),
+      aircraftType: info.type,
+      operator: info.operator,
+      operatorCountry: info.country,
+      lat: plane.lat,
+      lon: plane.lon,
+      altitude: typeof plane.alt_baro === 'number' ? plane.alt_baro : 0, // tar1090 alt_baro is in feet
+      heading: plane.track || 0,
+      speed: plane.gs || 0, // tar1090 gs is in knots
+      verticalRate: plane.baro_rate, // tar1090 baro_rate is in ft/min
+      onGround: plane.alt_baro === 'ground',
+      squawk: plane.squawk,
+      lastSeen: now,
+      track: history.positions.length > 1 ? [...history.positions] : undefined,
+      confidence: info.confidence,
+      isInteresting,
+      note: nearbyHotspot ? `Near ${nearbyHotspot.name}` : undefined,
+    };
+
+    flights.push(flight);
+  }
+  
+  console.log(`[Military Flights] Fallback: ADSB.lol returned ${data.ac.length} total, kept ${flights.length} in regions`);
+  return flights;
+}
+
+
 
 /**
  * Enrich flights with Wingbits aircraft details
@@ -522,11 +625,17 @@ export async function fetchMilitaryFlights(): Promise<{
       return { flights: flightCache.data, clusters };
     }
 
-    // Fetch from OpenSky (regional queries for efficiency)
-    let flights = await fetchFromOpenSky();
+    // Fetch from OpenSky (regional queries for efficiency), fallback to ADSB.lol
+    let flights: MilitaryFlight[] = [];
+    try {
+      flights = await fetchFromOpenSky();
+    } catch (error) {
+      console.warn(`[Military Flights] OpenSky error: ${error instanceof Error ? error.message : String(error)}. Falling back to ADSB.lol`);
+      flights = await fetchFromAdsbFi();
+    }
 
     if (flights.length === 0) {
-      throw new Error('No flights returned — upstream may be down');
+      throw new Error('No flights returned from any upstream');
     }
 
     // Enrich with Wingbits aircraft details (owner, operator, type)
