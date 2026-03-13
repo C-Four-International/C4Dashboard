@@ -40,11 +40,17 @@ function getRelayRequestHeaders(): Record<string, string> {
 }
 
 function normalizeBounds(bb: NonNullable<ListMilitaryFlightsRequest['boundingBox']>): RequestBounds {
+  const { southWest, northEast } = bb;
+  // Although the caller checks these, we destructure to help TS narrowing.
+  // We use fallback 0 if they were somehow missing (though current logic prevents this).
+  const sw = southWest!;
+  const ne = northEast!;
+  
   return {
-    south: Math.min(bb.southWest!.latitude, bb.northEast!.latitude),
-    north: Math.max(bb.southWest!.latitude, bb.northEast!.latitude),
-    west: Math.min(bb.southWest!.longitude, bb.northEast!.longitude),
-    east: Math.max(bb.southWest!.longitude, bb.northEast!.longitude),
+    south: Math.min(sw.latitude, ne.latitude),
+    north: Math.max(sw.latitude, ne.latitude),
+    west: Math.min(sw.longitude, ne.longitude),
+    east: Math.max(sw.longitude, ne.longitude),
   };
 }
 
@@ -76,15 +82,16 @@ export async function listMilitaryFlights(
   try {
     const bb = req.boundingBox;
     if (!bb?.southWest || !bb?.northEast) return { flights: [], clusters: [], pagination: undefined };
+    const { southWest, northEast } = bb;
     const requestBounds = normalizeBounds(bb);
 
     // Quantize bbox to a 1° grid so nearby map views share cache entries.
     // Precise coordinates caused near-zero hit rate since every pan/zoom created a unique key.
     const quantizedBB = [
-      quantize(bb.southWest.latitude, BBOX_GRID_STEP),
-      quantize(bb.southWest.longitude, BBOX_GRID_STEP),
-      quantize(bb.northEast.latitude, BBOX_GRID_STEP),
-      quantize(bb.northEast.longitude, BBOX_GRID_STEP),
+      quantize(southWest.latitude, BBOX_GRID_STEP),
+      quantize(southWest.longitude, BBOX_GRID_STEP),
+      quantize(northEast.latitude, BBOX_GRID_STEP),
+      quantize(northEast.longitude, BBOX_GRID_STEP),
     ].join(':');
     const cacheKey = `${REDIS_CACHE_KEY}:${quantizedBB}:${req.operator || ''}:${req.aircraftType || ''}:${req.pagination?.pageSize || 0}`;
 
@@ -100,10 +107,10 @@ export async function listMilitaryFlights(
         if (!baseUrl) return null;
 
         const fetchBB = {
-          lamin: quantize(bb.southWest.latitude, BBOX_GRID_STEP) - BBOX_GRID_STEP / 2,
-          lamax: quantize(bb.northEast.latitude, BBOX_GRID_STEP) + BBOX_GRID_STEP / 2,
-          lomin: quantize(bb.southWest.longitude, BBOX_GRID_STEP) - BBOX_GRID_STEP / 2,
-          lomax: quantize(bb.northEast.longitude, BBOX_GRID_STEP) + BBOX_GRID_STEP / 2,
+          lamin: quantize(southWest.latitude, BBOX_GRID_STEP) - BBOX_GRID_STEP / 2,
+          lamax: quantize(northEast.latitude, BBOX_GRID_STEP) + BBOX_GRID_STEP / 2,
+          lomin: quantize(southWest.longitude, BBOX_GRID_STEP) - BBOX_GRID_STEP / 2,
+          lomax: quantize(northEast.longitude, BBOX_GRID_STEP) + BBOX_GRID_STEP / 2,
         };
         const params = new URLSearchParams();
         params.set('lamin', String(fetchBB.lamin));
