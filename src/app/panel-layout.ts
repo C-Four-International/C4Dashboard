@@ -150,7 +150,7 @@ export class PanelLayoutManager implements AppModule {
           <div class="panel-header">
             <div class="panel-header-left" style="display: flex; align-items: center;">
               <img src="/favico/favicon-32x32.png" alt="Logo" style="height: 20px; margin-right: 8px;">
-              <span class="panel-title">Monitoring Dashboard</span>
+              <span class="panel-title">C⁴ Monitoring Dashboard | OSINT</span>
             </div>
             <span class="header-clock" id="headerClock" style="margin-right: auto; padding-left: 12px;"></span>
             <div style="display: flex; gap: 8px;">
