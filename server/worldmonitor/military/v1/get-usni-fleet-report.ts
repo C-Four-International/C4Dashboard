@@ -400,7 +400,7 @@ async function fetchUSNIReport(): Promise<USNIFleetReport | null> {
   }
 
   // Also write to stale backup cache
-  setCachedJson(USNI_STALE_CACHE_KEY, report, USNI_STALE_TTL).catch(() => {});
+  setCachedJson(USNI_STALE_CACHE_KEY, report, USNI_STALE_TTL).catch(() => { });
 
   return report;
 }
@@ -419,7 +419,7 @@ export async function getUSNIFleetReport(
     }
 
     // Single atomic call — source tracking inside cachedFetchJsonWithMeta eliminates TOCTOU race
-    const { data: report, source } = await cachedFetchJsonWithMeta<USNIFleetReport>(
+    const { data: report, source } = await cachedFetchJsonWithMeta<USNIFleetReport | null>(
       USNI_CACHE_KEY, USNI_CACHE_TTL, fetchUSNIReport,
     );
     if (report) {

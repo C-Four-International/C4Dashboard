@@ -289,7 +289,7 @@ async function fetchQueryRegion(region: QueryRegion): Promise<RegionResult> {
   }
 }
 
-const STALE_MAX_AGE_MS = 10 * 60 * 1000;
+const STALE_MAX_AGE_MS = 12 * 60 * 1000;
 const regionCache = new Map<string, { flights: MilitaryFlight[]; timestamp: number }>();
 
 async function fetchFromOpenSky(): Promise<MilitaryFlight[]> {
