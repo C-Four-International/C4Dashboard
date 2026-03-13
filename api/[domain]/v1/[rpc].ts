@@ -64,6 +64,7 @@ const allRoutes = [
   ...createWildfireServiceRoutes(wildfireHandler, serverOptions),
   ...createClimateServiceRoutes(climateHandler, serverOptions),
   ...createPredictionServiceRoutes(predictionHandler, serverOptions),
+  ...createDisplacementServiceRoutes(displacementHandler, serverOptions),
   ...createAviationServiceRoutes(aviationHandler, serverOptions),
   ...createResearchServiceRoutes(researchHandler, serverOptions),
   ...createUnrestServiceRoutes(unrestHandler, serverOptions),
