@@ -154,12 +154,7 @@ export class PanelLayoutManager implements AppModule {
             </div>
             <span class="header-clock" id="headerClock" style="margin-right: auto; padding-left: 12px;"></span>
             <div style="display: flex; gap: 8px;">
-              <a href="https://c-four.org/" target="_blank" class="map-pin-btn" style="text-decoration: none; font-size: 11px; font-weight: 600;">Home</a>
-              <button class="map-pin-btn" id="mapPinBtn" title="${t('header.pinMap')}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 17v5M9 10.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V16a1 1 0 001 1h12a1 1 0 001-1v-.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V7a1 1 0 011-1 1 1 0 001-1V4a1 1 0 00-1-1H8a1 1 0 00-1 1v1a1 1 0 001 1 1 1 0 011 1v3.76z"/>
-                </svg>
-              </button>
+              <a href="https://c-four.org/" target="_blank" class="header-action-btn" style="text-decoration: none; font-size: 11px; font-weight: 600; border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; color: var(--text-dim);">Home</a>
             </div>
           </div>
           <div class="map-container" id="mapContainer"></div>

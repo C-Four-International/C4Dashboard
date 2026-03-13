@@ -802,40 +802,6 @@ canvas,
   opacity: 1;
 }
 
-.map-section.pinned {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.map-pin-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.map-pin-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text);
-  border-color: var(--text-dim);
-}
-
-.map-pin-btn.active {
-  background: var(--green);
-  border-color: var(--green);
-  color: var(--bg);
-}
-
-.map-pin-btn.active:hover {
-  background: var(--green-dim);
-}
 
 .panels-grid {
   display: grid;
@@ -849,7 +815,6 @@ canvas,
   min-height: 0;
   position: relative;
   z-index: 1;
-  /* This ensures panels scroll UNDER the pinned map (z-index: 100) */
 }
 
 .panel {
@@ -15819,9 +15784,6 @@ body.has-critical-banner .panels-grid {
     overflow: hidden;
   }
 
-  .map-section.pinned {
-    position: relative;
-  }
 
   .map-resize-handle {
     display: flex;
