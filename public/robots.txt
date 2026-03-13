@@ -1,4 +1,4 @@
-# WorldMonitor - protect API routes from crawlers
+# C⁴ Dashboard - protect API routes from crawlers
 User-agent: *
 Allow: /
 Disallow: /api/
