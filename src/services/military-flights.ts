@@ -354,7 +354,7 @@ interface AdsbFiResponse {
  * Retains region filtering so we don't overwhelm the map.
  */
 async function fetchFromAdsbFi(): Promise<MilitaryFlight[]> {
-  const url = 'https://api.adsb.lol/v2/mil';
+  const url = '/api/adsbfi';
   const response = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': 'WorldMonitor' } });
   
   if (!response.ok) {
