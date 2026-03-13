@@ -111,13 +111,14 @@ export class DisplacementPanel extends Panel {
         </table>`;
     }
 
-    this.setContent(`
+    // Write directly to bypass debounced setContent — tabs need immediate listeners
+    this.content.innerHTML = `
       <div class="disp-panel-content">
         <div class="disp-stats-grid">${statsHtml}</div>
         ${tabsHtml}
         ${tableHtml}
       </div>
-    `);
+    `;
 
     this.content.querySelectorAll('.disp-tab').forEach(btn => {
       btn.addEventListener('click', () => {
