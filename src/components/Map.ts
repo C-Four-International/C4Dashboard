@@ -24,7 +24,6 @@ import {
   PIPELINE_COLORS,
   SANCTIONED_COUNTRIES,
   STRATEGIC_WATERWAYS,
-  APT_GROUPS,
   ECONOMIC_CENTERS,
   AI_DATA_CENTERS,
   PORTS,
@@ -600,7 +599,6 @@ export class MapComponent {
         <div class="map-legend-item"><span class="legend-dot low"></span>${escapeHtml((t('popups.monitoring') ?? 'MONITORING').toUpperCase())}</div>
         <div class="map-legend-item"><span class="map-legend-icon conflict">⚔</span>${escapeHtml(t('modals.search.types.conflict').toUpperCase())}</div>
         <div class="map-legend-item"><span class="map-legend-icon earthquake">●</span>${escapeHtml(t('modals.search.types.earthquake').toUpperCase())}</div>
-        <div class="map-legend-item"><span class="map-legend-icon apt">⚠</span>APT</div>
       `;
     }
     return legend;
@@ -1258,11 +1256,6 @@ export class MapComponent {
     if (this.state.layers.ais) {
       this.renderAisDisruptions(projection);
       this.renderPorts(projection);
-    }
-
-    // APT groups (geopolitical variant only)
-    if (SITE_VARIANT !== 'tech') {
-      this.renderAPTMarkers(projection);
     }
 
     // Nuclear facilities (always HTML - shapes convey status)
@@ -2712,35 +2705,6 @@ export class MapComponent {
     });
   }
 
-  private renderAPTMarkers(projection: d3.GeoProjection): void {
-    APT_GROUPS.forEach((apt) => {
-      const pos = projection([apt.lon, apt.lat]);
-      if (!pos) return;
-
-      const div = document.createElement('div');
-      div.className = 'apt-marker';
-      div.style.left = `${pos[0]}px`;
-      div.style.top = `${pos[1]}px`;
-      div.innerHTML = `
-        <div class="apt-icon">⚠</div>
-        <div class="apt-label">${escapeHtml(apt.name)}</div>
-      `;
-
-      div.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const rect = this.container.getBoundingClientRect();
-        this.popup.show({
-          type: 'apt',
-          data: apt,
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-        });
-      });
-
-      this.overlays.appendChild(div);
-    });
-  }
-
   private getRelatedNews(hotspot: Hotspot): NewsItem[] {
     // High-priority conflict keywords that indicate the news is really about another topic
     const conflictTopics = ['gaza', 'ukraine', 'russia', 'israel', 'iran', 'china', 'taiwan', 'korea', 'syria'];
@@ -3248,13 +3212,13 @@ export class MapComponent {
   }
 
   private updateLabelVisibility(zoom: number): void {
-    const labels = this.overlays.querySelectorAll('.hotspot-label, .earthquake-label, .weather-label, .apt-label');
+    const labels = this.overlays.querySelectorAll('.hotspot-label, .earthquake-label, .weather-label');
     const labelRects: { el: Element; rect: DOMRect; priority: number }[] = [];
 
     // Collect all label bounds with priority
     labels.forEach((label) => {
       const el = label as HTMLElement;
-      const parent = el.closest('.hotspot, .earthquake-marker, .weather-marker, .apt-marker');
+      const parent = el.closest('.hotspot, .earthquake-marker, .weather-marker');
 
       // Assign priority based on parent type and level
       let priority = 1;

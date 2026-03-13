@@ -63,7 +63,6 @@ import {
   CLOUD_REGIONS,
   PORTS,
   SPACEPORTS,
-  APT_GROUPS,
   CRITICAL_MINERALS,
   STOCK_EXCHANGES,
   FINANCIAL_CENTERS,
@@ -1133,11 +1132,6 @@ export class DeckGLMap {
       layers.push(this.createMineralsLayer());
     }
 
-    // APT Groups layer (geopolitical variant only - always shown, no toggle)
-    if (SITE_VARIANT !== 'tech' && SITE_VARIANT !== 'happy') {
-      layers.push(this.createAPTGroupsLayer());
-    }
-
     // UCDP georeferenced events layer
     if (mapLayers.ucdpEvents && filteredUcdpEvents.length > 0) {
       layers.push(this.createUcdpEventsLayer(filteredUcdpEvents));
@@ -1920,22 +1914,6 @@ export class DeckGLMap {
     });
   }
 
-  private createAPTGroupsLayer(): ScatterplotLayer {
-    // APT Groups - cyber threat actor markers (geopolitical variant only)
-    // Made subtle to avoid visual clutter - small orange dots
-    return new ScatterplotLayer({
-      id: 'apt-groups-layer',
-      data: APT_GROUPS,
-      getPosition: (d) => [d.lon, d.lat],
-      getRadius: 6000,
-      getFillColor: [255, 140, 0, 140] as [number, number, number, number], // Subtle orange
-      radiusMinPixels: 4,
-      radiusMaxPixels: 8,
-      pickable: true,
-      stroked: false, // No outline - cleaner look
-    });
-  }
-
   private createMineralsLayer(): ScatterplotLayer {
     // Critical minerals projects
     return new ScatterplotLayer({
@@ -2707,8 +2685,7 @@ export class DeckGLMap {
       }
       case 'flight-delays-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)} (${text(obj.iata)})</strong><br/>${text(obj.severity)}: ${text(obj.reason || obj.delayType)}</div>` };
-      case 'apt-groups-layer':
-        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.aka)}<br/>${t('popups.sponsor')}: ${text(obj.sponsor)}</div>` };
+
       case 'minerals-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.mineral)} - ${text(obj.country)}<br/>${text(obj.operator)}</div>` };
       case 'ais-disruptions-layer':
@@ -2933,7 +2910,6 @@ export class DeckGLMap {
       'accelerators-layer': 'accelerator',
       'cloud-regions-layer': 'cloudRegion',
       'tech-events-layer': 'techEvent',
-      'apt-groups-layer': 'apt',
       'minerals-layer': 'mineral',
       'ais-disruptions-layer': 'ais',
       'cable-advisories-layer': 'cable-advisory',

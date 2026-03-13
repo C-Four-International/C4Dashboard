@@ -5795,36 +5795,6 @@ a.prediction-link:hover {
   filter: blur(0.2px);
 }
 
-/* APT markers */
-.apt-marker {
-  position: absolute;
-  transform: translate(-50%, -50%) scale(var(--marker-scale, 1));
-  transform-origin: center;
-  white-space: nowrap;
-  cursor: pointer;
-  z-index: 53;
-  opacity: 0.7;
-}
-
-.apt-marker:hover {
-  opacity: 1;
-}
-
-.apt-icon {
-  font-size: 10px;
-  color: var(--semantic-info);
-  text-shadow: 0 0 4px var(--bg), 0 0 8px var(--bg);
-}
-
-.apt-label {
-  font-size: 7px;
-  color: var(--semantic-info);
-  text-shadow: 0 0 4px var(--bg), 0 0 8px var(--bg);
-  letter-spacing: 0.5px;
-  transform: scale(calc(var(--label-scale, 1) / var(--marker-scale, 1)));
-  transform-origin: top center;
-}
-
 /* Breaking tag */
 .breaking-tag {
   position: absolute;
@@ -5903,10 +5873,6 @@ a.prediction-link:hover {
 
 .map-legend-icon.earthquake {
   color: var(--semantic-elevated);
-}
-
-.map-legend-icon.apt {
-  color: var(--semantic-high);
 }
 
 .legend-dot {

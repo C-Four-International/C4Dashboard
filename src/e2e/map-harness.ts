@@ -20,7 +20,6 @@ import {
   CLOUD_REGIONS,
   PORTS,
   SPACEPORTS,
-  APT_GROUPS,
   CRITICAL_MINERALS,
   STOCK_EXCHANGES,
   FINANCIAL_CENTERS,
@@ -423,7 +422,6 @@ const [startupLon, startupLat] = firstLatLon(STARTUP_HUBS, [-122.08, 37.38]);
 const [acceleratorLon, acceleratorLat] = firstLatLon(ACCELERATORS, [-122.41, 37.77]);
 const [techHQLon, techHQLat] = firstLatLon(TECH_HQS, [-122.0, 37.3]);
 const [cloudRegionLon, cloudRegionLat] = firstLatLon(CLOUD_REGIONS, [-122.3, 37.6]);
-const [aptLon, aptLat] = firstLatLon(APT_GROUPS, [116.4, 39.9]);
 const [portLon, portLat] = firstLatLon(PORTS, [32.5, 29.9]);
 const [exchangeLon, exchangeLat] = firstLatLon(STOCK_EXCHANGES, [-74.0, 40.7]);
 const [financialCenterLon, financialCenterLat] = firstLatLon(FINANCIAL_CENTERS, [-74.0, 40.7]);
@@ -628,14 +626,6 @@ const VISUAL_SCENARIOS: VisualScenario[] = [
     expectedDeckLayers: ['news-locations-layer'],
     expectedSelectors: [],
     includeNewsLocation: true,
-  },
-  {
-    id: 'apt-groups-z5',
-    variant: 'full',
-    enabledLayers: [],
-    camera: toCamera(aptLon, aptLat, 5.1),
-    expectedDeckLayers: ['apt-groups-layer'],
-    expectedSelectors: [],
   },
   {
     id: 'startup-hubs-z5',

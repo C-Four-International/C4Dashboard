@@ -194,14 +194,6 @@ export interface AisDensityZone {
   note?: string;
 }
 
-export interface APTGroup {
-  id: string;
-  name: string;
-  aka: string;
-  sponsor: string;
-  lat: number;
-  lon: number;
-}
 
 export type CyberThreatType = 'c2_server' | 'malware_host' | 'phishing' | 'malicious_url';
 export type CyberThreatSource = 'feodo' | 'urlhaus' | 'c2intel' | 'otx' | 'abuseipdb';
