@@ -1,0 +1,41 @@
+name: Sync Conflict Zones
+
+on:
+  schedule:
+    # Every 12 hours (at 06:00 and 18:00 UTC)
+    - cron: '0 6,18 * * *'
+  workflow_dispatch: # Allow triggering manually from the Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run conflict zones sync
+        run: node scripts/sync-conflict-zones.mjs
+
+      - name: Commit changes if any
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet src/config/geo.ts; then
+            echo "No changes to CONFLICT_ZONES — nothing to commit."
+          else
+            git add src/config/geo.ts
+            git commit -m "chore(geo): sync CONFLICT_ZONES from upstream [automated]
+
+          Automatically synced from koala73/worldmonitor@main via sync-conflict-zones.mjs"
+            git push
+            echo "Changes committed and pushed."
+          fi
