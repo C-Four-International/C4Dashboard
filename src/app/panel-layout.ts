@@ -1,50 +1,9 @@
 import type { AppContext, AppModule } from '@/app/app-context';
 import type { RelatedAsset } from '@/types';
 import type { TheaterPostureSummary } from '@/services/military-surge';
-import {
-  MapContainer,
-  NewsPanel,
-  MarketPanel,
-  HeatmapPanel,
-  CommoditiesPanel,
-  CryptoPanel,
-  PredictionPanel,
-  MonitorPanel,
-  EconomicPanel,
-  GdeltIntelPanel,
-  LiveNewsPanel,
-  LiveWebcamsPanel,
-  // CIIPanel,
-  CascadePanel,
-  StrategicRiskPanel,
-  StrategicPosturePanel,
-  TechEventsPanel,
-  ServiceStatusPanel,
-  RuntimeConfigPanel,
-  InsightsPanel,
-  TechReadinessPanel,
-  MacroSignalsPanel,
-  ETFFlowsPanel,
-  StablecoinPanel,
-  // UcdpEventsPanel,
-  DisplacementPanel,
-  ClimateAnomalyPanel,
-  PopulationExposurePanel,
-  InvestmentsPanel,
-  TradePolicyPanel,
-  SupplyChainPanel,
-} from '@/components';
-import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
-import { PositiveNewsFeedPanel } from '@/components/PositiveNewsFeedPanel';
-import { CountersPanel } from '@/components/CountersPanel';
-import { ProgressChartsPanel } from '@/components/ProgressChartsPanel';
-import { BreakthroughsTickerPanel } from '@/components/BreakthroughsTickerPanel';
-import { HeroSpotlightPanel } from '@/components/HeroSpotlightPanel';
-import { GoodThingsDigestPanel } from '@/components/GoodThingsDigestPanel';
-import { SpeciesComebackPanel } from '@/components/SpeciesComebackPanel';
-import { RenewableEnergyPanel } from '@/components/RenewableEnergyPanel';
-import { GivingPanel } from '@/components';
-import { focusInvestmentOnMap } from '@/services/investments-focus';
+// Only truly foundational components are statically imported — everything else
+// is dynamically imported inside createPanels() to enable Rollup code-splitting.
+import { MapContainer, NewsPanel } from '@/components';
 import { debounce, saveToStorage } from '@/utils';
 import { escapeHtml } from '@/utils/sanitize';
 import {
@@ -80,8 +39,8 @@ export class PanelLayoutManager implements AppModule {
     }, 120);
   }
 
-  init(): void {
-    this.renderLayout();
+  async init(): Promise<void> {
+    await this.renderLayout();
   }
 
   destroy(): void {
@@ -103,7 +62,7 @@ export class PanelLayoutManager implements AppModule {
     this.ctx.renewablePanel?.destroy();
   }
 
-  renderLayout(): void {
+  async renderLayout(): Promise<void> {
     this.ctx.container.innerHTML = `
       <div class="header">
         <div class="header-left">
@@ -211,7 +170,7 @@ export class PanelLayoutManager implements AppModule {
       </div>
     `;
 
-    this.createPanels();
+    await this.createPanels();
   }
 
   renderCriticalBanner(postures: TheaterPostureSummary[]): void {
@@ -297,7 +256,7 @@ export class PanelLayoutManager implements AppModule {
     });
   }
 
-  private createPanels(): void {
+  private async createPanels(): Promise<void> {
     const panelsGrid = document.getElementById('panelsGrid')!;
 
     const mapContainer = document.getElementById('mapContainer') as HTMLElement;
@@ -327,12 +286,14 @@ export class PanelLayoutManager implements AppModule {
     this.ctx.newsPanels['finance'] = financePanel;
     this.ctx.panels['finance'] = financePanel;
 
+    const { HeatmapPanel, MarketPanel, CommoditiesPanel } = await import('@/components/MarketPanel');
     const heatmapPanel = new HeatmapPanel();
     this.ctx.panels['heatmap'] = heatmapPanel;
 
     const marketsPanel = new MarketPanel();
     this.ctx.panels['markets'] = marketsPanel;
 
+    const { MonitorPanel } = await import('@/components/MonitorPanel');
     const monitorPanel = new MonitorPanel(this.ctx.monitors);
     this.ctx.panels['monitors'] = monitorPanel;
     monitorPanel.onChanged((monitors) => {
@@ -344,6 +305,7 @@ export class PanelLayoutManager implements AppModule {
     const commoditiesPanel = new CommoditiesPanel();
     this.ctx.panels['commodities'] = commoditiesPanel;
 
+    const { PredictionPanel } = await import('@/components/PredictionPanel');
     const predictionPanel = new PredictionPanel();
     this.ctx.panels['polymarket'] = predictionPanel;
 
@@ -357,6 +319,7 @@ export class PanelLayoutManager implements AppModule {
     this.ctx.newsPanels['intel'] = intelPanel;
     this.ctx.panels['intel'] = intelPanel;
 
+    const { CryptoPanel } = await import('@/components/MarketPanel');
     const cryptoPanel = new CryptoPanel();
     this.ctx.panels['crypto'] = cryptoPanel;
 
@@ -450,10 +413,13 @@ export class PanelLayoutManager implements AppModule {
     this.ctx.newsPanels['thinktanks'] = thinktanksPanel;
     this.ctx.panels['thinktanks'] = thinktanksPanel;
 
+    const { EconomicPanel } = await import('@/components/EconomicPanel');
     const economicPanel = new EconomicPanel();
     this.ctx.panels['economic'] = economicPanel;
 
     if (SITE_VARIANT === 'full' || SITE_VARIANT === 'finance') {
+      const { TradePolicyPanel } = await import('@/components/TradePolicyPanel');
+      const { SupplyChainPanel } = await import('@/components/SupplyChainPanel');
       const tradePolicyPanel = new TradePolicyPanel();
       this.ctx.panels['trade-policy'] = tradePolicyPanel;
 
@@ -495,6 +461,7 @@ export class PanelLayoutManager implements AppModule {
     }
 
     if (SITE_VARIANT === 'full') {
+      const { GdeltIntelPanel } = await import('@/components/GdeltIntelPanel');
       const gdeltIntelPanel = new GdeltIntelPanel();
       this.ctx.panels['gdelt-intel'] = gdeltIntelPanel;
 
@@ -506,20 +473,24 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.panels['cii'] = ciiPanel;
       */
 
+      const { CascadePanel } = await import('@/components/CascadePanel');
       const cascadePanel = new CascadePanel();
       this.ctx.panels['cascade'] = cascadePanel;
 
+      const { SatelliteFiresPanel } = await import('@/components/SatelliteFiresPanel');
       const satelliteFiresPanel = new SatelliteFiresPanel();
       this.ctx.panels['satellite-fires'] = satelliteFiresPanel;
 
+      const { StrategicRiskPanel } = await import('@/components/StrategicRiskPanel');
       const strategicRiskPanel = new StrategicRiskPanel();
-      strategicRiskPanel.setLocationClickHandler((lat, lon) => {
+      strategicRiskPanel.setLocationClickHandler((lat: number, lon: number) => {
         this.ctx.map?.setCenter(lat, lon, 4);
       });
       this.ctx.panels['strategic-risk'] = strategicRiskPanel;
 
+      const { StrategicPosturePanel } = await import('@/components/StrategicPosturePanel');
       const strategicPosturePanel = new StrategicPosturePanel();
-      strategicPosturePanel.setLocationClickHandler((lat, lon) => {
+      strategicPosturePanel.setLocationClickHandler((lat: number, lon: number) => {
         console.log('[App] StrategicPosture handler called:', { lat, lon, hasMap: !!this.ctx.map });
         this.ctx.map?.setCenter(lat, lon, 4);
       });
@@ -533,23 +504,28 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.panels['ucdp-events'] = ucdpEventsPanel;
       */
 
+      const { DisplacementPanel } = await import('@/components/DisplacementPanel');
       const displacementPanel = new DisplacementPanel();
-      displacementPanel.setCountryClickHandler((lat, lon) => {
+      displacementPanel.setCountryClickHandler((lat: number, lon: number) => {
         this.ctx.map?.setCenter(lat, lon, 4);
       });
       this.ctx.panels['displacement'] = displacementPanel;
 
+      const { ClimateAnomalyPanel } = await import('@/components/ClimateAnomalyPanel');
       const climatePanel = new ClimateAnomalyPanel();
-      climatePanel.setZoneClickHandler((lat, lon) => {
+      climatePanel.setZoneClickHandler((lat: number, lon: number) => {
         this.ctx.map?.setCenter(lat, lon, 4);
       });
       this.ctx.panels['climate'] = climatePanel;
 
+      const { PopulationExposurePanel } = await import('@/components/PopulationExposurePanel');
       const populationExposurePanel = new PopulationExposurePanel();
       this.ctx.panels['population-exposure'] = populationExposurePanel;
     }
 
     if (SITE_VARIANT === 'finance') {
+      const { InvestmentsPanel } = await import('@/components/InvestmentsPanel');
+      const { focusInvestmentOnMap } = await import('@/services/investments-focus');
       const investmentsPanel = new InvestmentsPanel((inv) => {
         focusInvestmentOnMap(this.ctx.map, this.ctx.mapLayers, inv.lat, inv.lon);
       });
@@ -557,66 +533,85 @@ export class PanelLayoutManager implements AppModule {
     }
 
     if (SITE_VARIANT !== 'happy') {
+      const { LiveNewsPanel } = await import('@/components/LiveNewsPanel');
       const liveNewsPanel = new LiveNewsPanel();
       this.ctx.panels['live-news'] = liveNewsPanel;
 
+      const { LiveWebcamsPanel } = await import('@/components/LiveWebcamsPanel');
       const liveWebcamsPanel = new LiveWebcamsPanel();
       this.ctx.panels['live-webcams'] = liveWebcamsPanel;
 
+      const { TechEventsPanel } = await import('@/components/TechEventsPanel');
       this.ctx.panels['events'] = new TechEventsPanel('events');
 
+      const { ServiceStatusPanel } = await import('@/components/ServiceStatusPanel');
       const serviceStatusPanel = new ServiceStatusPanel();
       this.ctx.panels['service-status'] = serviceStatusPanel;
 
+      const { TechReadinessPanel } = await import('@/components/TechReadinessPanel');
       const techReadinessPanel = new TechReadinessPanel();
       this.ctx.panels['tech-readiness'] = techReadinessPanel;
 
+      const { MacroSignalsPanel } = await import('@/components/MacroSignalsPanel');
+      const { ETFFlowsPanel } = await import('@/components/ETFFlowsPanel');
+      const { StablecoinPanel } = await import('@/components/StablecoinPanel');
       this.ctx.panels['macro-signals'] = new MacroSignalsPanel();
       this.ctx.panels['etf-flows'] = new ETFFlowsPanel();
       this.ctx.panels['stablecoins'] = new StablecoinPanel();
     }
 
     if (this.ctx.isDesktopApp) {
+      const { RuntimeConfigPanel } = await import('@/components/RuntimeConfigPanel');
       const runtimeConfigPanel = new RuntimeConfigPanel({ mode: 'alert' });
       this.ctx.panels['runtime-config'] = runtimeConfigPanel;
     }
 
+    const { InsightsPanel } = await import('@/components/InsightsPanel');
     const insightsPanel = new InsightsPanel();
     this.ctx.panels['insights'] = insightsPanel;
 
     // Global Giving panel (all variants)
+    const { GivingPanel } = await import('@/components/GivingPanel');
     this.ctx.panels['giving'] = new GivingPanel();
 
     // Happy variant panels
     if (SITE_VARIANT === 'happy') {
+      const { PositiveNewsFeedPanel } = await import('@/components/PositiveNewsFeedPanel');
       this.ctx.positivePanel = new PositiveNewsFeedPanel();
-      this.ctx.panels['positive-feed'] = this.ctx.positivePanel;
+      this.ctx.panels['positive-feed'] = this.ctx.positivePanel!;
 
+      const { CountersPanel } = await import('@/components/CountersPanel');
       this.ctx.countersPanel = new CountersPanel();
-      this.ctx.panels['counters'] = this.ctx.countersPanel;
-      this.ctx.countersPanel.startTicking();
+      this.ctx.panels['counters'] = this.ctx.countersPanel!;
+      this.ctx.countersPanel!.startTicking();
 
+      const { ProgressChartsPanel } = await import('@/components/ProgressChartsPanel');
       this.ctx.progressPanel = new ProgressChartsPanel();
-      this.ctx.panels['progress'] = this.ctx.progressPanel;
+      this.ctx.panels['progress'] = this.ctx.progressPanel!;
 
+      const { BreakthroughsTickerPanel } = await import('@/components/BreakthroughsTickerPanel');
       this.ctx.breakthroughsPanel = new BreakthroughsTickerPanel();
-      this.ctx.panels['breakthroughs'] = this.ctx.breakthroughsPanel;
+      this.ctx.panels['breakthroughs'] = this.ctx.breakthroughsPanel!;
 
+      const { HeroSpotlightPanel } = await import('@/components/HeroSpotlightPanel');
       this.ctx.heroPanel = new HeroSpotlightPanel();
-      this.ctx.panels['spotlight'] = this.ctx.heroPanel;
-      this.ctx.heroPanel.onLocationRequest = (lat: number, lon: number) => {
+      this.ctx.panels['spotlight'] = this.ctx.heroPanel!;
+      this.ctx.heroPanel!.onLocationRequest = (lat: number, lon: number) => {
         this.ctx.map?.setCenter(lat, lon, 4);
         this.ctx.map?.flashLocation(lat, lon, 3000);
       };
 
+      const { GoodThingsDigestPanel } = await import('@/components/GoodThingsDigestPanel');
       this.ctx.digestPanel = new GoodThingsDigestPanel();
-      this.ctx.panels['digest'] = this.ctx.digestPanel;
+      this.ctx.panels['digest'] = this.ctx.digestPanel!;
 
+      const { SpeciesComebackPanel } = await import('@/components/SpeciesComebackPanel');
       this.ctx.speciesPanel = new SpeciesComebackPanel();
-      this.ctx.panels['species'] = this.ctx.speciesPanel;
+      this.ctx.panels['species'] = this.ctx.speciesPanel!;
 
+      const { RenewableEnergyPanel } = await import('@/components/RenewableEnergyPanel');
       this.ctx.renewablePanel = new RenewableEnergyPanel();
-      this.ctx.panels['renewable'] = this.ctx.renewablePanel;
+      this.ctx.panels['renewable'] = this.ctx.renewablePanel!;
     }
 
     const defaultOrder = Object.keys(DEFAULT_PANELS).filter(k => k !== 'map');

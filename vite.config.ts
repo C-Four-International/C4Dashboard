@@ -818,9 +818,8 @@ export default defineConfig({
               return 'sentry';
             }
           }
-          if (id.includes('/src/components/') && id.endsWith('Panel.ts')) {
-            return 'panels';
-          }
+          // Panel files are now dynamically imported — Rollup will split them automatically.
+          // (Previously forced into one 'panels' chunk, which is no longer needed.)
           // Give lazy-loaded locale chunks a recognizable prefix so the
           // service worker can exclude them from precache (en.json is
           // statically imported into the main bundle).

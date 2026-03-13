@@ -1,145 +1,195 @@
 import './styles/base-layer.css';
 import './styles/happy-theme.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import * as Sentry from '@sentry/browser';
 import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 import { App } from './App';
 
-const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim();
+// ─── Sentry Lazy-Load ────────────────────────────────────────────────────────
+// Instead of loading the full Sentry SDK (~50 KB) on every page load, we
+// install a lightweight interceptor that buffers errors and only imports the
+// SDK on first error. Error-free sessions never pay the download cost.
 
-// Initialize Sentry error tracking (early as possible)
-Sentry.init({
-  dsn: sentryDsn || undefined,
-  release: `worldmonitor@${__APP_VERSION__}`,
-  environment: location.hostname === 'worldmonitor.app' ? 'production'
-    : location.hostname.includes('vercel.app') ? 'preview'
-    : 'development',
-  enabled: Boolean(sentryDsn) && !location.hostname.startsWith('localhost') && !('__TAURI_INTERNALS__' in window),
-  sendDefaultPii: true,
-  tracesSampleRate: 0.1,
-  ignoreErrors: [
-    'Invalid WebGL2RenderingContext',
-    'WebGL context lost',
-    /imageManager/,
-    /ResizeObserver loop/,
-    /NotAllowedError/,
-    /InvalidAccessError/,
-    /importScripts/,
-    /^TypeError: Load failed( \(.*\))?$/,
-    /^TypeError: Failed to fetch( \(.*\))?$/,
-    /^TypeError: cancelled$/,
-    /^TypeError: NetworkError/,
-    /runtime\.sendMessage\(\)/,
-    /Java object is gone/,
-    /^Object captured as promise rejection with keys:/,
-    /Unable to load image/,
-    /Non-Error promise rejection captured with value:/,
-    /Connection to Indexed Database server lost/,
-    /webkit\.messageHandlers/,
-    /(?:unsafe-eval.*Content Security Policy|Content Security Policy.*unsafe-eval)/,
-    /Fullscreen request denied/,
-    /requestFullscreen/,
-    /webkitEnterFullscreen/,
-    /vc_text_indicators_context/,
-    /Program failed to link/,
-    /too much recursion/,
-    /zaloJSV2/,
-    /Java bridge method invocation error/,
-    /Could not compile fragment shader/,
-    /can't redefine non-configurable property/,
-    /Can.t find variable: (CONFIG|currentInset|NP)/,
-    /invalid origin/,
-    /\.data\.split is not a function/,
-    /signal is aborted without reason/,
-    /Failed to fetch dynamically imported module/,
-    /Importing a module script failed/,
-    /contentWindow\.postMessage/,
-    /Could not compile vertex shader/,
-    /objectStoreNames/,
-    /Unexpected identifier 'https'/,
-    /Can't find variable: _0x/,
-    /WKWebView was deallocated/,
-    /Unexpected end of input/,
-    /window\.android\.\w+ is not a function/,
-    /Attempted to assign to readonly property/,
-    /Cannot assign to read only property/,
-    /FetchEvent\.respondWith/,
-    /e\.toLowerCase is not a function/,
-    /\.trim is not a function/,
-    /\.(indexOf|findIndex) is not a function/,
-    /QuotaExceededError/,
-    /^TypeError: 已取消$/,
-    /Maximum call stack size exceeded/,
-    /^fetchError: Network request failed$/,
-    /window\.ethereum/,
-    /^SyntaxError: Unexpected token/,
-    /^Operation timed out\.?$/,
-    /setting 'luma'/,
-    /ML request .* timed out/,
-    /^Element not found$/,
-    /^The operation was aborted\.?\s*$/,
-    /Unexpected end of script/,
-    /error loading dynamically imported module/,
-    /Style is not done loading/,
-    /Event `CustomEvent`.*captured as promise rejection/,
-    /getProgramInfoLog/,
-    /__firefox__/,
-    /ifameElement\.contentDocument/,
-    /Invalid video id/,
-    /Fetch is aborted/,
-    /Stylesheet append timeout/,
-    /Worker is not a constructor/,
-    /_pcmBridgeCallbackHandler/,
-    /UCShellJava/,
-    /Cannot define multiple custom elements/,
-    /maxTextureDimension2D/,
-    /Container app not found/,
-    /this\.St\.unref/,
-    /Invalid or unexpected token/,
-    /evaluating 'elemFound\.value'/,
-    /[Cc]an(?:'t|not) access (?:'\w+'|lexical declaration '\w+') before initialization/,
-    /^Uint8Array$/,
-    /createObjectStore/,
-    /The database connection is closing/,
-    /shortcut icon/,
-    /Attempting to change value of a readonly property/,
-    /reading 'nodeType'/,
-    /feature named .pageContext. was not found/,
-    /a2z\.onStatusUpdate/,
-    /Attempting to run\(\), but is already running/,
-    /this\.player\.destroy is not a function/,
-    /isReCreate is not defined/,
-    /reading 'style'.*HTMLImageElement/,
-    /can't access property "write", \w+ is undefined/,
-  ],
-  beforeSend(event) {
-    const msg = event.exception?.values?.[0]?.value ?? '';
-    if (msg.length <= 3 && /^[a-zA-Z_$]+$/.test(msg)) return null;
-    const frames = event.exception?.values?.[0]?.stacktrace?.frames ?? [];
-    // Suppress maplibre internal null-access crashes (light, placement) only when stack is in map chunk
-    if (/this\.style\._layers|reading '_layers'|this\.light is null|can't access property "(id|type|setFilter)", \w+ is (null|undefined)|Cannot read properties of null \(reading '(id|type|setFilter|_layers)'\)|null is not an object \(evaluating '\w{1,3}\.(id|style)|^\w{1,2} is null$/.test(msg)) {
-      if (frames.some(f => /\/(map|maplibre|deck-stack)-[A-Za-z0-9-]+\.js/.test(f.filename ?? ''))) return null;
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim();
+const sentryEnabled =
+  Boolean(sentryDsn) &&
+  !location.hostname.startsWith('localhost') &&
+  !('__TAURI_INTERNALS__' in window);
+
+type BufferedError =
+  | { kind: 'error'; event: ErrorEvent }
+  | { kind: 'rejection'; event: PromiseRejectionEvent };
+
+const ERROR_BUFFER_MAX = 5;
+let sentryReady = false;
+let sentryLoading = false;
+const errorBuffer: BufferedError[] = [];
+
+async function loadSentry(): Promise<void> {
+  if (sentryReady || sentryLoading || !sentryEnabled) return;
+  sentryLoading = true;
+
+  try {
+    const Sentry = await import('@sentry/browser');
+
+    Sentry.init({
+      dsn: sentryDsn,
+      release: `worldmonitor@${__APP_VERSION__}`,
+      environment: location.hostname === 'worldmonitor.app' ? 'production'
+        : location.hostname.includes('vercel.app') ? 'preview'
+        : 'development',
+      enabled: true,
+      sendDefaultPii: true,
+      tracesSampleRate: 0.1,
+      ignoreErrors: [
+        'Invalid WebGL2RenderingContext',
+        'WebGL context lost',
+        /imageManager/,
+        /ResizeObserver loop/,
+        /NotAllowedError/,
+        /InvalidAccessError/,
+        /importScripts/,
+        /^TypeError: Load failed( \(.*\))?$/,
+        /^TypeError: Failed to fetch( \(.*\))?$/,
+        /^TypeError: cancelled$/,
+        /^TypeError: NetworkError/,
+        /runtime\.sendMessage\(\)/,
+        /Java object is gone/,
+        /^Object captured as promise rejection with keys:/,
+        /Unable to load image/,
+        /Non-Error promise rejection captured with value:/,
+        /Connection to Indexed Database server lost/,
+        /webkit\.messageHandlers/,
+        /(?:unsafe-eval.*Content Security Policy|Content Security Policy.*unsafe-eval)/,
+        /Fullscreen request denied/,
+        /requestFullscreen/,
+        /webkitEnterFullscreen/,
+        /vc_text_indicators_context/,
+        /Program failed to link/,
+        /too much recursion/,
+        /zaloJSV2/,
+        /Java bridge method invocation error/,
+        /Could not compile fragment shader/,
+        /can't redefine non-configurable property/,
+        /Can.t find variable: (CONFIG|currentInset|NP)/,
+        /invalid origin/,
+        /\.data\.split is not a function/,
+        /signal is aborted without reason/,
+        /Failed to fetch dynamically imported module/,
+        /Importing a module script failed/,
+        /contentWindow\.postMessage/,
+        /Could not compile vertex shader/,
+        /objectStoreNames/,
+        /Unexpected identifier 'https'/,
+        /Can't find variable: _0x/,
+        /WKWebView was deallocated/,
+        /Unexpected end of input/,
+        /window\.android\.\w+ is not a function/,
+        /Attempted to assign to readonly property/,
+        /Cannot assign to read only property/,
+        /FetchEvent\.respondWith/,
+        /e\.toLowerCase is not a function/,
+        /\.trim is not a function/,
+        /\.(indexOf|findIndex) is not a function/,
+        /QuotaExceededError/,
+        /^TypeError: 已取消$/,
+        /Maximum call stack size exceeded/,
+        /^fetchError: Network request failed$/,
+        /window\.ethereum/,
+        /^SyntaxError: Unexpected token/,
+        /^Operation timed out\.?$/,
+        /setting 'luma'/,
+        /ML request .* timed out/,
+        /^Element not found$/,
+        /^The operation was aborted\.?\s*$/,
+        /Unexpected end of script/,
+        /error loading dynamically imported module/,
+        /Style is not done loading/,
+        /Event `CustomEvent`.*captured as promise rejection/,
+        /getProgramInfoLog/,
+        /__firefox__/,
+        /ifameElement\.contentDocument/,
+        /Invalid video id/,
+        /Fetch is aborted/,
+        /Stylesheet append timeout/,
+        /Worker is not a constructor/,
+        /_pcmBridgeCallbackHandler/,
+        /UCShellJava/,
+        /Cannot define multiple custom elements/,
+        /maxTextureDimension2D/,
+        /Container app not found/,
+        /this\.St\.unref/,
+        /Invalid or unexpected token/,
+        /evaluating 'elemFound\.value'/,
+        /[Cc]an(?:'t|not) access (?:'\w+'|lexical declaration '\w+') before initialization/,
+        /^Uint8Array$/,
+        /createObjectStore/,
+        /The database connection is closing/,
+        /shortcut icon/,
+        /Attempting to change value of a readonly property/,
+        /reading 'nodeType'/,
+        /feature named .pageContext. was not found/,
+        /a2z\.onStatusUpdate/,
+        /Attempting to run\(\), but is already running/,
+        /this\.player\.destroy is not a function/,
+        /isReCreate is not defined/,
+        /reading 'style'.*HTMLImageElement/,
+        /can't access property "write", \w+ is undefined/,
+      ],
+      beforeSend(event) {
+        const msg = event.exception?.values?.[0]?.value ?? '';
+        if (msg.length <= 3 && /^[a-zA-Z_$]+$/.test(msg)) return null;
+        const frames = event.exception?.values?.[0]?.stacktrace?.frames ?? [];
+        if (/this\.style\._layers|reading '_layers'|this\.light is null|can't access property "(id|type|setFilter)", \w+ is (null|undefined)|Cannot read properties of null \(reading '(id|type|setFilter|_layers)'\)|null is not an object \(evaluating '\w{1,3}\.(id|style)|^\w{1,2} is null$/.test(msg)) {
+          if (frames.some(f => /\/(map|maplibre|deck-stack)-[A-Za-z0-9-]+\.js/.test(f.filename ?? ''))) return null;
+        }
+        if (/^TypeError:/.test(msg) && frames.length > 0) {
+          const nonSentryFrames = frames.filter(f => !/\/sentry-[A-Za-z0-9-]+\.js/.test(f.filename ?? ''));
+          if (nonSentryFrames.length > 0 && nonSentryFrames.every(f => /\/(map|maplibre|deck-stack)-[A-Za-z0-9-]+\.js/.test(f.filename ?? ''))) return null;
+        }
+        if (frames.length > 0 && frames.every(f => /^blob:/.test(f.filename ?? ''))) return null;
+        if (frames.some(f => /www-widgetapi\.js/.test(f.filename ?? ''))) return null;
+        if (frames.some(f => /\/ingest\/static\/logs\.js/.test(f.filename ?? ''))) return null;
+        return event;
+      },
+    });
+
+    // Remove the lightweight listeners — Sentry now handles everything natively
+    window.removeEventListener('error', onError);
+    window.removeEventListener('unhandledrejection', onRejection);
+
+    // Replay buffered errors through the now-ready SDK
+    for (const entry of errorBuffer) {
+      if (entry.kind === 'error' && entry.event.error) {
+        Sentry.captureException(entry.event.error);
+      } else if (entry.kind === 'rejection') {
+        Sentry.captureException(entry.event.reason);
+      }
     }
-    // Suppress any TypeError that happens entirely within maplibre or deck.gl internals
-    if (/^TypeError:/.test(msg) && frames.length > 0) {
-      const nonSentryFrames = frames.filter(f => !/\/sentry-[A-Za-z0-9-]+\.js/.test(f.filename ?? ''));
-      if (nonSentryFrames.length > 0 && nonSentryFrames.every(f => /\/(map|maplibre|deck-stack)-[A-Za-z0-9-]+\.js/.test(f.filename ?? ''))) return null;
-    }
-    // Suppress errors originating entirely from blob: URLs (browser extensions)
-    if (frames.length > 0 && frames.every(f => /^blob:/.test(f.filename ?? ''))) return null;
-    // Suppress YouTube IFrame widget API internal errors
-    if (frames.some(f => /www-widgetapi\.js/.test(f.filename ?? ''))) return null;
-    // Suppress Sentry SDK internal crashes (logs.js)
-    if (frames.some(f => /\/ingest\/static\/logs\.js/.test(f.filename ?? ''))) return null;
-    return event;
-  },
-});
-// Suppress NotAllowedError from YouTube IFrame API's internal play() — browser autoplay policy,
-// not actionable. The YT IFrame API doesn't expose the play() promise so it leaks as unhandled.
-window.addEventListener('unhandledrejection', (e) => {
-  if (e.reason?.name === 'NotAllowedError') e.preventDefault();
-});
+    errorBuffer.length = 0;
+    sentryReady = true;
+  } catch {
+    // If Sentry fails to load, silently continue — monitoring is best-effort
+  }
+  sentryLoading = false;
+}
+
+function onError(event: ErrorEvent): void {
+  if (!sentryEnabled) return;
+  if (errorBuffer.length < ERROR_BUFFER_MAX) errorBuffer.push({ kind: 'error', event });
+  void loadSentry();
+}
+
+function onRejection(event: PromiseRejectionEvent): void {
+  if (event.reason?.name === 'NotAllowedError') { event.preventDefault(); return; }
+  if (!sentryEnabled) return;
+  if (errorBuffer.length < ERROR_BUFFER_MAX) errorBuffer.push({ kind: 'rejection', event });
+  void loadSentry();
+}
+
+window.addEventListener('error', onError);
+window.addEventListener('unhandledrejection', onRejection);
+
 
 import { debugInjectTestEvents, debugGetCells, getCellCount } from '@/services/geo-convergence';
 import { initMetaTags } from '@/services/meta-tags';

@@ -327,7 +327,7 @@ export class App {
     }
 
     // Phase 1: Layout (creates map + panels)
-    this.panelLayout.init();
+    await this.panelLayout.init();
 
     // Happy variant: pre-populate panels from persistent cache for instant render
     if (SITE_VARIANT === 'happy') {
