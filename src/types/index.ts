@@ -524,6 +524,8 @@ export interface MapLayers {
   renewableInstallations: boolean;
   // Trade route layers
   tradeRoutes: boolean;
+  // Environmental overlays
+  dayNight: boolean;
 }
 
 export interface AIDataCenter {

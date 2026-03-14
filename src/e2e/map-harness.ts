@@ -176,6 +176,7 @@ const allLayersEnabled: MapLayers = {
   speciesRecovery: false,
   renewableInstallations: false,
   tradeRoutes: true,
+  dayNight: false,
 };
 
 const allLayersDisabled: MapLayers = {
@@ -220,6 +221,7 @@ const allLayersDisabled: MapLayers = {
   speciesRecovery: false,
   renewableInstallations: false,
   tradeRoutes: false,
+  dayNight: false,
 };
 
 const SEEDED_NEWS_LOCATIONS: Array<{

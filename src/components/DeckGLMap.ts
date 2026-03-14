@@ -5,7 +5,7 @@
  */
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { Layer, LayersList, PickingInfo } from '@deck.gl/core';
-import { GeoJsonLayer, ScatterplotLayer, PathLayer, IconLayer, TextLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, ScatterplotLayer, PathLayer, IconLayer, TextLayer, PolygonLayer } from '@deck.gl/layers';
 import maplibregl from 'maplibre-gl';
 import Supercluster from 'supercluster';
 import type {
@@ -336,6 +336,10 @@ export class DeckGLMap {
   private lastCableHighlightSignature = '';
   private lastCableHealthSignature = '';
   private lastPipelineHighlightSignature = '';
+  private dayNightIntervalId: ReturnType<typeof setInterval> | null = null;
+  private cachedNightPolygon: [number, number][] | null = null;
+  private cachedNightPolygonAt = 0;
+
   private debouncedRebuildLayers: () => void;
   private rafUpdateLayers: () => void;
   private moveTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -359,6 +363,7 @@ export class DeckGLMap {
 
     this.setupDOM();
     this.popup = new MapPopup(container);
+    this.startDayNightTimer();
 
     window.addEventListener('theme-changed', (e: Event) => {
       const theme = (e as CustomEvent).detail?.theme as 'dark' | 'light';
@@ -936,6 +941,133 @@ export class DeckGLMap {
 
 
 
+  // ---- Day/Night terminator ----
+
+  /** Compute the polygon for the night hemisphere using solar position astronomy. */
+  private computeNightPolygon(): [number, number][] {
+    const now = Date.now();
+    const MS_5MIN = 5 * 60 * 1000;
+    if (this.cachedNightPolygon && now - this.cachedNightPolygonAt < MS_5MIN) {
+      return this.cachedNightPolygon;
+    }
+
+    // Julian Day Number for J2000 epoch offset
+    const JD = now / 86400000 + 2440587.5;
+    const n = JD - 2451545.0; // days since J2000.0
+
+    // Mean longitude (degrees)
+    const L = (280.46646 + 0.9856474 * n) % 360;
+    // Mean anomaly (radians)
+    const gRad = ((357.52911 + 0.9856003 * n) % 360) * (Math.PI / 180);
+    // Equation of center
+    const C = 1.914602 * Math.sin(gRad)
+      + 0.019993 * Math.sin(2 * gRad)
+      + 0.000289 * Math.sin(3 * gRad);
+    // Sun's ecliptic longitude (degrees)
+    const sunLon = (L + C) % 360;
+    // Obliquity of ecliptic (degrees)
+    const obliquity = 23.439291111;
+    const obliqRad = obliquity * (Math.PI / 180);
+    const sunLonRad = sunLon * (Math.PI / 180);
+
+    // Declination (degrees)
+    const sinDec = Math.sin(obliqRad) * Math.sin(sunLonRad);
+    const dec = Math.asin(sinDec) * (180 / Math.PI);
+
+    // Right ascension (degrees) — sub-solar longitude
+    const raRad = Math.atan2(
+      Math.cos(obliqRad) * Math.sin(sunLonRad),
+      Math.cos(sunLonRad)
+    );
+    const ra = raRad * (180 / Math.PI);
+
+    // Greenwich Hour Angle of the Sun
+    const GMST = (280.46061837 + 360.98564736629 * n) % 360;
+    const subSolarLon = ((ra - GMST) % 360 + 360) % 360 - 180;
+    const subSolarLat = dec;
+
+    // Trace the terminator: for each longitude step, find the latitude where
+    // the solar zenith angle = 90° (cos(SZA) = 0)
+    // cos(SZA) = sin(lat)*sin(dec) + cos(lat)*cos(dec)*cos(H) = 0
+    // => tan(lat) = -cos(H) / tan(dec)  [when dec ≠ 0]
+    const decRad = dec * (Math.PI / 180);
+    const tanDec = Math.tan(decRad);
+    const step = 2; // degrees longitude step
+    const terminator: [number, number][] = [];
+
+    for (let lon = -180; lon <= 180; lon += step) {
+      const H = (lon - subSolarLon) * (Math.PI / 180); // hour angle in radians
+      if (Math.abs(dec) < 0.001) {
+        // Near equinox: terminator runs N-S at ±90° from sub-solar
+        terminator.push([lon, 0]);
+      } else {
+        const latRad = Math.atan2(-Math.cos(H), tanDec);
+        const lat = Math.max(-90, Math.min(90, latRad * (180 / Math.PI)));
+        terminator.push([lon, lat]);
+      }
+    }
+
+    // Build a polygon that covers the night side.
+    // Night is the hemisphere opposite the sun (sub-solar lat/lon).
+    // We connect the terminator to the appropriate pole.
+    // dec >= 0 means sun in northern hemisphere → south pole is in night, and vice versa.
+    const poleLat: -90 | 90 = dec >= 0 ? -90 : 90;
+
+    // polygon: terminator (west→east), SE/NE pole corner, pole edge, SW/NW pole corner, close
+    const firstPoint = terminator[0] ?? [-180, 0];
+    const polygon: [number, number][] = [
+      ...terminator,
+      [180, poleLat],
+      [-180, poleLat],
+      firstPoint,
+    ];
+
+    // Suppress unused variable warning — subSolarLat used for future tooltip support
+    void subSolarLat;
+
+    this.cachedNightPolygon = polygon;
+    this.cachedNightPolygonAt = now;
+    return polygon;
+  }
+
+  private createDayNightLayer(): PolygonLayer {
+    const polygon = this.computeNightPolygon();
+    const isLight = getCurrentTheme() === 'light';
+    const fillColor: [number, number, number, number] = isLight
+      ? [10, 20, 60, 50]  // subtle blue tint in light mode
+      : [0, 0, 20, 90];   // dark navy in dark mode
+    return new PolygonLayer({
+      id: 'day-night-layer',
+      data: [polygon],
+      getPolygon: (d) => d,
+      getFillColor: fillColor,
+      getLineColor: [0, 0, 0, 0],
+      stroked: false,
+      filled: true,
+      pickable: false,
+      depthTest: false,
+      updateTriggers: { getFillColor: isLight, getPolygon: this.cachedNightPolygonAt },
+    });
+  }
+
+  private startDayNightTimer(): void {
+    if (this.dayNightIntervalId) return;
+    const MS_5MIN = 5 * 60 * 1000;
+    this.dayNightIntervalId = setInterval(() => {
+      if (!this.state.layers.dayNight) return;
+      // Force recompute by invalidating cache
+      this.cachedNightPolygon = null;
+      this.render();
+    }, MS_5MIN);
+  }
+
+  private stopDayNightTimer(): void {
+    if (this.dayNightIntervalId) {
+      clearInterval(this.dayNightIntervalId);
+      this.dayNightIntervalId = null;
+    }
+  }
+
   private isLayerVisible(layerKey: keyof MapLayers): boolean {
     const threshold = LAYER_ZOOM_THRESHOLDS[layerKey];
     if (!threshold) return true;
@@ -958,6 +1090,11 @@ export class DeckGLMap {
     const filteredMilitaryFlightClusters = this.filterMilitaryFlightClustersByTime(this.militaryFlightClusters);
     const filteredMilitaryVesselClusters = this.filterMilitaryVesselClustersByTime(this.militaryVesselClusters);
     const filteredUcdpEvents = this.filterByTime(this.ucdpEvents, (event) => event.date_start);
+
+    // Day/Night terminator layer — rendered first (background, behind everything)
+    if (mapLayers.dayNight) {
+      layers.push(this.createDayNightLayer());
+    }
 
     // Undersea cables layer
     if (mapLayers.cables) {
@@ -4264,6 +4401,7 @@ export class DeckGLMap {
     }
 
     this.stopPulseAnimation();
+    this.stopDayNightTimer();
 
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();

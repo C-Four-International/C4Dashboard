@@ -126,6 +126,7 @@ const layers = {
   speciesRecovery: false,
   renewableInstallations: false,
   tradeRoutes: false,
+  dayNight: false,
 };
 
 await initI18n();

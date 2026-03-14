@@ -33,6 +33,7 @@ const LAYER_KEYS: (keyof MapLayers)[] = [
   'techHQs',
   'techEvents',
   'tradeRoutes',
+  'dayNight',
 ];
 
 const TIME_RANGES: TimeRange[] = ['1h', '6h', '24h', '48h', '7d', 'all'];
