@@ -941,104 +941,88 @@ export class DeckGLMap {
 
 
 
-  // ---- Day/Night terminator ----
-
-  /** Compute the polygon for the night hemisphere using solar position astronomy. */
+  // ---- Day/Night terminator ----  /** Correct latitude-based night polygon: avoid atan2 singularity by sweeping latitude. */
   private computeNightPolygon(): [number, number][][] {
     const now = Date.now();
-    const MS_5MIN = 5 * 60 * 1000;
-    if (this.cachedNightPolygon && now - this.cachedNightPolygonAt < MS_5MIN) {
+    if (this.cachedNightPolygon && now - this.cachedNightPolygonAt < 5 * 60 * 1000) {
       return this.cachedNightPolygon;
     }
 
-    // Julian Day Number for J2000 epoch offset
+    // ── Solar position ──────────────────────────────────────────────────────
     const JD = now / 86400000 + 2440587.5;
-    const n = JD - 2451545.0; // days since J2000.0
-
-    // Mean longitude (degrees)
+    const n = JD - 2451545.0;
     const L = (280.46646 + 0.9856474 * n) % 360;
-    // Mean anomaly (radians)
     const gRad = ((357.52911 + 0.9856003 * n) % 360) * (Math.PI / 180);
-    // Equation of center
-    const C = 1.914602 * Math.sin(gRad)
-      + 0.019993 * Math.sin(2 * gRad)
-      + 0.000289 * Math.sin(3 * gRad);
-    // Sun's ecliptic longitude (degrees)
+    const C = 1.914602 * Math.sin(gRad) + 0.019993 * Math.sin(2 * gRad) + 0.000289 * Math.sin(3 * gRad);
     const sunLon = (L + C) % 360;
-    // Obliquity of ecliptic (degrees)
-    const obliquity = 23.439291111;
-    const obliqRad = obliquity * (Math.PI / 180);
+    const obliqRad = 23.439291111 * (Math.PI / 180);
     const sunLonRad = sunLon * (Math.PI / 180);
-
-    // Declination (degrees)
-    const sinDec = Math.sin(obliqRad) * Math.sin(sunLonRad);
-    const dec = Math.asin(sinDec) * (180 / Math.PI);
-
-    // Right ascension (degrees) — sub-solar longitude
-    const raRad = Math.atan2(
-      Math.cos(obliqRad) * Math.sin(sunLonRad),
-      Math.cos(sunLonRad)
-    );
-    const ra = raRad * (180 / Math.PI);
-
-    // Greenwich Hour Angle of the Sun
+    const dec = Math.asin(Math.sin(obliqRad) * Math.sin(sunLonRad)) * (180 / Math.PI);
+    const ra = Math.atan2(Math.cos(obliqRad) * Math.sin(sunLonRad), Math.cos(sunLonRad)) * (180 / Math.PI);
     const GMST = (280.46061837 + 360.98564736629 * n) % 360;
     const subSolarLon = ((ra - GMST) % 360 + 360) % 360 - 180;
-    const subSolarLat = dec;
+    // ────────────────────────────────────────────────────────────────────────
 
-    // Trace the terminator: for each longitude step, find the latitude where
-    // the solar zenith angle = 90° (cos(SZA) = 0)
-    // cos(SZA) = sin(lat)*sin(dec) + cos(lat)*cos(dec)*cos(H) = 0
-    // => tan(lat) = -cos(H) / tan(dec)
-    // Near dec=0 (equinox) clamp to a minimum value to avoid division-by-zero;
-    // the terminator still traces correctly — the result approaches ±90° at all longitudes.
     const decRad = dec * (Math.PI / 180);
-    const tanDecSafe = Math.tan(Math.abs(decRad) < 0.001
-      ? (dec >= 0 ? 0.001 : -0.001)
-      : decRad);
-    const step = 2; // degrees longitude step
-    const terminator: [number, number][] = [];
+    const tanDec = Math.tan(decRad);
 
-    for (let lon = -180; lon <= 180; lon += step) {
-      const H = (lon - subSolarLon) * (Math.PI / 180);
-      const latRad = Math.atan2(-Math.cos(H), tanDecSafe);
-      const lat = Math.max(-90, Math.min(90, latRad * (180 / Math.PI)));
-      terminator.push([lon, lat]);
-    }
-
-    // Build TWO polygons split at lon=0 to avoid a single polygon that spans ±180°.
-    // Deck.gl's earcut tessellator cannot reliably handle polygons wider than ~180° of longitude.
-    // dec >= 0 → sun in northern hemisphere → south pole is in night
-    // dec < 0  → sun in southern hemisphere → north pole is in night
+    // dec >= 0 → sun in north → south pole in night; dec < 0 → north pole in night
     const poleLat: -90 | 90 = dec >= 0 ? -90 : 90;
 
-    // Split terminator at lon=0 (index where lon crosses 0)
-    const midIdx = terminator.findIndex(([lon]) => lon >= 0);
-    const westTerm = terminator.slice(0, midIdx + 1); // lon -180 → 0
-    const eastTerm = terminator.slice(midIdx);        // lon 0 → +180
+    // Terminator exists between latitudes ±(90° − |dec|).
+    // Beyond that, the circle is entirely day or entirely night.
+    const maxLat = 90 - Math.abs(dec);
 
-    // West night polygon: west half of terminator + west polar cap
-    const westFirst = westTerm[0] ?? [-180, 0];
-    const westPoly: [number, number][] = [
-      ...westTerm,
-      [0, poleLat],
-      [-180, poleLat],
-      westFirst,
+    // Sweep latitude from the night-pole side (+maxLat or −maxLat) to the opposite.
+    // For each latitude, solve: cos(H) = −tan(lat)·tan(dec)
+    //   H > 0 → evening terminator (east of sub-solar)
+    //   H < 0 → morning terminator (west of sub-solar)
+    const wrap = (lon: number): number => ((lon + 180) % 360 + 360) % 360 - 180;
+    const STEPS = 180;
+    const latStart = poleLat > 0 ? maxLat : -maxLat; // poleward end
+    const latEnd   = poleLat > 0 ? -maxLat : maxLat;  // equatorial end
+
+    const morn: [number, number][] = []; // morning (west) arc, poleward → equatorial
+    const even: [number, number][] = []; // evening (east) arc, poleward → equatorial
+
+    for (let i = 0; i <= STEPS; i++) {
+      const lat = latStart + (latEnd - latStart) * (i / STEPS);
+      const latRad = lat * (Math.PI / 180);
+      const cosH = -Math.tan(latRad) * tanDec;
+      if (Math.abs(cosH) > 1) continue; // entire circle is day or night here
+      const H = Math.acos(cosH) * (180 / Math.PI); // 0–180°
+      morn.push([wrap(subSolarLon - H), lat]);
+      even.push([wrap(subSolarLon + H), lat]);
+    }
+
+    // The night polygon boundary:
+    //   morning arc (pole → equator) + evening arc reversed (equator → pole) + close via pole
+    // Split into two halves at the anti-solar longitude (subSolarLon + 180°) to avoid
+    // antimeridian artifacts in Deck.gl's earcut tessellator.
+    const antiSolarLon = wrap(subSolarLon + 180);
+    const poleCorner = (lon: number): [number, number] => [lon, poleLat];
+
+    // Full boundary: morn (pole→eq) concat even.slice().reverse() (eq→pole)
+    const boundary: [number, number][] = [
+      ...morn,
+      ...even.slice().reverse(),
     ];
 
-    // East night polygon: east half of terminator + east polar cap
-    const eastFirst = eastTerm[0] ?? [0, 0];
-    const eastPoly: [number, number][] = [
-      ...eastTerm,
-      [180, poleLat],
-      [0, poleLat],
-      eastFirst,
+    // Split boundary at antiSolarLon: points west → westPoly, east → eastPoly
+    const westBoundary = boundary.filter(([lon]) => lon <= antiSolarLon);
+    const eastBoundary = boundary.filter(([lon]) => lon >  antiSolarLon);
+
+    const makePolygon = (pts: [number, number][], lonA: number, lonB: number): [number, number][] => [
+      ...pts,
+      poleCorner(lonB),
+      poleCorner(lonA),
+      pts[0] ?? [lonA, 0],
     ];
 
-    // Suppress unused variable warning — subSolarLat reserved for tooltip support
-    void subSolarLat;
+    const westPoly = makePolygon(westBoundary, -180, antiSolarLon);
+    const eastPoly = makePolygon(eastBoundary, antiSolarLon, 180);
 
-    const polygons: [number, number][][] = [westPoly, eastPoly];
+    const polygons: [number, number][][] = [westPoly, eastPoly].filter(p => p.length > 4);
     this.cachedNightPolygon = polygons;
     this.cachedNightPolygonAt = now;
     return polygons;
@@ -1048,8 +1032,8 @@ export class DeckGLMap {
     const polygons = this.computeNightPolygon();
     const isLight = getCurrentTheme() === 'light';
     const fillColor: [number, number, number, number] = isLight
-      ? [10, 20, 60, 50]  // subtle blue tint in light mode
-      : [0, 0, 20, 90];   // dark navy in dark mode
+      ? [10, 20, 60, 50]
+      : [0, 0, 20, 90];
     return new PolygonLayer({
       id: 'day-night-layer',
       data: polygons,
