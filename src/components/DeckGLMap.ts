@@ -337,7 +337,7 @@ export class DeckGLMap {
   private lastCableHealthSignature = '';
   private lastPipelineHighlightSignature = '';
   private dayNightIntervalId: ReturnType<typeof setInterval> | null = null;
-  private cachedNightPolygon: [number, number][] | null = null;
+  private cachedNightPolygon: [number, number][][] | null = null;
   private cachedNightPolygonAt = 0;
 
   private debouncedRebuildLayers: () => void;
@@ -944,7 +944,7 @@ export class DeckGLMap {
   // ---- Day/Night terminator ----
 
   /** Compute the polygon for the night hemisphere using solar position astronomy. */
-  private computeNightPolygon(): [number, number][] {
+  private computeNightPolygon(): [number, number][][] {
     const now = Date.now();
     const MS_5MIN = 5 * 60 * 1000;
     if (this.cachedNightPolygon && now - this.cachedNightPolygonAt < MS_5MIN) {
@@ -989,63 +989,77 @@ export class DeckGLMap {
     // Trace the terminator: for each longitude step, find the latitude where
     // the solar zenith angle = 90° (cos(SZA) = 0)
     // cos(SZA) = sin(lat)*sin(dec) + cos(lat)*cos(dec)*cos(H) = 0
-    // => tan(lat) = -cos(H) / tan(dec)  [when dec ≠ 0]
+    // => tan(lat) = -cos(H) / tan(dec)
+    // Near dec=0 (equinox) clamp to a minimum value to avoid division-by-zero;
+    // the terminator still traces correctly — the result approaches ±90° at all longitudes.
     const decRad = dec * (Math.PI / 180);
-    const tanDec = Math.tan(decRad);
+    const tanDecSafe = Math.tan(Math.abs(decRad) < 0.001
+      ? (dec >= 0 ? 0.001 : -0.001)
+      : decRad);
     const step = 2; // degrees longitude step
     const terminator: [number, number][] = [];
 
     for (let lon = -180; lon <= 180; lon += step) {
-      const H = (lon - subSolarLon) * (Math.PI / 180); // hour angle in radians
-      if (Math.abs(dec) < 0.001) {
-        // Near equinox: terminator runs N-S at ±90° from sub-solar
-        terminator.push([lon, 0]);
-      } else {
-        const latRad = Math.atan2(-Math.cos(H), tanDec);
-        const lat = Math.max(-90, Math.min(90, latRad * (180 / Math.PI)));
-        terminator.push([lon, lat]);
-      }
+      const H = (lon - subSolarLon) * (Math.PI / 180);
+      const latRad = Math.atan2(-Math.cos(H), tanDecSafe);
+      const lat = Math.max(-90, Math.min(90, latRad * (180 / Math.PI)));
+      terminator.push([lon, lat]);
     }
 
-    // Build a polygon that covers the night side.
-    // Night is the hemisphere opposite the sun (sub-solar lat/lon).
-    // We connect the terminator to the appropriate pole.
-    // dec >= 0 means sun in northern hemisphere → south pole is in night, and vice versa.
+    // Build TWO polygons split at lon=0 to avoid a single polygon that spans ±180°.
+    // Deck.gl's earcut tessellator cannot reliably handle polygons wider than ~180° of longitude.
+    // dec >= 0 → sun in northern hemisphere → south pole is in night
+    // dec < 0  → sun in southern hemisphere → north pole is in night
     const poleLat: -90 | 90 = dec >= 0 ? -90 : 90;
 
-    // polygon: terminator (west→east), SE/NE pole corner, pole edge, SW/NW pole corner, close
-    const firstPoint = terminator[0] ?? [-180, 0];
-    const polygon: [number, number][] = [
-      ...terminator,
-      [180, poleLat],
+    // Split terminator at lon=0 (index where lon crosses 0)
+    const midIdx = terminator.findIndex(([lon]) => lon >= 0);
+    const westTerm = terminator.slice(0, midIdx + 1); // lon -180 → 0
+    const eastTerm = terminator.slice(midIdx);        // lon 0 → +180
+
+    // West night polygon: west half of terminator + west polar cap
+    const westFirst = westTerm[0] ?? [-180, 0];
+    const westPoly: [number, number][] = [
+      ...westTerm,
+      [0, poleLat],
       [-180, poleLat],
-      firstPoint,
+      westFirst,
     ];
 
-    // Suppress unused variable warning — subSolarLat used for future tooltip support
+    // East night polygon: east half of terminator + east polar cap
+    const eastFirst = eastTerm[0] ?? [0, 0];
+    const eastPoly: [number, number][] = [
+      ...eastTerm,
+      [180, poleLat],
+      [0, poleLat],
+      eastFirst,
+    ];
+
+    // Suppress unused variable warning — subSolarLat reserved for tooltip support
     void subSolarLat;
 
-    this.cachedNightPolygon = polygon;
+    const polygons: [number, number][][] = [westPoly, eastPoly];
+    this.cachedNightPolygon = polygons;
     this.cachedNightPolygonAt = now;
-    return polygon;
+    return polygons;
   }
 
   private createDayNightLayer(): PolygonLayer {
-    const polygon = this.computeNightPolygon();
+    const polygons = this.computeNightPolygon();
     const isLight = getCurrentTheme() === 'light';
     const fillColor: [number, number, number, number] = isLight
       ? [10, 20, 60, 50]  // subtle blue tint in light mode
       : [0, 0, 20, 90];   // dark navy in dark mode
     return new PolygonLayer({
       id: 'day-night-layer',
-      data: [polygon],
+      data: polygons,
       getPolygon: (d) => d,
       getFillColor: fillColor,
       getLineColor: [0, 0, 0, 0],
       stroked: false,
       filled: true,
       pickable: false,
-      depthTest: false,
+      parameters: { depthTest: false },
       updateTriggers: { getFillColor: isLight, getPolygon: this.cachedNightPolygonAt },
     });
   }
