@@ -923,6 +923,8 @@
           "firesFull": "Active wildfires and fire perimeters (NASA FIRMS)",
           "climateAnomalies": "Temperature and precipitation anomalies",
           "waterwaysLabels": "Strategic chokepoint labels",
+          "geoUcdpEvents": "Uppsala Conflict Data Program armed conflict events",
+          "geoDisplacement": "Refugee and displacement flow patterns",
           "militarySpaceports": "Rocket launch sites and space facilities",
           "infraCyberThreats": "Cyber attacks and security events",
           "mineralsFull": "Strategic mineral deposits and mining sites",
@@ -930,8 +932,7 @@
           "techEvents": "Major tech conferences and events",
           "techFires": "Active wildfires near tech infrastructure",
           "financeGulfInvestments": "GCC sovereign wealth fund investments and FDI",
-          "tradeRoutes": "Major global shipping lanes connecting ports through strategic chokepoints",
-          "dayNight": "Live solar terminator overlay — shades the night hemisphere based on current UTC time, updating every 5 minutes"
+          "tradeRoutes": "Major global shipping lanes connecting ports through strategic chokepoints"
         },
         "notes": {
           "timeAffects": "Affects: Earthquakes, Weather, Protests, Outages"
