@@ -96,7 +96,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   speciesRecovery: false,
   renewableInstallations: false,
   tradeRoutes: false,
-  dayNight: false,
+  dayNight: true,
 };
 
 // Mobile-specific defaults for geopolitical
