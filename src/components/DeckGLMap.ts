@@ -3208,6 +3208,7 @@ export class DeckGLMap {
           { key: 'renewableInstallations', label: 'Clean Energy', icon: '&#9889;' },
         ]
       : [
+        { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '&#127757;' },
         { key: 'hotspots', label: t('components.deckgl.layers.intelHotspots'), icon: '&#127919;' },
         { key: 'conflicts', label: t('components.deckgl.layers.conflictZones'), icon: '&#9876;' },
         { key: 'bases', label: t('components.deckgl.layers.militaryBases'), icon: '&#127963;' },
@@ -3371,12 +3372,10 @@ export class DeckGLMap {
           helpItem(staticLabel('timeExtended'), 'timeExtended'),
         ], 'timeAffects')}
         ${helpSection('geopolitical', [
+          helpItem(label('dayNight'), 'dayNight'),
           helpItem(label('conflictZones'), 'geoConflicts'),
           helpItem(label('intelHotspots'), 'geoHotspots'),
           helpItem(staticLabel('sanctions'), 'geoSanctions'),
-          helpItem(label('protests'), 'geoProtests'),
-          helpItem(label('ucdpEvents'), 'geoUcdpEvents'),
-          helpItem(label('displacementFlows'), 'geoDisplacement'),
         ])}
         ${helpSection('militaryStrategic', [
           helpItem(label('militaryBases'), 'militaryBases'),
