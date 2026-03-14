@@ -959,7 +959,7 @@ export class DeckGLMap {
     const dec = Math.asin(Math.sin(obliqRad) * Math.sin(sunLonRad)) * (180 / Math.PI);
     const ra = Math.atan2(Math.cos(obliqRad) * Math.sin(sunLonRad), Math.cos(sunLonRad)) * (180 / Math.PI);
     const GMST = (280.46061837 + 360.98564736629 * n) % 360;
-    const subSolarLon = ((ra - GMST) % 360 + 360) % 360 - 180;
+    const subSolarLon = ((ra - GMST + 180) % 360 + 360) % 360 - 180;
 
     const decRad = dec * (Math.PI / 180);
     // Clamp tiny declination to avoid division by zero near equinox
