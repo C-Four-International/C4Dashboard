@@ -64,7 +64,7 @@ Rules:
 - 4-5 paragraphs, 250-350 words (unless outputting the no data available message)
 - No speculation beyond what data supports
 - Use plain language, not jargon
-- STRICT REQUIREMENT: You are strictly prohibited from including any code blocks, programming code, or technical markdown formatting (like ```) in your response. The briefing must be written entirely in natural language.`;
+- STRICT REQUIREMENT: You are strictly prohibited from including any code blocks, programming code, or technical markdown formatting (like \`\`\`) in your response. The briefing must be written entirely in natural language.`;
 
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
     for (const model of INTEL_BRIEF_MODELS) {
