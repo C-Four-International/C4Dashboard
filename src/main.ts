@@ -199,18 +199,49 @@ import { initAnalytics, trackApiKeysSnapshot } from '@/services/analytics';
 import { applyStoredTheme } from '@/utils/theme-manager';
 import { SITE_VARIANT } from '@/config/variant';
 import { clearChunkReloadGuard, installChunkReloadGuard } from '@/bootstrap/chunk-reload';
+import { CookieConsent } from './components/CookieConsent';
+import './styles/cookie-consent.css';
 
 // Auto-reload on stale chunk 404s after deployment (Vite fires this for modulepreload failures).
 const chunkReloadStorageKey = installChunkReloadGuard(__APP_VERSION__);
 
-// Initialize Vercel Analytics
-inject();
+// Tracking Initialization Logic
+function initializeTracking() {
+  inject();
+  injectSpeedInsights();
+  void initAnalytics().then(() => {
+    // Only track snapshot if secrets are loaded/available. If desktop secrets load later, 
+    // we may miss it, but this is the safest ordering.
+    trackApiKeysSnapshot();
+  });
+  
+  // Update Google Analytics Consent
+  if (typeof window !== 'undefined' && 'gtag' in window) {
+    (window as any).gtag('consent', 'update', {
+      'ad_storage': 'granted',
+      'analytics_storage': 'granted'
+    });
+  }
+}
 
-// Initialize Vercel Speed Insights
-injectSpeedInsights();
-
-// Initialize PostHog product analytics
-void initAnalytics();
+const consentStatus = CookieConsent.getConsentStatus();
+if (consentStatus === 'accepted') {
+  initializeTracking();
+} else if (consentStatus === null) {
+  const initBanner = () => {
+    const banner = new CookieConsent({
+      onAccept: () => initializeTracking(),
+      onReject: () => {}
+    });
+    banner.show();
+  };
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBanner);
+  } else {
+    initBanner();
+  }
+}
 
 // Initialize dynamic meta tags for sharing
 initMetaTags();
@@ -218,8 +249,10 @@ initMetaTags();
 // In desktop mode, route /api/* calls to the local Tauri sidecar backend.
 installRuntimeFetchPatch();
 loadDesktopSecrets().then(async () => {
-  await initAnalytics();
-  trackApiKeysSnapshot();
+  if (CookieConsent.getConsentStatus() === 'accepted') {
+    await initAnalytics();
+    trackApiKeysSnapshot();
+  }
 }).catch(() => {});
 
 // Apply stored theme preference before app initialization (safety net for inline script)
