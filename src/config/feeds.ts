@@ -63,7 +63,6 @@ export const SOURCE_TIERS: Record<string, number> = {
   'Brasil Paralelo': 2,
 
   // Tier 1 - Official Government & International Orgs
-  'White House': 1,
   'State Dept': 1,
   'Pentagon': 1,
   'UN News': 1,
@@ -299,7 +298,7 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   'AP News': 'wire', 'AFP': 'wire', 'Bloomberg': 'wire',
 
   // Government & International Org sources
-  'White House': 'gov', 'State Dept': 'gov', 'Pentagon': 'gov',
+  'State Dept': 'gov', 'Pentagon': 'gov',
   'Treasury': 'gov', 'DOJ': 'gov', 'DHS': 'gov', 'CDC': 'gov',
   'FEMA': 'gov', 'Federal Reserve': 'gov', 'SEC': 'gov',
   'UN News': 'gov', 'CISA': 'gov',

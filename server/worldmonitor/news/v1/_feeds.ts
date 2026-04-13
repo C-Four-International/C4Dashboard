@@ -53,7 +53,6 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
       { name: 'Reuters Business', url: gn('site:reuters.com business markets') },
     ],
     gov: [
-      { name: 'White House', url: gn('site:whitehouse.gov') },
       { name: 'State Dept', url: gn('site:state.gov OR "State Department"') },
       { name: 'Pentagon', url: gn('site:defense.gov OR Pentagon') },
       { name: 'Federal Reserve', url: 'https://www.federalreserve.gov/feeds/press_all.xml' },
