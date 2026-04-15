@@ -35,7 +35,7 @@ export async function getCountryIntelBrief(
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return empty;
 
-  const cacheKey = `ci-sebuf:v1:${req.countryCode}`;
+  const cacheKey = `ci-sebuf:v2:${req.countryCode}`;
   const countryName = TIER1_COUNTRIES[req.countryCode] || req.countryCode;
   const now = new Date();
   const dateStr = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
@@ -55,7 +55,7 @@ Write a concise intelligence brief for the requested country covering:
 
 Rules:
 - SEARCH REQUIREMENT: Use your web search and browser tools to find the latest verified news and situation reports for the designated country. Focus on reputable news agencies (BBC, NPR, CBC, SkyNews, AP, Reuters, Al Jazeera, Al Arabiya, ABC, CBS).
-- STRICT REQUIREMENT: You are explicitly prohibited from using the White House official press outlet as a source.
+- STRICT REQUIREMENT: You are explicitly prohibited from using the White House official press outlet, whitehouse.gov, or any whitehouse.gov subdomains as a source. Do not cite them.
 - RECENT DATA ONLY: Prioritize information from the last 24-72 hours.
 - STRICT REQUIREMENT: You are explicitly prohibited from providing made up names, places, or information in place of real data. This includes making up articles from the news agencies listed. Do not hallucinate. If you cannot find data, simply output "NO RELIABLE DATA AT THIS TIME", and provide reasoning.
 - STRICT REQUIREMENT: Do not include any preambles, introductory phrases, or courtesy text (e.g., "Here is the briefing", "Certainly"). Start immediately with the Heading.

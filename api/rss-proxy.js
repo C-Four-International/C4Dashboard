@@ -68,7 +68,6 @@ const ALLOWED_DOMAINS = [
   'export.arxiv.org',
   'www.federalreserve.gov',
   'www.sec.gov',
-  'www.whitehouse.gov',
   'www.state.gov',
   'www.defense.gov',
   'home.treasury.gov',
