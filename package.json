@@ -67,7 +67,7 @@
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
     "vite-plugin-pwa": "^1.2.0",
-    "ws": "^8.19.0"
+    "ws": "^8.20.1"
   },
   "dependencies": {
     "@deck.gl/aggregation-layers": "^9.2.6",
