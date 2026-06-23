@@ -533,6 +533,8 @@ export const CONFLICT_ZONES: ConflictZone[] = [
     location: 'Eastern Ukraine (Donetsk, Luhansk)',
     description: 'Full-scale Russian invasion of Ukraine. Active frontlines in Donetsk, Luhansk, Zaporizhzhia, and Kherson oblasts. Heavy artillery, drone warfare, and trench combat.',
     keyDevelopments: ['Battle of Bakhmut', 'Kursk incursion', 'Black Sea drone strikes', 'Infrastructure attacks'],
+    peaceAgreements: ['Minsk I (2014, failed)', 'Minsk II (2015, failed)'],
+    totalFatalities: '500,000+',
   },
   {
     id: 'gaza',
@@ -548,6 +550,8 @@ export const CONFLICT_ZONES: ConflictZone[] = [
     location: 'Gaza Strip, Palestinian Territories',
     description: 'Israeli military operations in Gaza following October 7 attacks. Ground invasion, aerial bombardment. Humanitarian crisis. Regional escalation with Hezbollah.',
     keyDevelopments: ['Rafah ground operation', 'Humanitarian crisis', 'Hostage negotiations', 'Iran-backed attacks'],
+    peaceAgreements: ['Oslo Accords (1993, undermined)'],
+    totalFatalities: '40,000+',
   },
   {
     id: 'south_lebanon',
@@ -563,6 +567,8 @@ export const CONFLICT_ZONES: ConflictZone[] = [
     location: 'Southern Lebanon / Northern Israel',
     description: 'Cross-border artillery and rocket fire. Targeted assassinations. High risk of full-scale escalation.',
     keyDevelopments: ['Daily rocket fire', 'IDF airstrikes', 'Buffer zone evacuation', 'Litani River tensions'],
+    peaceAgreements: ['UNSC Resolution 1701 (2006)'],
+    totalFatalities: '1,500+',
   },
   {
     id: 'yemen_redsea',
@@ -614,6 +620,8 @@ export const CONFLICT_ZONES: ConflictZone[] = [
     location: 'Red Sea & Gulf of Aden, Yemen',
     description: 'Houthi maritime campaign against commercial shipping. US/UK airstrikes on Houthi targets. Ongoing blockade attempts.',
     keyDevelopments: ['Ship hijackings', 'US airstrikes', 'Cable cuts', 'Sinking of Rubymar'],
+    peaceAgreements: ['Stockholm Agreement (2018, partial)'],
+    totalFatalities: '150,000+ (Yemen Civil War)',
   },
   {
     id: 'sudan',
@@ -636,6 +644,7 @@ export const CONFLICT_ZONES: ConflictZone[] = [
     location: 'Sudan (nationwide)',
     description: 'Power struggle between SAF and RSF paramilitary has engulfed the entire country. RSF controls most of Darfur and Khartoum; SAF holds Port Sudan and eastern regions. World\'s largest displacement crisis. Famine conditions in multiple states.',
     keyDevelopments: ['Khartoum destruction', 'Darfur ethnic massacres', 'El Fasher siege', 'Wad Madani fall to RSF', 'Famine declared in North Darfur', 'SAF counter-offensives', 'Regional proxy involvement (UAE, Egypt)'],
+    totalFatalities: '150,000+',
   },
   {
     id: 'myanmar',
@@ -668,6 +677,8 @@ export const CONFLICT_ZONES: ConflictZone[] = [
     startDate: 'Jul 27, 1953',
     location: 'Korean Peninsula (MDL)',
     description: '250km-long, 4km-wide buffer zone along the Military Demarcation Line established by the 1953 Korean Armistice Agreement. Despite its name, one of the most heavily militarized borders in the world.',
+    peaceAgreements: ['Korean Armistice Agreement (Jul 27, 1953)'],
+    totalFatalities: '2,500,000+ (Korean War)',
     center: [127.27, 38.14],
     coords: [
       [126.0955, 37.7876],
