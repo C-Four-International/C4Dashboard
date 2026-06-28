@@ -749,7 +749,6 @@ export const CONFLICT_ZONES: ConflictZone[] = [
     keyDevelopments: ['Pakistan cross-border strikes in Afghanistan', 'TTP attacks in KPK', 'Torkham/Chaman crossing tensions', 'Militant infiltration', 'Border closures'],
   },
 ];
-
 // US Domestic bases (not in overseas dataset - these are CONUS bases)
 const US_DOMESTIC_BASES: MilitaryBase[] = [
   { id: 'norfolk', name: 'Norfolk Naval', lat: 36.95, lon: -76.31, type: 'us-nato', description: 'World largest naval base. Atlantic Fleet HQ.' },
