@@ -1,0 +1,202 @@
+/* Discord Popup */
+.discord-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: none;
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  opacity: 0;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.discord-popup-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.discord-popup-banner {
+  position: relative;
+  background: var(--bg-panel, #141414);
+  border: 1px solid var(--border-color, #2a2a2a);
+  border-radius: 16px;
+  padding: 32px 32px 24px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  transform: scale(0.95) translateY(20px);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.discord-popup-overlay.visible .discord-popup-banner {
+  transform: scale(1) translateY(0);
+}
+
+[data-theme="light"] .discord-popup-banner {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15);
+}
+
+[data-variant="happy"] .discord-popup-banner {
+  border-radius: 24px;
+  background: var(--bg-panel, #FFFFFF);
+  border-color: var(--border-color, #EBE8E0);
+}
+
+.discord-popup-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: var(--text-secondary, #a0a0a0);
+  cursor: pointer;
+  transition: color 0.2s ease;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.discord-popup-close:hover {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .discord-popup-close:hover {
+  color: #111827;
+}
+
+.discord-popup-content {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.discord-popup-icon {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  background: #5865F2; /* Discord Blurple */
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.discord-popup-text-content {
+  flex: 1;
+}
+
+.discord-popup-title {
+  font-weight: 600;
+  font-size: 1.25rem;
+  margin-bottom: 8px;
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .discord-popup-title,
+[data-variant="happy"] .discord-popup-title {
+  color: var(--text-primary, #111827);
+}
+
+.discord-popup-text {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #a0a0a0);
+  line-height: 1.5;
+}
+
+[data-theme="light"] .discord-popup-text,
+[data-variant="happy"] .discord-popup-text {
+  color: var(--text-secondary, #4b5563);
+}
+
+.discord-popup-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.discord-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-variant="happy"] .discord-btn {
+  border-radius: 100px;
+}
+
+.discord-reject-btn {
+  background: transparent;
+  color: var(--text-secondary, #a0a0a0);
+  border: 1px solid var(--border-color, #2a2a2a);
+}
+
+.discord-reject-btn:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .discord-reject-btn {
+  color: #4b5563;
+  border-color: #d1d5db;
+}
+
+[data-theme="light"] .discord-reject-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+[data-variant="happy"] .discord-reject-btn {
+  border-color: var(--border-color, #DDD9CF);
+}
+
+.discord-accept-btn {
+  background: #5865F2; /* Discord Blurple */
+  color: white;
+  border: none;
+}
+
+.discord-accept-btn:hover {
+  background: #4752C4;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 480px) {
+  .discord-popup-content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .discord-popup-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .discord-btn {
+    width: 100%;
+  }
+}

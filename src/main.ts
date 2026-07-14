@@ -201,6 +201,7 @@ import { SITE_VARIANT } from '@/config/variant';
 import { clearChunkReloadGuard, installChunkReloadGuard } from '@/bootstrap/chunk-reload';
 import { CookieConsent } from './components/CookieConsent';
 import './styles/cookie-consent.css';
+import { DiscordPopup } from './components/DiscordPopup';
 
 // Auto-reload on stale chunk 404s after deployment (Vite fires this for modulepreload failures).
 const chunkReloadStorageKey = installChunkReloadGuard(__APP_VERSION__);
@@ -224,14 +225,29 @@ function initializeTracking() {
   }
 }
 
+function showDiscordPopupIfNeeded() {
+  if (!DiscordPopup.hasSeen()) {
+    setTimeout(() => {
+      const popup = new DiscordPopup();
+      popup.show();
+    }, 1000);
+  }
+}
+
 const consentStatus = CookieConsent.getConsentStatus();
 if (consentStatus === 'accepted') {
   initializeTracking();
+  showDiscordPopupIfNeeded();
 } else if (consentStatus === null) {
   const initBanner = () => {
     const banner = new CookieConsent({
-      onAccept: () => initializeTracking(),
-      onReject: () => {}
+      onAccept: () => {
+        initializeTracking();
+        showDiscordPopupIfNeeded();
+      },
+      onReject: () => {
+        showDiscordPopupIfNeeded();
+      }
     });
     banner.show();
   };
@@ -241,6 +257,8 @@ if (consentStatus === 'accepted') {
   } else {
     initBanner();
   }
+} else {
+  showDiscordPopupIfNeeded();
 }
 
 // Initialize dynamic meta tags for sharing
