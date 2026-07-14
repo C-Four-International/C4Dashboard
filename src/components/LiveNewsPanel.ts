@@ -62,7 +62,7 @@ const FULL_LIVE_CHANNELS: LiveChannel[] = [
   { id: 'euronews', name: 'Euronews', handle: '@euabortnews', fallbackVideoId: 'pykpO5kQJ98' },
   { id: 'dw', name: 'DW', handle: '@DWNews', fallbackVideoId: 'LuKwFajn37U' },
   { id: 'cnbc', name: 'CNBC', handle: '@CNBC', fallbackVideoId: '9NyxcX3rhQs' },
-  { id: 'france24', name: 'France24', handle: '@FRANCE24English', fallbackVideoId: 'Ap-UM1O9RBU' },
+  { id: 'france24', name: 'France24', handle: '@France24_en', fallbackVideoId: 'HvZt-nh9sGg' },
   { id: 'alarabiya', name: 'AlArabiya', handle: '@AlArabiya', fallbackVideoId: 'n7eQejkXbnM', useFallbackOnly: true },
   { id: 'aljazeera', name: 'AlJazeera', handle: '@AlJazeeraEnglish', fallbackVideoId: 'gCNeDWCI0vo', useFallbackOnly: true },
 ];
@@ -83,7 +83,7 @@ export const OPTIONAL_LIVE_CHANNELS: LiveChannel[] = [
   { id: 'nbc-news', name: 'NBC News', handle: '@NBCNews' },
   // Europe
   { id: 'bbc-news', name: 'BBC News', handle: '@BBCNews' },
-  { id: 'france24-en', name: 'France 24 English', handle: '@FRANCE24English' },
+  { id: 'france24-en', name: 'France 24 English', handle: '@France24_en' },
   { id: 'welt', name: 'WELT', handle: '@WELTNachrichtensender' },
   { id: 'trt-haber', name: 'TRT Haber', handle: '@trthaber' },
   { id: 'ntv-turkey', name: 'NTV', handle: '@NTV' },
