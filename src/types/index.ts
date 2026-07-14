@@ -231,6 +231,8 @@ export interface ConflictZone {
   location?: string;
   description?: string;
   keyDevelopments?: string[];
+  peaceAgreements?: string[];
+  totalFatalities?: string;
 }
 
 // UCDP Georeferenced Events
