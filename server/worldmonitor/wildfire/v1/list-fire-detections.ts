@@ -103,48 +103,64 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
     REDIS_CACHE_TTL,
     async () => {
       const entries = Object.entries(MONITORED_REGIONS);
-      const results = await Promise.allSettled(
-        entries.map(async ([regionName, bbox]) => {
-          const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${apiKey}/${FIRMS_SOURCE}/${bbox}/1`;
-          const res = await fetch(url, {
-            headers: { Accept: 'text/csv', 'User-Agent': CHROME_UA },
-            signal: AbortSignal.timeout(15_000),
-          });
-          if (!res.ok) {
-            throw new Error(`FIRMS ${res.status} for ${regionName}`);
-          }
-          const csv = await res.text();
-          const rows = parseCSV(csv);
-          return { regionName, rows };
-        }),
-      );
-
+      
       const fireDetections: ListFireDetectionsResponse['fireDetections'] = [];
+      const fetchPromises: Promise<void>[] = [];
 
-      for (const r of results) {
-        if (r.status === 'fulfilled') {
-          const { regionName, rows } = r.value;
-          for (const row of rows) {
-            const detectedAt = parseDetectedAt(row.acq_date || '', row.acq_time || '');
-            fireDetections.push({
-              id: `${row.latitude ?? ''}-${row.longitude ?? ''}-${row.acq_date ?? ''}-${row.acq_time ?? ''}`,
-              location: {
-                latitude: parseFloat(row.latitude ?? '0') || 0,
-                longitude: parseFloat(row.longitude ?? '0') || 0,
-              },
-              brightness: parseFloat(row.bright_ti4 ?? '0') || 0,
-              frp: parseFloat(row.frp ?? '0') || 0,
-              confidence: mapConfidence(row.confidence || ''),
-              satellite: row.satellite || '',
-              detectedAt,
-              region: regionName,
-              dayNight: row.daynight || '',
-            });
+      // FIRMS API limits area to 10x10 degrees. We must split large bboxes.
+      for (const [regionName, bbox] of entries) {
+        const [w, s, e, n] = bbox.split(',').map(Number);
+        
+        for (let lat = s; lat < n; lat += 10) {
+          for (let lon = w; lon < e; lon += 10) {
+            const chunkW = lon;
+            const chunkS = lat;
+            const chunkE = Math.min(lon + 10, e);
+            const chunkN = Math.min(lat + 10, n);
+            const chunkBbox = `${chunkW},${chunkS},${chunkE},${chunkN}`;
+            
+            const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${apiKey}/${FIRMS_SOURCE}/${chunkBbox}/1`;
+            
+            fetchPromises.push(
+              fetch(url, {
+                headers: { Accept: 'text/csv', 'User-Agent': CHROME_UA },
+                signal: AbortSignal.timeout(15_000),
+              })
+              .then(async res => {
+                if (!res.ok) {
+                  // Wait for text to log the real error if any
+                  const errText = await res.text().catch(() => '');
+                  throw new Error(`FIRMS ${res.status} for ${regionName} (${chunkBbox}): ${errText}`);
+                }
+                const csv = await res.text();
+                const rows = parseCSV(csv);
+                for (const row of rows) {
+                  const detectedAt = parseDetectedAt(row.acq_date || '', row.acq_time || '');
+                  fireDetections.push({
+                    id: `${row.latitude ?? ''}-${row.longitude ?? ''}-${row.acq_date ?? ''}-${row.acq_time ?? ''}`,
+                    location: {
+                      latitude: parseFloat(row.latitude ?? '0') || 0,
+                      longitude: parseFloat(row.longitude ?? '0') || 0,
+                    },
+                    brightness: parseFloat(row.bright_ti4 ?? '0') || 0,
+                    frp: parseFloat(row.frp ?? '0') || 0,
+                    confidence: mapConfidence(row.confidence || ''),
+                    satellite: row.satellite || '',
+                    detectedAt,
+                    region: regionName,
+                    dayNight: row.daynight || '',
+                  });
+                }
+              })
+              .catch(err => {
+                console.warn(`[FIRMS] Failed to fetch chunk for ${regionName}: ${err.message}`);
+              })
+            );
           }
-        } else {
-          console.error('[FIRMS]', r.reason?.message);
         }
       }
+
+      await Promise.allSettled(fetchPromises);
 
       return fireDetections.length > 0 ? { fireDetections, pagination: undefined } : null;
     },
