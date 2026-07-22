@@ -1,8 +1,8 @@
 /**
  * ListFireDetections RPC -- proxies the NASA FIRMS CSV API.
  *
- * Fetches active fire detections from all 9 monitored regions in parallel
- * and transforms the FIRMS CSV rows into proto-shaped FireDetection objects.
+ * Fetches active fire detections from a global 24h CSV, parses it,
+ * and transforms the rows into proto-shaped FireDetection objects.
  *
  * Gracefully degrades to empty results when NASA_FIRMS_API_KEY is not set.
  */
@@ -20,7 +20,7 @@ import type {
 import { CHROME_UA } from '../../../_shared/constants';
 import { cachedFetchJson } from '../../../_shared/redis';
 
-const REDIS_CACHE_KEY = 'wildfire:fires:v3';
+const REDIS_CACHE_KEY = 'wildfire:fires:v4';
 const REDIS_CACHE_TTL = 3600; // 1h — NASA FIRMS VIIRS NRT updates every ~3 hours
 
 const FIRMS_SOURCE = 'VIIRS_SNPP_NRT';
@@ -80,7 +80,6 @@ function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): { ro
     
     let matchedRegion = '';
     for (const [rName, bbox] of Object.entries(regions)) {
-      // bbox is [w, s, e, n]
       if (lat >= bbox[1]! && lat <= bbox[3]! && lon >= bbox[0]! && lon <= bbox[2]!) {
         matchedRegion = rName;
         break;
@@ -121,6 +120,7 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
     console.warn('[FIRMS] No NASA_FIRMS_API_KEY configured. Returning empty results.');
     return { fireDetections: [], pagination: undefined };
   }
+
   console.log('[FIRMS] listFireDetections called. Checking cache for key:', REDIS_CACHE_KEY);
 
   const result = await cachedFetchJson<ListFireDetectionsResponse>(
@@ -165,9 +165,10 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
             brightness: parseFloat(row.bright_ti4 || '0'),
             frp: parseFloat(row.frp || '0'),
             confidence: mapConfidence(row.confidence || ''),
-            detectedAtMs: Number.isFinite(detectedAt) ? detectedAt.toString() : '0',
+            satellite: row.satellite || '',
+            detectedAt: Number.isFinite(detectedAt) ? detectedAt : 0,
             region: regionName,
-            daynight: row.daynight || 'D',
+            dayNight: row.daynight || 'D',
           });
         }
       } catch (err: any) {
