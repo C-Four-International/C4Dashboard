@@ -335,14 +335,14 @@ export class MapComponent {
       'cables', 'pipelines', 'outages', 'datacenters',   // infrastructure
       // cyberThreats is intentionally hidden on SVG/mobile fallback (DeckGL desktop only)
       'ais', 'flights',                                   // transport
-      'natural', 'weather',                               // natural
+      'natural', 'weather', 'fires',                      // natural
       'economic',                                         // economic
       'waterways',                                        // labels
     ];
     const techLayers: (keyof MapLayers)[] = [
       'cables', 'datacenters', 'outages',                // tech infrastructure
       'startupHubs', 'cloudRegions', 'accelerators', 'techHQs', 'techEvents', // tech ecosystem
-      'natural', 'weather',                               // natural events
+      'natural', 'weather', 'fires',                      // natural events
       'economic',                                         // economic/geographic
       'flights',                                          // aviation
     ];
@@ -350,7 +350,7 @@ export class MapComponent {
       'stockExchanges', 'financialCenters', 'centralBanks', 'commodityHubs', // finance ecosystem
       'cables', 'pipelines', 'outages',                   // infrastructure
       'sanctions', 'economic', 'waterways',               // geopolitical/economic
-      'natural', 'weather',                               // natural events
+      'natural', 'weather', 'fires',                      // natural events
       'flights',                                          // aviation
     ];
     const happyLayers: (keyof MapLayers)[] = [
@@ -384,6 +384,7 @@ export class MapComponent {
       centralBanks: 'components.deckgl.layers.centralBanks',
       commodityHubs: 'components.deckgl.layers.commodityHubs',
       gulfInvestments: 'components.deckgl.layers.gulfInvestments',
+      fires: 'components.deckgl.layers.satelliteFires',
     };
     const getLayerLabel = (layer: keyof MapLayers): string => {
       if (layer === 'sanctions') return t('components.deckgl.layerHelp.labels.sanctions');

@@ -36,6 +36,8 @@ const MONITORED_REGIONS: Record<string, string> = {
   'North Korea': '124,37,131,43',
   'Saudi Arabia': '34,16,56,32',
   'Turkey': '26,36,45,42',
+  'USA': '-125,24,-66,49',
+  'Canada': '-141,41,-52,83',
 };
 
 /** Map VIIRS confidence letters to proto enum values. */
