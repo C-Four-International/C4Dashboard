@@ -20,7 +20,7 @@ import type {
 import { CHROME_UA } from '../../../_shared/constants';
 import { cachedFetchJson } from '../../../_shared/redis';
 
-const REDIS_CACHE_KEY = 'wildfire:fires:v2';
+const REDIS_CACHE_KEY = 'wildfire:fires:v3';
 const REDIS_CACHE_TTL = 3600; // 1h — NASA FIRMS VIIRS NRT updates every ~3 hours
 
 const FIRMS_SOURCE = 'VIIRS_SNPP_NRT';
@@ -54,23 +54,46 @@ function mapConfidence(c: string): FireConfidence {
   }
 }
 
-/** Parse a FIRMS CSV response into an array of row objects keyed by header name. */
-function parseCSV(csv: string): Record<string, string>[] {
+function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): { row: Record<string, string>, regionName: string }[] {
   const lines = csv.trim().split('\n');
   if (lines.length < 2) return [];
 
   const headers = lines[0]!.split(',').map((h) => h.trim());
-  const results: Record<string, string>[] = [];
+  const latIdx = headers.indexOf('latitude');
+  const lonIdx = headers.indexOf('longitude');
+  
+  if (latIdx === -1 || lonIdx === -1) return [];
+
+  const results: { row: Record<string, string>, regionName: string }[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const vals = lines[i]!.split(',').map((v) => v.trim());
-    if (vals.length < headers.length) continue;
-
-    const row: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      row[h] = vals[idx]!;
-    });
-    results.push(row);
+    const line = lines[i]!;
+    if (!line) continue;
+    
+    const vals = line.split(',');
+    const latStr = vals[latIdx];
+    const lonStr = vals[lonIdx];
+    if (!latStr || !lonStr) continue;
+    
+    const lat = parseFloat(latStr);
+    const lon = parseFloat(lonStr);
+    
+    let matchedRegion = '';
+    for (const [rName, bbox] of Object.entries(regions)) {
+      // bbox is [w, s, e, n]
+      if (lat >= bbox[1]! && lat <= bbox[3]! && lon >= bbox[0]! && lon <= bbox[2]!) {
+        matchedRegion = rName;
+        break;
+      }
+    }
+    
+    if (matchedRegion) {
+      const row: Record<string, string> = {};
+      headers.forEach((h, idx) => {
+        row[h] = vals[idx] ? vals[idx].trim() : '';
+      });
+      results.push({ row, regionName: matchedRegion });
+    }
   }
 
   return results;
@@ -98,108 +121,63 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
     console.warn('[FIRMS] No NASA_FIRMS_API_KEY configured. Returning empty results.');
     return { fireDetections: [], pagination: undefined };
   }
-
   console.log('[FIRMS] listFireDetections called. Checking cache for key:', REDIS_CACHE_KEY);
 
   const result = await cachedFetchJson<ListFireDetectionsResponse>(
     REDIS_CACHE_KEY,
     REDIS_CACHE_TTL,
     async () => {
-      const entries = Object.entries(MONITORED_REGIONS);
-      const fireDetections: ListFireDetectionsResponse['fireDetections'] = [];
-      const fetchPromises: Promise<void>[] = [];
-
-      // We use a simple concurrency limit (e.g. 5 concurrent requests)
-      const CONCURRENCY_LIMIT = 5;
-      let activeRequests = 0;
-      const queue: (() => Promise<void>)[] = [];
-
-      const processQueue = async () => {
-        if (queue.length === 0) return;
-        const task = queue.shift()!;
-        activeRequests++;
-        try {
-          await task();
-        } finally {
-          activeRequests--;
-          if (queue.length > 0) {
-            await processQueue();
-          }
-        }
-      };
-
-      const enqueue = (task: () => Promise<void>) => {
-        queue.push(task);
-        if (activeRequests < CONCURRENCY_LIMIT) {
-          processQueue();
-        }
-      };
-
-      // FIRMS API limits area to 10x10 degrees. We must split large bboxes.
-      for (const [regionName, bbox] of entries) {
-        const [w, s, e, n] = bbox.split(',').map(Number);
-        
-        for (let lat = s; lat < n; lat += 10) {
-          for (let lon = w; lon < e; lon += 10) {
-            const chunkW = lon;
-            const chunkS = lat;
-            const chunkE = Math.min(lon + 10, e);
-            const chunkN = Math.min(lat + 10, n);
-            const chunkBbox = `${chunkW},${chunkS},${chunkE},${chunkN}`;
-            
-            const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${apiKey}/${FIRMS_SOURCE}/${chunkBbox}/1`;
-            
-            const fetchTask = async () => {
-              try {
-                const res = await fetch(url, {
-                  headers: { Accept: 'text/csv', 'User-Agent': CHROME_UA },
-                  signal: AbortSignal.timeout(15_000),
-                });
-                if (!res.ok) {
-                  const errText = await res.text().catch(() => '');
-                  throw new Error(`FIRMS ${res.status} for ${regionName} (${chunkBbox}): ${errText}`);
-                }
-                const csv = await res.text();
-                const rows = parseCSV(csv);
-                // Log success to help debug
-                console.log(`[FIRMS] Fetched ${rows.length} rows for ${regionName} (${chunkBbox})`);
-                for (const row of rows) {
-                  const detectedAt = parseDetectedAt(row.acq_date || '', row.acq_time || '');
-                  fireDetections.push({
-                    id: `${row.latitude ?? ''}-${row.longitude ?? ''}-${row.acq_date ?? ''}-${row.acq_time ?? ''}`,
-                    location: {
-                      latitude: parseFloat(row.latitude ?? '0') || 0,
-                      longitude: parseFloat(row.longitude ?? '0') || 0,
-                    },
-                    brightness: parseFloat(row.bright_ti4 ?? '0') || 0,
-                    frp: parseFloat(row.frp ?? '0') || 0,
-                    confidence: mapConfidence(row.confidence || ''),
-                    satellite: row.satellite || '',
-                    detectedAt,
-                    region: regionName,
-                    dayNight: row.daynight || '',
-                  });
-                }
-              } catch (err: any) {
-                console.warn(`[FIRMS] Failed to fetch chunk for ${regionName}: ${err.message}`);
-              }
-            };
-            
-            const promise = new Promise<void>((resolve) => {
-              enqueue(async () => {
-                await fetchTask();
-                resolve();
-              });
-            });
-            fetchPromises.push(promise);
-          }
-        }
+      const parsedRegions: Record<string, number[]> = {};
+      for (const [name, bbox] of Object.entries(MONITORED_REGIONS)) {
+        parsedRegions[name] = bbox.split(',').map(Number);
       }
 
-      await Promise.allSettled(fetchPromises);
-      console.log(`[FIRMS] Completed fetching all chunks. Total fires found: ${fireDetections.length}`);
+      const fireDetections: ListFireDetectionsResponse['fireDetections'] = [];
+      const globalUrl = 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv';
+      
+      console.log('[FIRMS] Fetching global 24h CSV from:', globalUrl);
+      
+      try {
+        const res = await fetch(globalUrl, {
+          headers: { Accept: 'text/csv', 'User-Agent': CHROME_UA },
+          signal: AbortSignal.timeout(15_000),
+        });
+        
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          throw new Error(`FIRMS API returned ${res.status}: ${errText}`);
+        }
+        
+        const csv = await res.text();
+        const matches = parseAndFilterCSV(csv, parsedRegions);
+        
+        console.log(`[FIRMS] Successfully parsed global CSV. Found ${matches.length} fires in monitored regions.`);
+        
+        for (const match of matches) {
+          const { row, regionName } = match;
+          const detectedAt = parseDetectedAt(row.acq_date || '', row.acq_time || '');
+          fireDetections.push({
+            id: `fire-${row.latitude}-${row.longitude}-${detectedAt}`,
+            location: {
+              latitude: parseFloat(row.latitude || '0'),
+              longitude: parseFloat(row.longitude || '0'),
+            },
+            brightness: parseFloat(row.bright_ti4 || '0'),
+            frp: parseFloat(row.frp || '0'),
+            confidence: mapConfidence(row.confidence || ''),
+            detectedAtMs: Number.isFinite(detectedAt) ? detectedAt.toString() : '0',
+            region: regionName,
+            daynight: row.daynight || 'D',
+          });
+        }
+      } catch (err: any) {
+        console.error(`[FIRMS] Failed to fetch or parse global fire data: ${err.message}`);
+      }
+
+      console.log(`[FIRMS] Returning ${fireDetections.length} total fires.`);
       return fireDetections.length > 0 ? { fireDetections, pagination: undefined } : null;
     },
   );
+
   return result || { fireDetections: [], pagination: undefined };
 };
