@@ -20,7 +20,7 @@ import type {
 import { CHROME_UA } from '../../../_shared/constants';
 import { cachedFetchJson } from '../../../_shared/redis';
 
-const REDIS_CACHE_KEY = 'wildfire:fires:v1';
+const REDIS_CACHE_KEY = 'wildfire:fires:v2';
 const REDIS_CACHE_TTL = 3600; // 1h — NASA FIRMS VIIRS NRT updates every ~3 hours
 
 const FIRMS_SOURCE = 'VIIRS_SNPP_NRT';
@@ -95,17 +95,45 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
     process.env.NASA_FIRMS_API_KEY || process.env.FIRMS_API_KEY || '';
 
   if (!apiKey) {
+    console.warn('[FIRMS] No NASA_FIRMS_API_KEY configured. Returning empty results.');
     return { fireDetections: [], pagination: undefined };
   }
+
+  console.log('[FIRMS] listFireDetections called. Checking cache for key:', REDIS_CACHE_KEY);
 
   const result = await cachedFetchJson<ListFireDetectionsResponse>(
     REDIS_CACHE_KEY,
     REDIS_CACHE_TTL,
     async () => {
       const entries = Object.entries(MONITORED_REGIONS);
-      
       const fireDetections: ListFireDetectionsResponse['fireDetections'] = [];
       const fetchPromises: Promise<void>[] = [];
+
+      // We use a simple concurrency limit (e.g. 5 concurrent requests)
+      const CONCURRENCY_LIMIT = 5;
+      let activeRequests = 0;
+      const queue: (() => Promise<void>)[] = [];
+
+      const processQueue = async () => {
+        if (queue.length === 0) return;
+        const task = queue.shift()!;
+        activeRequests++;
+        try {
+          await task();
+        } finally {
+          activeRequests--;
+          if (queue.length > 0) {
+            await processQueue();
+          }
+        }
+      };
+
+      const enqueue = (task: () => Promise<void>) => {
+        queue.push(task);
+        if (activeRequests < CONCURRENCY_LIMIT) {
+          processQueue();
+        }
+      };
 
       // FIRMS API limits area to 10x10 degrees. We must split large bboxes.
       for (const [regionName, bbox] of entries) {
@@ -121,19 +149,20 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
             
             const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${apiKey}/${FIRMS_SOURCE}/${chunkBbox}/1`;
             
-            fetchPromises.push(
-              fetch(url, {
-                headers: { Accept: 'text/csv', 'User-Agent': CHROME_UA },
-                signal: AbortSignal.timeout(15_000),
-              })
-              .then(async res => {
+            const fetchTask = async () => {
+              try {
+                const res = await fetch(url, {
+                  headers: { Accept: 'text/csv', 'User-Agent': CHROME_UA },
+                  signal: AbortSignal.timeout(15_000),
+                });
                 if (!res.ok) {
-                  // Wait for text to log the real error if any
                   const errText = await res.text().catch(() => '');
                   throw new Error(`FIRMS ${res.status} for ${regionName} (${chunkBbox}): ${errText}`);
                 }
                 const csv = await res.text();
                 const rows = parseCSV(csv);
+                // Log success to help debug
+                console.log(`[FIRMS] Fetched ${rows.length} rows for ${regionName} (${chunkBbox})`);
                 for (const row of rows) {
                   const detectedAt = parseDetectedAt(row.acq_date || '', row.acq_time || '');
                   fireDetections.push({
@@ -151,17 +180,24 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
                     dayNight: row.daynight || '',
                   });
                 }
-              })
-              .catch(err => {
+              } catch (err: any) {
                 console.warn(`[FIRMS] Failed to fetch chunk for ${regionName}: ${err.message}`);
-              })
-            );
+              }
+            };
+            
+            const promise = new Promise<void>((resolve) => {
+              enqueue(async () => {
+                await fetchTask();
+                resolve();
+              });
+            });
+            fetchPromises.push(promise);
           }
         }
       }
 
       await Promise.allSettled(fetchPromises);
-
+      console.log(`[FIRMS] Completed fetching all chunks. Total fires found: ${fireDetections.length}`);
       return fireDetections.length > 0 ? { fireDetections, pagination: undefined } : null;
     },
   );
