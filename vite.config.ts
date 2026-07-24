@@ -836,6 +836,9 @@ export default defineConfig({
     port: 3000,
     open: !isE2E,
     hmr: isE2E ? false : undefined,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+    },
     watch: {
       ignored: [
         '**/test-results/**',
