@@ -188,9 +188,11 @@ jobs:
       # ── Determine variant ──
       - name: Set build variant
         shell: bash
+        env:
+          INPUT_VARIANT: ${{ github.event.inputs.variant }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "BUILD_VARIANT=${{ github.event.inputs.variant }}" >> $GITHUB_ENV
+            echo "BUILD_VARIANT=$INPUT_VARIANT" >> $GITHUB_ENV
           else
             echo "BUILD_VARIANT=full" >> $GITHUB_ENV
           fi
