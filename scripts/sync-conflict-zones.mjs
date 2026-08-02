@@ -24,7 +24,7 @@ const LOCAL_FILE = resolve(ROOT, 'src/config/geo.ts');
 const UPSTREAM_OWNER = 'koala73';
 const UPSTREAM_REPO = 'worldmonitor';
 const UPSTREAM_BRANCH = 'main';
-const UPSTREAM_FILE_PATH = 'src/config/geo.ts';
+const UPSTREAM_FILE_PATH = 'shared/geo-data.ts';
 const UPSTREAM_RAW_URL = `https://raw.githubusercontent.com/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/${UPSTREAM_BRANCH}/${UPSTREAM_FILE_PATH}`;
 
 const isDryRun = process.argv.includes('--dry-run');
