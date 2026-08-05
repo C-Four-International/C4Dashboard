@@ -1370,9 +1370,12 @@ export class DeckGLMap {
       data: regionalThreats,
       getPosition: (d: RegionalThreat) => [d.lon, d.lat],
       getFillColor: (d: RegionalThreat) => {
-        // Highly visible red, scaled by threat score
-        const intensity = Math.min(255, 150 + (d.threatScore * 35));
-        return [intensity, 0, 0, 200]; 
+        const t = d.threatScore;
+        if (t < 0.5) return [64, 200, 120, 200]; // Low: Green
+        if (t < 1.0) return [255, 204, 0, 200];  // Medium: Yellow
+        if (t < 1.5) return [255, 140, 0, 210];  // High: Orange
+        if (t < 3.0) return [255, 50, 50, 220];  // Critical: Red
+        return [180, 0, 40, 230];                // Extreme: Dark Crimson
       },
       getRadius: (d: RegionalThreat) => {
         // Larger base radius so it's visible globally
@@ -1382,7 +1385,14 @@ export class DeckGLMap {
       radiusMinPixels: 6,
       radiusMaxPixels: 80,
       stroked: true,
-      getLineColor: [255, 255, 255, 200],
+      getLineColor: (d: RegionalThreat) => {
+        const t = d.threatScore;
+        if (t < 0.5) return [64, 255, 120, 255]; 
+        if (t < 1.0) return [255, 255, 0, 255];  
+        if (t < 1.5) return [255, 180, 0, 255];  
+        if (t < 3.0) return [255, 100, 100, 255];
+        return [255, 50, 80, 255];
+      },
       lineWidthMinPixels: 1,
       pickable: true,
       updateTriggers: {
