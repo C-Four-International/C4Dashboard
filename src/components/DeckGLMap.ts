@@ -1355,6 +1355,9 @@ export class DeckGLMap {
   // Layer creation methods
   private createThreatScoreLayer(): ScatterplotLayer {
     const regionalThreats = calculateRegionalThreats(this.newsLocations);
+    if (regionalThreats.length > 0) {
+      console.log('[ThreatScore] Data hook payload:', regionalThreats.slice(0, 5));
+    }
     
     return new ScatterplotLayer<RegionalThreat>({
       id: 'threat-score-layer',
