@@ -275,7 +275,7 @@ export class DeckGLMap {
   private techEvents: TechEventMarker[] = [];
   private flightDelays: AirportDelayAlert[] = [];
   private news: NewsItem[] = [];
-  private newsLocations: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date }> = [];
+  private newsLocations: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date; items?: import('@/types').NewsItem[] }> = [];
   private newsLocationFirstSeen = new Map<string, number>();
   private ucdpEvents: UcdpGeoEvent[] = [];
   private displacementFlows: DisplacementFlow[] = [];
@@ -1354,7 +1354,7 @@ export class DeckGLMap {
 
   // Layer creation methods
   private createThreatScoreLayer(): ScatterplotLayer {
-    const regionalThreats = calculateRegionalThreats(this.news);
+    const regionalThreats = calculateRegionalThreats(this.newsLocations);
     
     return new ScatterplotLayer<RegionalThreat>({
       id: 'threat-score-layer',
@@ -3849,7 +3849,7 @@ export class DeckGLMap {
     this.render();
   }
 
-  public setNewsLocations(data: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date }>): void {
+  public setNewsLocations(data: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date; items?: import('@/types').NewsItem[] }>): void {
     const now = Date.now();
     for (const d of data) {
       if (!this.newsLocationFirstSeen.has(d.title)) {

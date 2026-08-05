@@ -789,6 +789,7 @@ export class DataLoaderManager implements AppModule {
           title: c.primaryTitle,
           threatLevel: c.threat?.level ?? 'info',
           timestamp: c.lastUpdated,
+          items: c.allItems,
         }));
       if (geoLocated.length > 0) {
         this.ctx.map?.setNewsLocations(geoLocated);

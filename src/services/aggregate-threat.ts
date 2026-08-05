@@ -70,46 +70,52 @@ export function getSeverityScore(level: string): number {
 // Calculates aggregate threat scores based on the formula:
 // T = log10(V + 1) * ( Sum( S_i * C_i * e^(-lambda * t_i) ) / V )
 export function calculateRegionalThreats(
-  newsItems: NewsItem[],
+  newsLocations: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date; items?: NewsItem[] }>,
   currentTimeMs: number = Date.now()
 ): RegionalThreat[] {
   const lambda = 0.05; // Time decay constant (halves every ~14 hours)
   const MS_PER_HOUR = 60 * 60 * 1000;
 
-  // Group items by geographical location
-  const regionsMap = new Map<string, { lat: number; lon: number; locationName?: string; items: NewsItem[] }>();
-
-  for (const item of newsItems) {
-    // Only group items with known lat/lon
-    if (item.lat === undefined || item.lon === undefined) continue;
-
-    // Use locationName as key if available, otherwise fallback to "lat,lon"
-    const key = item.locationName || `${item.lat.toFixed(2)},${item.lon.toFixed(2)}`;
-    
-    if (!regionsMap.has(key)) {
-      regionsMap.set(key, { lat: item.lat, lon: item.lon, locationName: item.locationName, items: [] });
-    }
-    regionsMap.get(key)!.items.push(item);
-  }
-
   const results: RegionalThreat[] = [];
 
-  for (const [_, regionData] of regionsMap.entries()) {
-    const V = regionData.items.length;
-    if (V === 0) continue;
+  for (const location of newsLocations) {
+    const items = location.items || [];
+    const V = items.length;
+    
+    // If no individual items are available, fallback to a single placeholder calculation
+    // based on the cluster's high-level attributes
+    if (V === 0) {
+      let ageMs = currentTimeMs - (location.timestamp ? location.timestamp.getTime() : currentTimeMs);
+      if (ageMs < 0) ageMs = 0;
+      const t_i = ageMs / MS_PER_HOUR;
+      
+      const S_i = getSeverityScore(location.threatLevel);
+      const C_i = 0.6; // slightly elevated default credibility for a clustered event
+      
+      // V = 1 -> log10(2) * (S_i * C_i * exp(-lambda * t_i) / 1)
+      const T = Math.log10(2) * (S_i * C_i * Math.exp(-lambda * t_i));
+      
+      if (T > 0.01) {
+        results.push({
+          lat: location.lat,
+          lon: location.lon,
+          locationName: location.title,
+          threatScore: T,
+          eventCount: 1,
+        });
+      }
+      continue;
+    }
 
     let sum = 0;
-
-    for (const item of regionData.items) {
+    for (const item of items) {
       // Age in hours
       let ageMs = currentTimeMs - item.pubDate.getTime();
       if (ageMs < 0) ageMs = 0; // Prevent negative time
       const t_i = ageMs / MS_PER_HOUR;
 
-      // Ensure item has a threat classification if not already set (rely on lightweight NLP buzzwords)
       const threat = item.threat || classifyByKeyword(item.title, SITE_VARIANT);
       const S_i = getSeverityScore(threat.level);
-
       const C_i = getCredibility(item.source);
 
       sum += S_i * C_i * Math.exp(-lambda * t_i);
@@ -117,12 +123,11 @@ export function calculateRegionalThreats(
 
     const T = Math.log10(V + 1) * (sum / V);
 
-    // Only include regions with a meaningful threat score (>0.01) to keep the map clean
     if (T > 0.01) {
       results.push({
-        lat: regionData.lat,
-        lon: regionData.lon,
-        locationName: regionData.locationName,
+        lat: location.lat,
+        lon: location.lon,
+        locationName: location.title,
         threatScore: T,
         eventCount: V,
       });
