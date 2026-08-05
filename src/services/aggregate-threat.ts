@@ -85,7 +85,7 @@ export function calculateRegionalThreats(
     // If no individual items are available, fallback to a single placeholder calculation
     // based on the cluster's high-level attributes
     if (V === 0) {
-      let ageMs = currentTimeMs - (location.timestamp ? location.timestamp.getTime() : currentTimeMs);
+      let ageMs = currentTimeMs - (location.timestamp ? new Date(location.timestamp).getTime() : currentTimeMs);
       if (ageMs < 0) ageMs = 0;
       const t_i = ageMs / MS_PER_HOUR;
       
@@ -110,7 +110,7 @@ export function calculateRegionalThreats(
     let sum = 0;
     for (const item of items) {
       // Age in hours
-      let ageMs = currentTimeMs - item.pubDate.getTime();
+      let ageMs = currentTimeMs - new Date(item.pubDate).getTime();
       if (ageMs < 0) ageMs = 0; // Prevent negative time
       const t_i = ageMs / MS_PER_HOUR;
 

@@ -1370,14 +1370,16 @@ export class DeckGLMap {
         return Math.max(10000, 20000 + (d.threatScore * 5000));
       },
       radiusUnits: 'meters',
+      radiusMinPixels: 4,
+      radiusMaxPixels: 50,
       stroked: true,
       getLineColor: [255, 255, 255, 200],
       lineWidthMinPixels: 1,
       pickable: true,
       updateTriggers: {
-        // Force redraw on decay interval
-        getFillColor: Date.now(),
-        getRadius: Date.now()
+        // Tie to something stable like news lengths and decay timer ID so it redraws on interval
+        getFillColor: [this.newsLocations.length, Date.now()],
+        getRadius: [this.newsLocations.length, Date.now()]
       }
     });
   }
