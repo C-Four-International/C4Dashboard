@@ -59,6 +59,8 @@ import {
 import { mlWorker } from '@/services/ml-worker';
 import { clusterNewsHybrid } from '@/services/clustering';
 import { ingestProtests, ingestFlights, ingestVessels, ingestEarthquakes, detectGeoConvergence, geoConvergenceToSignal } from '@/services/geo-convergence';
+import { getGeoCache, setGeoCache } from '@/services/geo-cache';
+import { inferGeoHubsFromTitle } from '@/services/geo-hub-index';
 import { signalAggregator } from '@/services/signal-aggregator';
 import { updateAndCheck } from '@/services/temporal-baseline';
 import { fetchAllFires, flattenFires, computeRegionStats, toMapFires } from '@/services/wildfires';
@@ -125,6 +127,21 @@ const PROTO_TO_CLIENT_LEVEL: Record<ProtoThreatLevel, ClientThreatLevel> = {
 
 function protoItemToNewsItem(p: ProtoNewsItem): NewsItem {
   const level = PROTO_TO_CLIENT_LEVEL[p.threat?.level ?? 'THREAT_LEVEL_UNSPECIFIED'];
+  
+  // Try to use backend-provided location, otherwise infer it on the client
+  let lat = p.location?.latitude;
+  let lon = p.location?.longitude;
+  let locationName = p.locationName;
+  
+  if (lat == null || lon == null) {
+    const geoMatches = inferGeoHubsFromTitle(p.title);
+    if (geoMatches.length > 0) {
+      lat = geoMatches[0].hub.lat;
+      lon = geoMatches[0].hub.lon;
+      locationName = geoMatches[0].hub.name;
+    }
+  }
+
   return {
     source: p.source,
     title: p.title,
@@ -137,8 +154,8 @@ function protoItemToNewsItem(p: ProtoNewsItem): NewsItem {
       confidence: p.threat.confidence,
       source: (p.threat.source || 'keyword') as 'keyword' | 'ml' | 'llm',
     } : undefined,
-    ...(p.locationName && { locationName: p.locationName }),
-    ...(p.location && { lat: p.location.latitude, lon: p.location.longitude }),
+    ...(locationName && { locationName }),
+    ...(lat != null && lon != null && { lat, lon }),
   };
 }
 
