@@ -795,9 +795,7 @@ export class DataLoaderManager implements AppModule {
           timestamp: c.lastUpdated,
           items: c.allItems,
         }));
-      if (geoLocated.length > 0) {
-        this.ctx.map?.setNewsLocations(geoLocated);
-      }
+      this.ctx.map?.setNewsLocations(geoLocated);
     } catch (error) {
       console.error('[App] Clustering failed, clusters unchanged:', error);
     }
