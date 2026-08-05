@@ -59,7 +59,6 @@ import {
 import { mlWorker } from '@/services/ml-worker';
 import { clusterNewsHybrid } from '@/services/clustering';
 import { ingestProtests, ingestFlights, ingestVessels, ingestEarthquakes, detectGeoConvergence, geoConvergenceToSignal } from '@/services/geo-convergence';
-import { getGeoCache, setGeoCache } from '@/services/geo-cache';
 import { inferGeoHubsFromTitle } from '@/services/geo-hub-index';
 import { signalAggregator } from '@/services/signal-aggregator';
 import { updateAndCheck } from '@/services/temporal-baseline';
@@ -135,10 +134,11 @@ function protoItemToNewsItem(p: ProtoNewsItem): NewsItem {
   
   if (lat == null || lon == null) {
     const geoMatches = inferGeoHubsFromTitle(p.title);
-    if (geoMatches.length > 0) {
-      lat = geoMatches[0].hub.lat;
-      lon = geoMatches[0].hub.lon;
-      locationName = geoMatches[0].hub.name;
+    const topMatch = geoMatches[0];
+    if (topMatch) {
+      lat = topMatch.hub.lat;
+      lon = topMatch.hub.lon;
+      locationName = topMatch.hub.name;
     }
   }
 
