@@ -1361,17 +1361,17 @@ export class DeckGLMap {
       data: regionalThreats,
       getPosition: (d: RegionalThreat) => [d.lon, d.lat],
       getFillColor: (d: RegionalThreat) => {
-        // Red color scaled by threat score
-        const intensity = Math.min(255, 100 + (d.threatScore * 10));
-        return [intensity, 20, 20, 200]; 
+        // Highly visible red, scaled by threat score
+        const intensity = Math.min(255, 150 + (d.threatScore * 35));
+        return [intensity, 0, 0, 200]; 
       },
       getRadius: (d: RegionalThreat) => {
-        // Scale radius with the score
-        return Math.max(10000, 20000 + (d.threatScore * 5000));
+        // Larger base radius so it's visible globally
+        return Math.max(25000, 35000 + (d.threatScore * 10000));
       },
       radiusUnits: 'meters',
-      radiusMinPixels: 4,
-      radiusMaxPixels: 50,
+      radiusMinPixels: 6,
+      radiusMaxPixels: 80,
       stroked: true,
       getLineColor: [255, 255, 255, 200],
       lineWidthMinPixels: 1,
