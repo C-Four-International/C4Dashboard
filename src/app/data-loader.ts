@@ -782,6 +782,10 @@ export class DataLoaderManager implements AppModule {
       }
 
       const geoLocated = this.ctx.latestClusters
+        .map(c => {
+          const loc = c.allItems.find(i => i.lat != null && i.lon != null);
+          return { ...c, lat: c.lat ?? loc?.lat, lon: c.lon ?? loc?.lon };
+        })
         .filter((c): c is typeof c & { lat: number; lon: number } => c.lat != null && c.lon != null)
         .map(c => ({
           lat: c.lat,
