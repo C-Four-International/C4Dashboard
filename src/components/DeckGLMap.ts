@@ -1340,8 +1340,13 @@ export class DeckGLMap {
     }
 
     // Threat Score Layer
-    if (mapLayers.threatScore && this.news.length > 0) {
-      layers.push(this.createThreatScoreLayer());
+    if (mapLayers.threatScore) {
+      console.log(`[ThreatScore] Checking layers... news length: ${this.news.length}, newsLocations length: ${this.newsLocations.length}`);
+      if (this.news.length > 0 || this.newsLocations.length > 0) {
+        layers.push(this.createThreatScoreLayer());
+      } else {
+        console.warn(`[ThreatScore] Layer active but NO NEWS OR LOCATIONS DATA EXISTS!`);
+      }
     }
 
     const result = layers.filter(Boolean) as LayersList;
@@ -1355,6 +1360,7 @@ export class DeckGLMap {
   // Layer creation methods
   private createThreatScoreLayer(): ScatterplotLayer {
     const regionalThreats = calculateRegionalThreats(this.newsLocations);
+    console.log(`[ThreatScore] calculated regionalThreats count: ${regionalThreats.length}`);
     if (regionalThreats.length > 0) {
       console.log('[ThreatScore] Data hook payload:', regionalThreats.slice(0, 5));
     }
