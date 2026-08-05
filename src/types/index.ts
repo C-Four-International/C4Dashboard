@@ -528,6 +528,8 @@ export interface MapLayers {
   tradeRoutes: boolean;
   // Environmental overlays
   dayNight: boolean;
+  // Dynamic Threat overlay
+  threatScore: boolean;
 }
 
 export interface AIDataCenter {
@@ -1281,4 +1283,11 @@ export interface MapDatacenterCluster {
   existingCount?: number;
   plannedCount?: number;
   sampled?: boolean;
+}
+export interface RegionalThreat {
+  lat: number;
+  lon: number;
+  locationName?: string;
+  threatScore: number;
+  eventCount: number;
 }

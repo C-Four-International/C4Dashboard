@@ -336,6 +336,7 @@ export class MapComponent {
       // cyberThreats is intentionally hidden on SVG/mobile fallback (DeckGL desktop only)
       'ais', 'flights',                                   // transport
       'natural', 'weather', 'fires',                      // natural
+      'threatScore',                                      // threat score
       'economic',                                         // economic
       'waterways',                                        // labels
     ];
@@ -385,6 +386,7 @@ export class MapComponent {
       commodityHubs: 'components.deckgl.layers.commodityHubs',
       gulfInvestments: 'components.deckgl.layers.gulfInvestments',
       fires: 'components.deckgl.layers.satelliteFires',
+      threatScore: 'Threat Score',
     };
     const getLayerLabel = (layer: keyof MapLayers): string => {
       if (layer === 'sanctions') return t('components.deckgl.layerHelp.labels.sanctions');

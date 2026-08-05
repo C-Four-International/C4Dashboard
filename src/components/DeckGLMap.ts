@@ -33,7 +33,9 @@ import type {
   MapDatacenterCluster,
   CyberThreat,
   CableHealthRecord,
+  RegionalThreat,
 } from '@/types';
+import { calculateRegionalThreats } from '@/services/aggregate-threat';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { DisplacementFlow } from '@/services/displacement';
 import type { Earthquake } from '@/services/earthquakes';
@@ -332,6 +334,7 @@ export class DeckGLMap {
   private lastSCMask = '';
   private protestSuperclusterSource: SocialUnrestEvent[] = [];
   private newsPulseIntervalId: ReturnType<typeof setInterval> | null = null;
+  private threatDecayIntervalId: ReturnType<typeof setInterval> | null = null;
   private readonly startupTime = Date.now();
   private lastCableHighlightSignature = '';
   private lastCableHealthSignature = '';
@@ -364,6 +367,7 @@ export class DeckGLMap {
     this.setupDOM();
     this.popup = new MapPopup(container);
     this.startDayNightTimer();
+    this.startThreatDecayTimer();
 
     window.addEventListener('theme-changed', (e: Event) => {
       const theme = (e as CustomEvent).detail?.theme as 'dark' | 'light';
@@ -1048,6 +1052,22 @@ export class DeckGLMap {
     }
   }
 
+  private startThreatDecayTimer(): void {
+    if (this.threatDecayIntervalId) return;
+    const MS_1MIN = 60 * 1000;
+    this.threatDecayIntervalId = setInterval(() => {
+      if (!this.state.layers.threatScore) return;
+      this.render(); // Trigger re-render to recalculate decaying threats
+    }, MS_1MIN);
+  }
+
+  private stopThreatDecayTimer(): void {
+    if (this.threatDecayIntervalId) {
+      clearInterval(this.threatDecayIntervalId);
+      this.threatDecayIntervalId = null;
+    }
+  }
+
   private isLayerVisible(layerKey: keyof MapLayers): boolean {
     const threshold = LAYER_ZOOM_THRESHOLDS[layerKey];
     if (!threshold) return true;
@@ -1326,6 +1346,11 @@ export class DeckGLMap {
       layers.push(...this.createNewsLocationsLayer());
     }
 
+    // Threat Score Layer
+    if (mapLayers.threatScore && this.news.length > 0) {
+      layers.push(this.createThreatScoreLayer());
+    }
+
     const result = layers.filter(Boolean) as LayersList;
     const elapsed = performance.now() - startTime;
     if (import.meta.env.DEV && elapsed > 16) {
@@ -1335,6 +1360,35 @@ export class DeckGLMap {
   }
 
   // Layer creation methods
+  private createThreatScoreLayer(): ScatterplotLayer {
+    const regionalThreats = calculateRegionalThreats(this.news);
+    
+    return new ScatterplotLayer<RegionalThreat>({
+      id: 'threat-score-layer',
+      data: regionalThreats,
+      getPosition: (d: RegionalThreat) => [d.lon, d.lat],
+      getFillColor: (d: RegionalThreat) => {
+        // Red color scaled by threat score
+        const intensity = Math.min(255, 100 + (d.threatScore * 10));
+        return [intensity, 20, 20, 200]; 
+      },
+      getRadius: (d: RegionalThreat) => {
+        // Scale radius with the score
+        return Math.max(10000, 20000 + (d.threatScore * 5000));
+      },
+      radiusUnits: 'meters',
+      stroked: true,
+      getLineColor: [255, 255, 255, 200],
+      lineWidthMinPixels: 1,
+      pickable: true,
+      updateTriggers: {
+        // Force redraw on decay interval
+        getFillColor: Date.now(),
+        getRadius: Date.now()
+      }
+    });
+  }
+
   private createCablesLayer(): PathLayer {
     const highlightedCables = this.highlightedAssets.cable;
     const cacheKey = 'cables-layer';
@@ -3205,6 +3259,7 @@ export class DeckGLMap {
             { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
             { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
             { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
+            { key: 'threatScore', label: 'Threat Score', icon: '&#128308;' },
             { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
             { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
           ];
