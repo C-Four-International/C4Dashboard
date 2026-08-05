@@ -216,7 +216,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   speciesRecovery: false,
   renewableInstallations: false,
   tradeRoutes: true,
-  dayNight: false,
+  dayNight: false, threatScore: false,
 };
 
 // Mobile defaults for finance variant
@@ -265,7 +265,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   speciesRecovery: false,
   renewableInstallations: false,
   tradeRoutes: false,
-  dayNight: false,
+  dayNight: false, threatScore: false,
 };
 
 export const VARIANT_CONFIG: VariantConfig = {

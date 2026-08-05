@@ -1061,13 +1061,6 @@ export class DeckGLMap {
     }, MS_1MIN);
   }
 
-  private stopThreatDecayTimer(): void {
-    if (this.threatDecayIntervalId) {
-      clearInterval(this.threatDecayIntervalId);
-      this.threatDecayIntervalId = null;
-    }
-  }
-
   private isLayerVisible(layerKey: keyof MapLayers): boolean {
     const threshold = LAYER_ZOOM_THRESHOLDS[layerKey];
     if (!threshold) return true;
