@@ -175,8 +175,8 @@ export class MapPopup {
     if (this.isMobileSheet) {
       this.popup.addEventListener('touchstart', this.handleSheetTouchStart, { passive: true });
       this.popup.addEventListener('touchmove', this.handleSheetTouchMove, { passive: false });
-      this.popup.addEventListener('touchend', this.handleSheetTouchEnd);
-      this.popup.addEventListener('touchcancel', this.handleSheetTouchEnd);
+      this.popup.addEventListener('touchend', this.handleSheetTouchEnd, { passive: true });
+      this.popup.addEventListener('touchcancel', this.handleSheetTouchEnd, { passive: true });
       requestAnimationFrame(() => {
         if (!this.popup) return;
         this.popup.classList.add('open');
@@ -192,9 +192,9 @@ export class MapPopup {
       window.clearTimeout(this.outsideListenerTimeoutId);
     }
     this.outsideListenerTimeoutId = window.setTimeout(() => {
-      document.addEventListener('click', this.handleOutsideClick);
-      document.addEventListener('touchstart', this.handleOutsideClick);
-      document.addEventListener('keydown', this.handleEscapeKey);
+      document.addEventListener('click', this.handleOutsideClick, { passive: true });
+      document.addEventListener('touchstart', this.handleOutsideClick, { passive: true });
+      document.addEventListener('keydown', this.handleEscapeKey, { passive: true });
       this.outsideListenerTimeoutId = null;
     }, 0);
   }
