@@ -3861,7 +3861,7 @@ export class DeckGLMap {
     for (const [key, ts] of this.newsLocationFirstSeen) {
       if (now - ts > 60_000) this.newsLocationFirstSeen.delete(key);
     }
-    this.newsLocations = data.length > 0 ? data : [{ lat: 40.7128, lon: -74.0060, title: 'TEST THREAT NEW YORK', threatLevel: 'critical', timestamp: new Date(), items: [{ pubDate: new Date(), title: 'Test', link: '', source: 'Reuters', isAlert: false }] }];
+    this.newsLocations = data;
     this.render();
 
     this.syncPulseAnimation(now);
