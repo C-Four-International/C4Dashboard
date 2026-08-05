@@ -85,17 +85,18 @@ export function calculateRegionalThreats(
     // If no individual items are available, fallback to a single placeholder calculation
     // based on the cluster's high-level attributes
     if (V === 0) {
-      let ageMs = currentTimeMs - (location.timestamp ? new Date(location.timestamp).getTime() : currentTimeMs);
+      let timestampMs = location.timestamp ? new Date(location.timestamp).getTime() : currentTimeMs;
+      let ageMs = currentTimeMs - (isNaN(timestampMs) ? currentTimeMs : timestampMs);
       if (ageMs < 0) ageMs = 0;
       const t_i = ageMs / MS_PER_HOUR;
       
-      const S_i = getSeverityScore(location.threatLevel);
+      const S_i = getSeverityScore(location.threatLevel || 'info');
       const C_i = 0.6; // slightly elevated default credibility for a clustered event
       
       // V = 1 -> log10(2) * (S_i * C_i * exp(-lambda * t_i) / 1)
       const T = Math.log10(2) * (S_i * C_i * Math.exp(-lambda * t_i));
       
-      if (T > 0.01) {
+      if (T > 0.01 && !isNaN(T)) {
         results.push({
           lat: location.lat,
           lon: location.lon,
@@ -110,20 +111,23 @@ export function calculateRegionalThreats(
     let sum = 0;
     for (const item of items) {
       // Age in hours
-      let ageMs = currentTimeMs - new Date(item.pubDate).getTime();
+      const pubDateMs = item.pubDate ? new Date(item.pubDate).getTime() : currentTimeMs;
+      let ageMs = currentTimeMs - (isNaN(pubDateMs) ? currentTimeMs : pubDateMs);
       if (ageMs < 0) ageMs = 0; // Prevent negative time
       const t_i = ageMs / MS_PER_HOUR;
 
-      const threat = item.threat || classifyByKeyword(item.title, SITE_VARIANT);
-      const S_i = getSeverityScore(threat.level);
-      const C_i = getCredibility(item.source);
+      const title = item.title || location.title || '';
+      const threat = item.threat || classifyByKeyword(title, SITE_VARIANT);
+      const S_i = getSeverityScore(threat?.level || 'info');
+      const C_i = getCredibility(item.source || '');
 
-      sum += S_i * C_i * Math.exp(-lambda * t_i);
+      const term = S_i * C_i * Math.exp(-lambda * t_i);
+      if (!isNaN(term)) sum += term;
     }
 
     const T = Math.log10(V + 1) * (sum / V);
 
-    if (T > 0.01) {
+    if (T > 0.01 && !isNaN(T)) {
       results.push({
         lat: location.lat,
         lon: location.lon,
