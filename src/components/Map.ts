@@ -800,7 +800,7 @@ export class MapComponent {
       const usData = await usResponse.json();
       if (usData) {
         const states = topojson.feature(usData, usData.objects.states);
-        this.usStateFeatures = 'features' in states ? states.features : [states];
+        this.usStateFeatures = 'features' in states ? (states.features as any) : [states as any];
       }
 
       const canadaData = await canadaResponse.json();
