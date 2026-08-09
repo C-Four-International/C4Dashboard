@@ -55,7 +55,9 @@ export class AlertStatusService {
 
     const fetchPromises = feedIds.map(async (feedId) => {
       try {
-        const response = await fetch(`${RSS_BASE_URL}/${feedId}`);
+        const targetUrl = `${RSS_BASE_URL}/${feedId}`;
+        const proxyUrl = `/api/rss-proxy?url=${encodeURIComponent(targetUrl)}`;
+        const response = await fetch(proxyUrl);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

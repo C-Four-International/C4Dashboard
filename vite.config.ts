@@ -479,6 +479,7 @@ const RSS_PROXY_ALLOWED_DOMAINS = new Set([
   'www.goodnewsnetwork.org', 'www.positive.news', 'reasonstobecheerful.world',
   'www.optimistdaily.com', 'www.sunnyskyz.com', 'www.huffpost.com',
   'www.sciencedaily.com', 'feeds.nature.com', 'www.livescience.com', 'www.newscientist.com',
+  'feeds.cfourinternational.org'
 ]);
 
 function rssProxyPlugin(): Plugin {
