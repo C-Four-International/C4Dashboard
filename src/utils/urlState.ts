@@ -2,6 +2,7 @@ import type { MapLayers } from '@/types';
 import type { MapView, TimeRange } from '@/components/Map';
 
 const LAYER_KEYS: (keyof MapLayers)[] = [
+  'alertStatus',
   'conflicts',
   'bases',
   'cables',

@@ -51,6 +51,7 @@ import {
 } from '@/services/hotspot-escalation';
 import { getCountryScore } from '@/services/country-instability';
 import { getAlertsNearLocation } from '@/services/geo-convergence';
+import { AlertStatusService } from '@/services/alert-status';
 import { t } from '@/services/i18n';
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
@@ -107,6 +108,8 @@ export class MapComponent {
   private state: MapState;
   private worldData: WorldTopology | null = null;
   private countryFeatures: Feature<Geometry>[] | null = null;
+  private usStateFeatures: Feature<Geometry>[] | null = null;
+  private canadaProvinceFeatures: Feature<Geometry>[] | null = null;
   private baseLayerGroup: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
   private dynamicLayerGroup: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
   private baseRendered = false;
@@ -329,6 +332,7 @@ export class MapComponent {
 
     // Variant-aware layer buttons
     const fullLayers: (keyof MapLayers)[] = [
+      'alertStatus',
       'conflicts', 'hotspots', 'sanctions', 'protests',  // geopolitical
       'bases', 'nuclear', 'irradiators',                 // military/strategic
       'military',                                         // military tracking (flights + vessels)
@@ -359,6 +363,7 @@ export class MapComponent {
     ];
     const layers = SITE_VARIANT === 'tech' ? techLayers : SITE_VARIANT === 'finance' ? financeLayers : SITE_VARIANT === 'happy' ? happyLayers : fullLayers;
     const layerLabelKeys: Partial<Record<keyof MapLayers, string>> = {
+      alertStatus: 'Alert Status',
       hotspots: 'components.deckgl.layers.intelHotspots',
       conflicts: 'components.deckgl.layers.conflictZones',
       bases: 'components.deckgl.layers.militaryBases',
@@ -777,7 +782,12 @@ export class MapComponent {
 
   private async loadMapData(): Promise<void> {
     try {
-      const worldResponse = await fetch(MAP_URLS.world);
+      const [worldResponse, usResponse, canadaResponse] = await Promise.all([
+        fetch(MAP_URLS.world),
+        fetch(MAP_URLS.us),
+        fetch(MAP_URLS.canada)
+      ]);
+
       this.worldData = await worldResponse.json();
       if (this.worldData) {
         const countries = topojson.feature(
@@ -786,6 +796,19 @@ export class MapComponent {
         );
         this.countryFeatures = 'features' in countries ? countries.features : [countries];
       }
+
+      const usData = await usResponse.json();
+      if (usData) {
+        const states = topojson.feature(usData, usData.objects.states);
+        this.usStateFeatures = 'features' in states ? states.features : [states];
+      }
+
+      const canadaData = await canadaResponse.json();
+      if (canadaData && canadaData.features) {
+        // canada geojson is already a feature collection
+        this.canadaProvinceFeatures = canadaData.features as any;
+      }
+
       this.baseRendered = false;
       this.render();
       // Re-render after layout stabilizes to catch full container width
@@ -942,6 +965,10 @@ export class MapComponent {
       this.renderAisDensity(projection);
     }
 
+    if (this.state.layers.alertStatus) {
+      this.renderAlertStatus(projection);
+    }
+
     // GPU-accelerated cluster markers (LOD)
     this.renderClusterLayer(projection);
 
@@ -1046,6 +1073,57 @@ export class MapComponent {
       .attr('fill', getCSSColor('--map-country'))
       .attr('stroke', getCSSColor('--map-stroke'))
       .attr('stroke-width', 0.7);
+  }
+
+  private renderAlertStatus(projection: d3.GeoProjection): void {
+    if (!this.dynamicLayerGroup) return;
+
+    const alertStatusService = AlertStatusService.getInstance();
+    
+    // Asynchronously fetch statuses if not already fetched/cached
+    alertStatusService.fetchStatuses().then(() => {
+      // Re-render once data is ready to ensure colors are applied
+      if (this.state.layers.alertStatus) {
+        this.scheduleRender();
+      }
+    });
+
+    const alertGroup = this.dynamicLayerGroup.append('g').attr('class', 'alert-status');
+    const path = d3.geoPath().projection(projection);
+
+    const renderRegion = (feature: Feature<Geometry>, name: string) => {
+      const status = alertStatusService.getStatusForRegion(name);
+      if (status === 'NONE') return;
+
+      const fillColor = alertStatusService.getFillColor(status);
+      const statusText = alertStatusService.getStatusText(status);
+
+      alertGroup.append('path')
+        .datum(feature)
+        .attr('d', path as unknown as string)
+        .attr('fill', fillColor)
+        .attr('stroke', getCSSColor('--map-stroke'))
+        .attr('stroke-width', 0.5)
+        .style('pointer-events', 'all')
+        .append('title')
+        .text(`${name}\nStatus: ${statusText}`);
+    };
+
+    if (this.usStateFeatures) {
+      this.usStateFeatures.forEach(feature => {
+        if (feature.properties && feature.properties.name) {
+          renderRegion(feature, feature.properties.name);
+        }
+      });
+    }
+
+    if (this.canadaProvinceFeatures) {
+      this.canadaProvinceFeatures.forEach(feature => {
+        if (feature.properties && feature.properties.name) {
+          renderRegion(feature, feature.properties.name);
+        }
+      });
+    }
   }
 
   private renderCables(projection: d3.GeoProjection): void {

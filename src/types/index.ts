@@ -479,6 +479,7 @@ export interface PanelConfig {
 }
 
 export interface MapLayers {
+  alertStatus: boolean;
   conflicts: boolean;
   bases: boolean;
   cables: boolean;

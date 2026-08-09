@@ -1339,6 +1339,7 @@ export const SANCTIONED_COUNTRIES: Record<number, 'severe' | 'high' | 'moderate'
 export const MAP_URLS = {
   world: 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json',
   us: 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json',
+  canada: 'https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/canada.geojson',
 };
 
 // Global Economic Centers - Stock Exchanges, Central Banks, Financial Hubs

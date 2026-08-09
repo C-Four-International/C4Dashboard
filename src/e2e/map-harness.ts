@@ -135,6 +135,7 @@ app.style.position = 'relative';
 app.style.margin = '0 auto';
 
 const allLayersEnabled: MapLayers = {
+  alertStatus: true,
   conflicts: true,
   bases: true,
   cables: true,
@@ -180,6 +181,7 @@ const allLayersEnabled: MapLayers = {
 };
 
 const allLayersDisabled: MapLayers = {
+  alertStatus: false,
   conflicts: false,
   bases: false,
   cables: false,
