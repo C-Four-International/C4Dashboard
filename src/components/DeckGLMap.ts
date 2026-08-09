@@ -71,8 +71,11 @@ import {
   CENTRAL_BANKS,
   COMMODITY_HUBS,
   GULF_INVESTMENTS,
+  MAP_URLS,
 } from '@/config';
 import type { GulfInvestment } from '@/types';
+import * as topojson from 'topojson-client';
+import { AlertStatusService } from '@/services/alert-status';
 import { resolveTradeRouteSegments, TRADE_ROUTES as TRADE_ROUTES_LIST, type TradeRouteSegment } from '@/config/trade-routes';
 import { MapPopup, type PopupType } from './MapPopup';
 import {
@@ -291,6 +294,8 @@ export class DeckGLMap {
   private speciesRecoveryZones: Array<SpeciesRecovery & { recoveryZone: { name: string; lat: number; lon: number } }> = [];
   private renewableInstallations: RenewableInstallation[] = [];
   private countriesGeoJsonData: FeatureCollection<Geometry> | null = null;
+  private usStateFeatures: any[] = [];
+  private canadaProvinceFeatures: any[] = [];
 
   // Country highlight state
   private countryGeoJsonLoaded = false;
@@ -1089,6 +1094,11 @@ export class DeckGLMap {
       layers.push(this.createDayNightLayer());
     }
 
+    if (mapLayers.alertStatus) {
+      const alertLayer = this.createAlertStatusLayer();
+      if (alertLayer) layers.push(alertLayer);
+    }
+
     // Undersea cables layer
     if (mapLayers.cables) {
       layers.push(this.createCablesLayer());
@@ -1471,6 +1481,73 @@ export class DeckGLMap {
     this.lastPipelineHighlightSignature = highlightSignature;
     this.layerCache.set(cacheKey, layer);
     return layer;
+  }
+
+  private createAlertStatusLayer(): GeoJsonLayer | null {
+    const alertStatusService = AlertStatusService.getInstance();
+    alertStatusService.fetchStatuses().then(() => {
+      if (this.state.layers.alertStatus) {
+        this.debouncedRebuildLayers();
+      }
+    });
+
+    const features: any[] = [];
+
+    const addRegion = (feature: any, name: string) => {
+      const status = alertStatusService.getStatusForRegion(name);
+      if (status !== 'NONE') {
+        const fillColor = alertStatusService.getFillColor(status);
+        const match = fillColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+        let color = [0, 0, 0, 0];
+        if (match) {
+          color = [
+            parseInt(match[1] || '0'),
+            parseInt(match[2] || '0'),
+            parseInt(match[3] || '0'),
+            match[4] ? Math.round(parseFloat(match[4]) * 255) : 255
+          ];
+        }
+
+        features.push({
+          ...feature,
+          properties: {
+            ...feature.properties,
+            alertName: name,
+            alertStatusText: alertStatusService.getStatusText(status),
+            fillColor: color
+          }
+        });
+      }
+    };
+
+    for (const f of this.usStateFeatures) {
+      if (f.properties && f.properties.name) {
+        addRegion(f, f.properties.name);
+      }
+    }
+
+    for (const f of this.canadaProvinceFeatures) {
+      if (f.properties && f.properties.name) {
+        addRegion(f, f.properties.name);
+      }
+    }
+
+    if (features.length === 0) return null;
+
+    return new GeoJsonLayer({
+      id: 'alert-status-layer',
+      data: { type: 'FeatureCollection', features } as any,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      extruded: false,
+      lineWidthMinPixels: 1,
+      getLineColor: [200, 200, 200, 150],
+      getFillColor: (d: any) => d.properties.fillColor,
+      updateTriggers: {
+        getFillColor: [Date.now()]
+      }
+    });
   }
 
   private createConflictZonesLayer(): GeoJsonLayer {
@@ -2773,6 +2850,9 @@ export class DeckGLMap {
     const text = (value: unknown): string => escapeHtml(String(value ?? ''));
 
     switch (layerId) {
+      case 'alert-status-layer':
+        if (!obj.properties) return null;
+        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.properties.alertName)}</strong><br/>${text(obj.properties.alertStatusText)}</div>` };
       case 'hotspots-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.subtext)}</div>` };
       case 'earthquakes-layer':
@@ -3225,6 +3305,7 @@ export class DeckGLMap {
         { key: 'cloudRegions', label: t('components.deckgl.layers.cloudRegions'), icon: '&#9729;' },
         { key: 'datacenters', label: t('components.deckgl.layers.aiDataCenters'), icon: '&#128421;' },
         { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
+        { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
         { key: 'techEvents', label: t('components.deckgl.layers.techEvents'), icon: '&#128197;' },
         { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
         { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
@@ -3241,6 +3322,7 @@ export class DeckGLMap {
           { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
           { key: 'pipelines', label: t('components.deckgl.layers.pipelines'), icon: '&#128738;' },
           { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '&#128225;' },
+          { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
           { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
           { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
           { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
@@ -3255,6 +3337,7 @@ export class DeckGLMap {
             { key: 'renewableInstallations', label: 'Clean Energy', icon: '&#9889;' },
           ]
           : [
+            { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
             { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '&#127757;' },
             { key: 'hotspots', label: t('components.deckgl.layers.intelHotspots'), icon: '&#127919;' },
             { key: 'conflicts', label: t('components.deckgl.layers.conflictZones'), icon: '&#9876;' },
@@ -4304,6 +4387,22 @@ export class DeckGLMap {
         this.countriesGeoJsonData = geojson;
         // Schedule layer rebuild so Conflict Zones can switch from boxes to precise country polygons
         this.debouncedRebuildLayers();
+
+        // Also fetch US and Canada regions for alert status
+        Promise.all([
+          fetch(MAP_URLS.us).then(r => r.json()),
+          fetch(MAP_URLS.canada).then(r => r.json())
+        ]).then(([usData, canadaData]) => {
+          if (usData) {
+            const states = topojson.feature(usData as any, usData.objects.states);
+            this.usStateFeatures = 'features' in states ? (states.features as any[]) : [states as any];
+          }
+          if (canadaData && canadaData.features) {
+            this.canadaProvinceFeatures = canadaData.features;
+          }
+          this.debouncedRebuildLayers();
+        }).catch(e => console.error('Failed to load region data:', e));
+
         this.maplibreMap.addSource('country-boundaries', {
           type: 'geojson',
           data: geojson,
