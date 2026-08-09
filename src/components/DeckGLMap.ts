@@ -1485,20 +1485,16 @@ export class DeckGLMap {
 
   private createAlertStatusLayer(): GeoJsonLayer | null {
     const alertStatusService = AlertStatusService.getInstance();
-    alertStatusService.fetchStatuses().then(() => {
-      if (this.state.layers.alertStatus) {
-        this.debouncedRebuildLayers();
-      }
-    });
 
     const features: any[] = [];
 
     const addRegion = (feature: any, name: string) => {
       const status = alertStatusService.getStatusForRegion(name);
+      let color = [0, 0, 0, 0]; // Transparent by default
+
       if (status !== 'NONE') {
         const fillColor = alertStatusService.getFillColor(status);
         const match = fillColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-        let color = [0, 0, 0, 0];
         if (match) {
           color = [
             parseInt(match[1] || '0'),
@@ -1507,17 +1503,17 @@ export class DeckGLMap {
             match[4] ? Math.round(parseFloat(match[4]) * 255) : 255
           ];
         }
-
-        features.push({
-          ...feature,
-          properties: {
-            ...feature.properties,
-            alertName: name,
-            alertStatusText: alertStatusService.getStatusText(status),
-            fillColor: color
-          }
-        });
       }
+
+      features.push({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          alertName: name,
+          alertStatusText: alertStatusService.getStatusText(status),
+          fillColor: color
+        }
+      });
     };
 
     for (const f of this.usStateFeatures) {
@@ -1527,8 +1523,9 @@ export class DeckGLMap {
     }
 
     for (const f of this.canadaProvinceFeatures) {
-      if (f.properties && f.properties.name) {
-        addRegion(f, f.properties.name);
+      const provName = f.properties?.name || f.properties?.PRENAME;
+      if (provName) {
+        addRegion(f, provName);
       }
     }
 
@@ -4195,6 +4192,13 @@ export class DeckGLMap {
     const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"] input`) as HTMLInputElement;
     if (toggle) toggle.checked = this.state.layers[layer];
     this.render();
+    
+    if (layer === 'alertStatus' && this.state.layers[layer]) {
+      import('@/services/alert-status').then(({ AlertStatusService }) => {
+        AlertStatusService.getInstance().fetchStatuses().then(() => this.debouncedRebuildLayers());
+      });
+    }
+
     this.onLayerChange?.(layer, this.state.layers[layer], 'programmatic');
   }
 
@@ -4389,9 +4393,11 @@ export class DeckGLMap {
         this.debouncedRebuildLayers();
 
         // Also fetch US and Canada regions for alert status
+        const alertStatusService = AlertStatusService.getInstance();
         Promise.all([
           fetch(MAP_URLS.us).then(r => r.json()),
-          fetch(MAP_URLS.canada).then(r => r.json())
+          fetch(MAP_URLS.canada).then(r => r.json()),
+          alertStatusService.fetchStatuses()
         ]).then(([usData, canadaData]) => {
           if (usData) {
             const states = topojson.feature(usData as any, usData.objects.states);
