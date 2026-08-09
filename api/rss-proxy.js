@@ -298,6 +298,7 @@ const ALLOWED_DOMAINS = [
   'www.nature.com',
   'www.livescience.com',
   'www.newscientist.com',
+  'feeds.cfourinternational.org',
 ];
 
 export default async function handler(req) {
