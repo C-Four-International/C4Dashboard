@@ -1,13 +1,9 @@
 import type { AppContext, AppModule } from '@/app/app-context';
 import type { NewsItem, MapLayers, SocialUnrestEvent } from '@/types';
-import type { MarketData } from '@/types';
 import type { TimeRange } from '@/components';
 import {
   FEEDS,
   INTEL_SOURCES,
-  SECTORS,
-  COMMODITIES,
-  MARKET_SYMBOLS,
   SITE_VARIANT,
   LAYER_TO_SOURCE,
 } from '@/config';
@@ -39,7 +35,6 @@ import {
   fetchPizzIntStatus,
   fetchGdeltTensions,
   fetchNaturalEvents,
-  fetchRecentAwards,
   fetchCyberThreats,
   drainTrendingSignals,
   fetchTradeRestrictions,
@@ -64,8 +59,7 @@ import { dataFreshness, type DataSourceId } from '@/services/data-freshness';
 import { fetchUnhcrPopulation } from '@/services/displacement';
 import { fetchClimateAnomalies } from '@/services/climate';
 import { enrichEventsWithExposure } from '@/services/population-exposure';
-import { debounce, getCircuitBreakerCooldownInfo } from '@/utils';
-import { isFeatureAvailable } from '@/services/runtime-config';
+import { debounce } from '@/utils';
 import { getAiFlowSettings } from '@/services/ai-flow-settings';
 import { t, getCurrentLanguage } from '@/services/i18n';
 import { canQueueAiClassification, AI_CLASSIFY_MAX_PER_FEED } from '@/services/ai-classify-queue';
@@ -73,7 +67,6 @@ import { classifyWithAI } from '@/services/threat-classifier';
 import { ingestHeadlines } from '@/services/trending-keywords';
 import { ResearchServiceClient } from '@/generated/client/worldmonitor/research/v1/service_client';
 import {
-  HeatmapPanel,
   MonitorPanel,
   InsightsPanel,
   CIIPanel,
