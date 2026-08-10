@@ -84,6 +84,7 @@
     "convex": "^1.32.0",
     "d3": "^7.9.0",
     "deck.gl": "^9.2.6",
+    "@deck.gl/extensions": "^9.2.6",
     "fast-xml-parser": "^5.3.7",
     "i18next": "^25.8.10",
     "i18next-browser-languagedetector": "^8.2.1",

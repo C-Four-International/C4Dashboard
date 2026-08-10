@@ -42,6 +42,7 @@ import type { Earthquake } from '@/services/earthquakes';
 import type { ClimateAnomaly } from '@/services/climate';
 import { ArcLayer } from '@deck.gl/layers';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
+import { CollisionFilterExtension } from '@deck.gl/extensions';
 import type { WeatherAlert } from '@/services/weather';
 import { escapeHtml } from '@/utils/sanitize';
 import { t } from '@/services/i18n';
@@ -1360,11 +1361,25 @@ export class DeckGLMap {
     }
 
     const result = layers.filter(Boolean) as LayersList;
+    
+    const collisionExt = new CollisionFilterExtension();
+    const collidableResult = result.map((layer: any) => {
+      const type = layer?.constructor?.layerName;
+      if (type === 'ScatterplotLayer' || type === 'IconLayer' || type === 'TextLayer') {
+        return layer.clone({
+          extensions: [...(layer.props.extensions || []), collisionExt],
+          collisionEnabled: true,
+          collisionGroup: 'map-objects'
+        });
+      }
+      return layer;
+    });
+
     const elapsed = performance.now() - startTime;
     if (import.meta.env.DEV && elapsed > 16) {
       console.warn(`[DeckGLMap] buildLayers took ${elapsed.toFixed(2)}ms (>16ms budget), ${result.length} layers`);
     }
-    return result;
+    return collidableResult as LayersList;
   }
 
   // Layer creation methods
