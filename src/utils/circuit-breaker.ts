@@ -26,6 +26,7 @@ export interface CircuitBreakerOptions {
    *  Opt-in only — cached payloads must be JSON-safe (no Date objects).
    *  Auto-disabled when cacheTtlMs === 0. */
   persistCache?: boolean;
+  stopRetriesAfterMs?: number;
 }
 
 const DEFAULT_MAX_FAILURES = 2;
@@ -51,6 +52,9 @@ export class CircuitBreaker<T> {
   private persistentLoaded = false;
   private persistentLoadPromise: Promise<void> | null = null;
   private lastDataState: BreakerDataState = { mode: 'unavailable', timestamp: null, offline: false };
+  private stopRetriesAfterMs: number;
+  private startTime = Date.now();
+  private permanentlyFailed = false;
 
   constructor(options: CircuitBreakerOptions) {
     this.name = options.name;
@@ -60,6 +64,7 @@ export class CircuitBreaker<T> {
     this.persistEnabled = this.cacheTtlMs === 0
       ? false
       : (options.persistCache ?? false);
+    this.stopRetriesAfterMs = options.stopRetriesAfterMs ?? 5 * 60 * 1000;
   }
 
   private get persistKey(): string {
@@ -189,6 +194,11 @@ export class CircuitBreaker<T> {
   ): Promise<R> {
     const offline = isDesktopOfflineMode();
 
+    if (this.permanentlyFailed) {
+      this.lastDataState = { mode: 'unavailable', timestamp: null, offline };
+      return this.getCachedOrDefault(defaultValue) as R;
+    }
+
     // Hydrate from persistent storage on first call (~1-5ms IndexedDB read)
     if (this.persistEnabled && !this.persistentLoaded) {
       await this.hydratePersistentCache();
@@ -233,6 +243,12 @@ export class CircuitBreaker<T> {
       const msg = String(e);
       console.error(`[${this.name}] Failed:`, msg);
       this.recordFailure(msg);
+
+      if (Date.now() - this.startTime > this.stopRetriesAfterMs && this.state.failures >= this.maxFailures) {
+        console.warn(`[${this.name}] API unavailable for over ${this.stopRetriesAfterMs / 1000}s, stopping retries.`);
+        this.permanentlyFailed = true;
+      }
+
       this.lastDataState = { mode: 'unavailable', timestamp: null, offline };
       return defaultValue;
     }

@@ -15,12 +15,8 @@ import { INTEL_HOTSPOTS, CONFLICT_ZONES } from '@/config/geo';
 import {
   fetchCategoryFeeds,
   getFeedFailures,
-  fetchMultipleStocks,
-  fetchCrypto,
-  fetchPredictions,
   fetchEarthquakes,
   fetchWeatherAlerts,
-  fetchFredData,
   fetchInternetOutages,
   isOutagesConfigured,
   fetchAisSignals,
@@ -44,8 +40,6 @@ import {
   fetchGdeltTensions,
   fetchNaturalEvents,
   fetchRecentAwards,
-  fetchOilAnalytics,
-  fetchBisData,
   fetchCyberThreats,
   drainTrendingSignals,
   fetchTradeRestrictions,
@@ -67,7 +61,6 @@ import { analyzeFlightsForSurge, surgeAlertToSignal, detectForeignMilitaryPresen
 import { fetchCachedTheaterPosture } from '@/services/cached-theater-posture';
 import { ingestProtestsForCII, ingestMilitaryForCII, ingestNewsForCII, ingestOutagesForCII, ingestDisplacementForCII, ingestClimateForCII, isInLearningMode } from '@/services/country-instability';
 import { dataFreshness, type DataSourceId } from '@/services/data-freshness';
-// import { fetchConflictEvents, fetchUcdpClassifications, fetchHapiSummary, fetchUcdpEvents, deduplicateAgainstAcled } from '@/services/conflict';
 import { fetchUnhcrPopulation } from '@/services/displacement';
 import { fetchClimateAnomalies } from '@/services/climate';
 import { enrichEventsWithExposure } from '@/services/population-exposure';
@@ -80,16 +73,11 @@ import { classifyWithAI } from '@/services/threat-classifier';
 import { ingestHeadlines } from '@/services/trending-keywords';
 import { ResearchServiceClient } from '@/generated/client/worldmonitor/research/v1/service_client';
 import {
-  MarketPanel,
   HeatmapPanel,
-  CommoditiesPanel,
-  CryptoPanel,
-  PredictionPanel,
   MonitorPanel,
   InsightsPanel,
   CIIPanel,
   StrategicPosturePanel,
-  EconomicPanel,
   TechReadinessPanel,
   // UcdpEventsPanel,
   DisplacementPanel,
@@ -260,20 +248,8 @@ export class DataLoaderManager implements AppModule {
 
     // Happy variant only loads news data -- skip all geopolitical/financial/military data
     if (SITE_VARIANT !== 'happy') {
-      if (this.ctx.panelSettings['markets']?.enabled) {
-        tasks.push({ name: 'markets', task: runGuarded('markets', () => this.loadMarkets()) });
-      }
-      if (this.ctx.panelSettings['polymarket']?.enabled) {
-        tasks.push({ name: 'predictions', task: runGuarded('predictions', () => this.loadPredictions()) });
-      }
       if (this.ctx.panelSettings['pizzint']?.enabled) {
         tasks.push({ name: 'pizzint', task: runGuarded('pizzint', () => this.loadPizzInt()) });
-      }
-      if (this.ctx.panelSettings['economic']?.enabled) {
-        tasks.push({ name: 'fred', task: runGuarded('fred', () => this.loadFredData()) });
-        tasks.push({ name: 'oil', task: runGuarded('oil', () => this.loadOilAnalytics()) });
-        tasks.push({ name: 'spending', task: runGuarded('spending', () => this.loadGovernmentSpending()) });
-        tasks.push({ name: 'bis', task: runGuarded('bis', () => this.loadBisData()) });
       }
 
       // Trade policy data (FULL and FINANCE only)
@@ -827,105 +803,7 @@ export class DataLoaderManager implements AppModule {
     }
   }
 
-  async loadMarkets(): Promise<void> {
-    try {
-      const stocksResult = await fetchMultipleStocks(MARKET_SYMBOLS, {
-        onBatch: (partialStocks) => {
-          this.ctx.latestMarkets = partialStocks;
-          (this.ctx.panels['markets'] as MarketPanel).renderMarkets(partialStocks);
-        },
-      });
 
-      const finnhubConfigMsg = 'FINNHUB_API_KEY not configured — add in Settings';
-      this.ctx.latestMarkets = stocksResult.data;
-      (this.ctx.panels['markets'] as MarketPanel).renderMarkets(stocksResult.data, stocksResult.rateLimited);
-
-      if (stocksResult.rateLimited && stocksResult.data.length === 0) {
-        const rlMsg = 'Market data temporarily unavailable (rate limited) — retrying shortly';
-        this.ctx.panels['heatmap']?.showError(rlMsg);
-        this.ctx.panels['commodities']?.showError(rlMsg);
-      } else if (stocksResult.skipped) {
-        this.ctx.statusPanel?.updateApi('Finnhub', { status: 'error' });
-        if (stocksResult.data.length === 0) {
-          this.ctx.panels['markets']?.showConfigError(finnhubConfigMsg);
-        }
-        this.ctx.panels['heatmap']?.showConfigError(finnhubConfigMsg);
-      } else {
-        this.ctx.statusPanel?.updateApi('Finnhub', { status: 'ok' });
-
-        const sectorsResult = await fetchMultipleStocks(
-          SECTORS.map((s) => ({ ...s, display: s.name })),
-          {
-            onBatch: (partialSectors) => {
-              (this.ctx.panels['heatmap'] as HeatmapPanel).renderHeatmap(
-                partialSectors.map((s) => ({ name: s.name, change: s.change }))
-              );
-            },
-          }
-        );
-        (this.ctx.panels['heatmap'] as HeatmapPanel).renderHeatmap(
-          sectorsResult.data.map((s) => ({ name: s.name, change: s.change }))
-        );
-      }
-
-      const commoditiesPanel = this.ctx.panels['commodities'] as CommoditiesPanel;
-      const mapCommodity = (c: MarketData) => ({ display: c.display, price: c.price, change: c.change, sparkline: c.sparkline });
-
-      let commoditiesLoaded = stocksResult.rateLimited && stocksResult.data.length === 0;
-      for (let attempt = 0; attempt < 3 && !commoditiesLoaded; attempt++) {
-        if (attempt > 0) {
-          commoditiesPanel.showRetrying();
-          await new Promise(r => setTimeout(r, 20_000));
-        }
-        const commoditiesResult = await fetchMultipleStocks(COMMODITIES, {
-          onBatch: (partial) => commoditiesPanel.renderCommodities(partial.map(mapCommodity)),
-        });
-        const mapped = commoditiesResult.data.map(mapCommodity);
-        if (mapped.some(d => d.price !== null)) {
-          commoditiesPanel.renderCommodities(mapped);
-          commoditiesLoaded = true;
-        }
-      }
-      if (!commoditiesLoaded) {
-        commoditiesPanel.renderCommodities([]);
-      }
-    } catch {
-      this.ctx.statusPanel?.updateApi('Finnhub', { status: 'error' });
-    }
-
-    try {
-      let crypto = await fetchCrypto();
-      if (crypto.length === 0) {
-        (this.ctx.panels['crypto'] as CryptoPanel).showRetrying();
-        await new Promise(r => setTimeout(r, 20_000));
-        crypto = await fetchCrypto();
-      }
-      (this.ctx.panels['crypto'] as CryptoPanel).renderCrypto(crypto);
-      this.ctx.statusPanel?.updateApi('CoinGecko', { status: crypto.length > 0 ? 'ok' : 'error' });
-    } catch {
-      this.ctx.statusPanel?.updateApi('CoinGecko', { status: 'error' });
-    }
-  }
-
-  async loadPredictions(): Promise<void> {
-    try {
-      const predictions = await fetchPredictions();
-      this.ctx.latestPredictions = predictions;
-      (this.ctx.panels['polymarket'] as PredictionPanel).renderPredictions(predictions);
-
-      this.ctx.statusPanel?.updateFeed('Polymarket', { status: 'ok', itemCount: predictions.length });
-      this.ctx.statusPanel?.updateApi('Polymarket', { status: 'ok' });
-      dataFreshness.recordUpdate('polymarket', predictions.length);
-      dataFreshness.recordUpdate('predictions', predictions.length);
-
-      void this.runCorrelationAnalysis();
-    } catch (error) {
-      this.ctx.statusPanel?.updateFeed('Polymarket', { status: 'error', errorMessage: String(error) });
-      this.ctx.statusPanel?.updateApi('Polymarket', { status: 'error' });
-      dataFreshness.recordError('polymarket', String(error));
-      dataFreshness.recordError('predictions', String(error));
-    }
-  }
 
   async loadNatural(): Promise<void> {
     const [earthquakeResult, eonetResult] = await Promise.allSettled([
@@ -1592,126 +1470,6 @@ export class DataLoaderManager implements AppModule {
     }
   }
 
-  async loadFredData(): Promise<void> {
-    const economicPanel = this.ctx.panels['economic'] as EconomicPanel;
-    const cbInfo = getCircuitBreakerCooldownInfo('FRED Economic');
-    if (cbInfo.onCooldown) {
-      economicPanel?.setErrorState(true, `Temporarily unavailable (retry in ${cbInfo.remainingSeconds}s)`);
-      this.ctx.statusPanel?.updateApi('FRED', { status: 'error' });
-      return;
-    }
-
-    try {
-      economicPanel?.setLoading(true);
-      const data = await fetchFredData();
-
-      const postInfo = getCircuitBreakerCooldownInfo('FRED Economic');
-      if (postInfo.onCooldown) {
-        economicPanel?.setErrorState(true, `Temporarily unavailable (retry in ${postInfo.remainingSeconds}s)`);
-        this.ctx.statusPanel?.updateApi('FRED', { status: 'error' });
-        return;
-      }
-
-      if (data.length === 0) {
-        if (!isFeatureAvailable('economicFred')) {
-          economicPanel?.setErrorState(true, 'FRED_API_KEY not configured — add in Settings');
-          this.ctx.statusPanel?.updateApi('FRED', { status: 'error' });
-          return;
-        }
-        economicPanel?.showRetrying();
-        await new Promise(r => setTimeout(r, 20_000));
-        const retryData = await fetchFredData();
-        if (retryData.length === 0) {
-          economicPanel?.setErrorState(true, 'FRED data temporarily unavailable — will retry');
-          this.ctx.statusPanel?.updateApi('FRED', { status: 'error' });
-          return;
-        }
-        economicPanel?.setErrorState(false);
-        economicPanel?.update(retryData);
-        this.ctx.statusPanel?.updateApi('FRED', { status: 'ok' });
-        dataFreshness.recordUpdate('economic', retryData.length);
-        return;
-      }
-
-      economicPanel?.setErrorState(false);
-      economicPanel?.update(data);
-      this.ctx.statusPanel?.updateApi('FRED', { status: 'ok' });
-      dataFreshness.recordUpdate('economic', data.length);
-    } catch {
-      if (isFeatureAvailable('economicFred')) {
-        economicPanel?.showRetrying();
-        try {
-          await new Promise(r => setTimeout(r, 20_000));
-          const retryData = await fetchFredData();
-          if (retryData.length > 0) {
-            economicPanel?.setErrorState(false);
-            economicPanel?.update(retryData);
-            this.ctx.statusPanel?.updateApi('FRED', { status: 'ok' });
-            dataFreshness.recordUpdate('economic', retryData.length);
-            return;
-          }
-        } catch { /* fall through */ }
-      }
-      this.ctx.statusPanel?.updateApi('FRED', { status: 'error' });
-      economicPanel?.setErrorState(true, 'FRED data temporarily unavailable — will retry');
-      economicPanel?.setLoading(false);
-    }
-  }
-
-  async loadOilAnalytics(): Promise<void> {
-    const economicPanel = this.ctx.panels['economic'] as EconomicPanel;
-    try {
-      const data = await fetchOilAnalytics();
-      economicPanel?.updateOil(data);
-      const hasData = !!(data.wtiPrice || data.brentPrice || data.usProduction || data.usInventory);
-      this.ctx.statusPanel?.updateApi('EIA', { status: hasData ? 'ok' : 'error' });
-      if (hasData) {
-        const metricCount = [data.wtiPrice, data.brentPrice, data.usProduction, data.usInventory].filter(Boolean).length;
-        dataFreshness.recordUpdate('oil', metricCount || 1);
-      } else {
-        dataFreshness.recordError('oil', 'Oil analytics returned no values');
-      }
-    } catch (e) {
-      console.error('[App] Oil analytics failed:', e);
-      this.ctx.statusPanel?.updateApi('EIA', { status: 'error' });
-      dataFreshness.recordError('oil', String(e));
-    }
-  }
-
-  async loadGovernmentSpending(): Promise<void> {
-    const economicPanel = this.ctx.panels['economic'] as EconomicPanel;
-    try {
-      const data = await fetchRecentAwards({ daysBack: 7, limit: 15 });
-      economicPanel?.updateSpending(data);
-      this.ctx.statusPanel?.updateApi('USASpending', { status: data.awards.length > 0 ? 'ok' : 'error' });
-      if (data.awards.length > 0) {
-        dataFreshness.recordUpdate('spending', data.awards.length);
-      } else {
-        dataFreshness.recordError('spending', 'No awards returned');
-      }
-    } catch (e) {
-      console.error('[App] Government spending failed:', e);
-      this.ctx.statusPanel?.updateApi('USASpending', { status: 'error' });
-      dataFreshness.recordError('spending', String(e));
-    }
-  }
-
-  async loadBisData(): Promise<void> {
-    const economicPanel = this.ctx.panels['economic'] as EconomicPanel;
-    try {
-      const data = await fetchBisData();
-      economicPanel?.updateBis(data);
-      const hasData = data.policyRates.length > 0;
-      this.ctx.statusPanel?.updateApi('BIS', { status: hasData ? 'ok' : 'error' });
-      if (hasData) {
-        dataFreshness.recordUpdate('bis', data.policyRates.length);
-      }
-    } catch (e) {
-      console.error('[App] BIS data failed:', e);
-      this.ctx.statusPanel?.updateApi('BIS', { status: 'error' });
-      dataFreshness.recordError('bis', String(e));
-    }
-  }
 
   async loadTradePolicy(): Promise<void> {
     const tradePanel = this.ctx.panels['trade-policy'] as TradePolicyPanel | undefined;

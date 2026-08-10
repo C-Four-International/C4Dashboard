@@ -1365,7 +1365,7 @@ export class DeckGLMap {
     const collisionExt = new CollisionFilterExtension();
     const collidableResult = result.map((layer: any) => {
       const type = layer?.constructor?.layerName;
-      if (type === 'ScatterplotLayer' || type === 'IconLayer' || type === 'TextLayer') {
+      if (type === 'IconLayer' || type === 'TextLayer') {
         return layer.clone({
           extensions: [...(layer.props.extensions || []), collisionExt],
           collisionEnabled: true,
