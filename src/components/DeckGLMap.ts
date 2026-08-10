@@ -1369,7 +1369,7 @@ export class DeckGLMap {
         return layer.clone({
           extensions: [...(layer.props.extensions || []), collisionExt],
           collisionEnabled: true,
-          collisionGroup: 'map-objects'
+          collisionGroup: layer.id
         });
       }
       return layer;
