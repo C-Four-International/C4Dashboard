@@ -38,6 +38,7 @@ const MONITORED_REGIONS: Record<string, string> = {
   'Turkey': '26,36,45,42',
   'USA': '-125,24,-66,49',
   'Canada': '-141,41,-52,83',
+  'Western Europe': '-12,35,22,60',
 };
 
 /** Map VIIRS confidence letters to proto enum values. */
