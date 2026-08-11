@@ -496,24 +496,70 @@ export class DeckGLMap {
           this.weatherTimeBar = document.createElement('div');
           this.weatherTimeBar.className = 'weather-time-bar';
           this.weatherTimeBar.style.display = isWeatherRadarEnabled ? 'flex' : 'none';
+          
+          this.weatherTimeBar.innerHTML = `
+            <div class="weather-controls">
+              <button class="weather-btn weather-speed-down" title="Slower">&#8722;</button>
+              <button class="weather-btn weather-play-pause" title="Play/Pause">&#10074;&#10074;</button>
+              <button class="weather-btn weather-speed-up" title="Faster">&#43;</button>
+            </div>
+            <div class="weather-time-display" style="display: flex; align-items: center; gap: 6px;">
+              <span class="weather-time-icon">&#9928;</span>
+              <span class="weather-time-text"></span>
+            </div>
+          `;
           this.container.appendChild(this.weatherTimeBar);
+
+          const timeText = this.weatherTimeBar.querySelector('.weather-time-text') as HTMLElement;
+          const playPauseBtn = this.weatherTimeBar.querySelector('.weather-play-pause') as HTMLButtonElement;
+          const speedDownBtn = this.weatherTimeBar.querySelector('.weather-speed-down') as HTMLButtonElement;
+          const speedUpBtn = this.weatherTimeBar.querySelector('.weather-speed-up') as HTMLButtonElement;
+
+          let isPlaying = true;
+          let speedMultiplier = 3600; // default 1 hour per sec
+
+          playPauseBtn.addEventListener('click', () => {
+            if (!this.mapTilerPrecipitationLayer) return;
+            if (isPlaying) {
+              if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
+                this.mapTilerPrecipitationLayer.animateByFactor(0);
+              }
+              playPauseBtn.innerHTML = '&#9658;'; // Play icon
+              isPlaying = false;
+            } else {
+              if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
+                this.mapTilerPrecipitationLayer.animateByFactor(speedMultiplier);
+              }
+              playPauseBtn.innerHTML = '&#10074;&#10074;'; // Pause icon
+              isPlaying = true;
+            }
+          });
+
+          speedUpBtn.addEventListener('click', () => {
+            speedMultiplier = Math.min(speedMultiplier * 2, 86400);
+            if (isPlaying && this.mapTilerPrecipitationLayer && typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
+              this.mapTilerPrecipitationLayer.animateByFactor(speedMultiplier);
+            }
+          });
+
+          speedDownBtn.addEventListener('click', () => {
+            speedMultiplier = Math.max(speedMultiplier / 2, 60);
+            if (isPlaying && this.mapTilerPrecipitationLayer && typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
+              this.mapTilerPrecipitationLayer.animateByFactor(speedMultiplier);
+            }
+          });
 
           // Bind tick event
           this.mapTilerPrecipitationLayer.on('tick', () => {
-            if (!this.weatherTimeBar || !this.mapTilerPrecipitationLayer) return;
+            if (!timeText || !this.mapTilerPrecipitationLayer) return;
             const date = typeof this.mapTilerPrecipitationLayer.getAnimationTimeDate === 'function' 
               ? this.mapTilerPrecipitationLayer.getAnimationTimeDate() 
               : new Date();
               
-            this.weatherTimeBar.innerHTML = `
-              <span class="weather-time-icon">&#9928;</span>
-              <span class="weather-time-text">
-                ${new Intl.DateTimeFormat('en-US', {
-                  month: 'short', day: 'numeric', year: 'numeric',
-                  hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
-                }).format(date)}
-              </span>
-            `;
+            timeText.innerText = new Intl.DateTimeFormat('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric',
+              hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+            }).format(date);
           });
         } catch (e) {
           console.warn('[DeckGLMap] Failed to initialize MapTiler weather layers:', e);
