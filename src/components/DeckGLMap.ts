@@ -3354,6 +3354,7 @@ export class DeckGLMap {
         { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
         { key: 'techEvents', label: t('components.deckgl.layers.techEvents'), icon: '&#128197;' },
         { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
+        { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
         { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
         { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
       ]
@@ -3381,6 +3382,7 @@ export class DeckGLMap {
             { key: 'happiness', label: 'World Happiness', icon: '&#128522;' },
             { key: 'speciesRecovery', label: 'Species Recovery', icon: '&#128062;' },
             { key: 'renewableInstallations', label: 'Clean Energy', icon: '&#9889;' },
+            { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
           ]
           : [
             { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
