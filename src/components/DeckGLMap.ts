@@ -3468,7 +3468,7 @@ export class DeckGLMap {
         const layer = (input as HTMLInputElement).closest('.layer-toggle')?.getAttribute('data-layer') as keyof MapLayers;
         if (layer) {
           this.state.layers[layer] = (input as HTMLInputElement).checked;
-          this.render();
+          this.setLayers({ ...this.state.layers });
           this.onLayerChange?.(layer, (input as HTMLInputElement).checked, 'user');
         }
       });
