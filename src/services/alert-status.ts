@@ -12,7 +12,7 @@ const REGION_FEEDS: Record<string, string[]> = {
   'alert-status-ca-est': ['Quebec', 'Ontario'],
   'alert-status-ca-ctr': ['Manitoba', 'Saskatchewan'],
   'alert-status-ca-wst': ['Alberta', 'British Columbia'],
-  'alert-status-ca-ter': ['Nunavut', 'Northwest Territories', 'Yukon']
+  'alert-status-ca-ter': ['Nunavut', 'Northwest Territories', 'Yukon', 'Yukon Territory']
 };
 
 export type AlertColor = 'BLUE' | 'RED' | 'YELLOW' | 'GREEN' | 'NONE';
