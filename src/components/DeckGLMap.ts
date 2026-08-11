@@ -436,8 +436,8 @@ export class DeckGLMap {
       style: initialTheme === 'light' ? LIGHT_STYLE : DARK_STYLE,
       center: [preset.longitude, preset.latitude] as [number, number],
       zoom: preset.zoom,
-      renderWorldCopies: false,
-      attributionControl: false,
+      renderWorldCopies: false as false,
+      attributionControl: false as false,
       interactive: true,
       ...(MAP_INTERACTION_MODE === 'flat'
         ? {
