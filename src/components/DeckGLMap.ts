@@ -479,12 +479,11 @@ export class DeckGLMap {
           this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation' });
           this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar' });
           
-          this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
-          this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
-
           const isWeatherEnabled = this.state.layers.weather;
-          this.maplibreMap.setLayoutProperty('maptiler-precipitation', 'visibility', isWeatherEnabled ? 'visible' : 'none');
-          this.maplibreMap.setLayoutProperty('maptiler-radar', 'visibility', isWeatherEnabled ? 'visible' : 'none');
+          if (isWeatherEnabled) {
+            this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
+            this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
+          }
         } catch (e) {
           console.warn('[DeckGLMap] Failed to initialize MapTiler weather layers:', e);
         }
@@ -3780,11 +3779,27 @@ export class DeckGLMap {
     if (this.maplibreMap) {
       try {
         const isWeatherEnabled = this.state.layers.weather;
-        if (this.maplibreMap.getLayer('maptiler-precipitation')) {
-          this.maplibreMap.setLayoutProperty('maptiler-precipitation', 'visibility', isWeatherEnabled ? 'visible' : 'none');
+        
+        // Handle Precipitation Layer
+        if (isWeatherEnabled) {
+          if (!this.maplibreMap.getLayer('maptiler-precipitation') && this.mapTilerPrecipitationLayer) {
+            this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
+          }
+        } else {
+          if (this.maplibreMap.getLayer('maptiler-precipitation')) {
+            this.maplibreMap.removeLayer('maptiler-precipitation');
+          }
         }
-        if (this.maplibreMap.getLayer('maptiler-radar')) {
-          this.maplibreMap.setLayoutProperty('maptiler-radar', 'visibility', isWeatherEnabled ? 'visible' : 'none');
+
+        // Handle Radar Layer
+        if (isWeatherEnabled) {
+          if (!this.maplibreMap.getLayer('maptiler-radar') && this.mapTilerRadarLayer) {
+            this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
+          }
+        } else {
+          if (this.maplibreMap.getLayer('maptiler-radar')) {
+            this.maplibreMap.removeLayer('maptiler-radar');
+          }
         }
       } catch (e) {
         console.warn('[DeckGLMap] Failed to toggle weather layers:', e);
