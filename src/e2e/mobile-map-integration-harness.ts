@@ -96,6 +96,7 @@ const layers = {
   irradiators: false,
   sanctions: false,
   weather: false,
+  weatherRadar: false,
   economic: false,
   waterways: false,
   outages: false,
