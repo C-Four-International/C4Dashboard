@@ -438,6 +438,7 @@ export class DeckGLMap {
       center: [preset.longitude, preset.latitude] as [number, number],
       zoom: preset.zoom,
       renderWorldCopies: false as false,
+      maxBounds: [[-180, -85.0511], [180, 85.0511]] as [[number, number], [number, number]],
       attributionControl: false as false,
       interactive: true,
       ...(MAP_INTERACTION_MODE === 'flat'
@@ -524,11 +525,17 @@ export class DeckGLMap {
               if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
                 this.mapTilerPrecipitationLayer.animateByFactor(0);
               }
+              if (this.mapTilerRadarLayer && typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
+                this.mapTilerRadarLayer.animateByFactor(0);
+              }
               playPauseBtn.innerHTML = '&#9658;'; // Play icon
               isPlaying = false;
             } else {
               if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
                 this.mapTilerPrecipitationLayer.animateByFactor(speedMultiplier);
+              }
+              if (this.mapTilerRadarLayer && typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
+                this.mapTilerRadarLayer.animateByFactor(speedMultiplier);
               }
               playPauseBtn.innerHTML = '&#10074;&#10074;'; // Pause icon
               isPlaying = true;
@@ -540,12 +547,18 @@ export class DeckGLMap {
             if (isPlaying && this.mapTilerPrecipitationLayer && typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
               this.mapTilerPrecipitationLayer.animateByFactor(speedMultiplier);
             }
+            if (isPlaying && this.mapTilerRadarLayer && typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
+              this.mapTilerRadarLayer.animateByFactor(speedMultiplier);
+            }
           });
 
           speedDownBtn.addEventListener('click', () => {
             speedMultiplier = Math.max(speedMultiplier / 2, 60);
             if (isPlaying && this.mapTilerPrecipitationLayer && typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
               this.mapTilerPrecipitationLayer.animateByFactor(speedMultiplier);
+            }
+            if (isPlaying && this.mapTilerRadarLayer && typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
+              this.mapTilerRadarLayer.animateByFactor(speedMultiplier);
             }
           });
 
