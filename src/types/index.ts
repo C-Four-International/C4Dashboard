@@ -490,6 +490,7 @@ export interface MapLayers {
   irradiators: boolean;
   sanctions: boolean;
   weather: boolean;
+  weatherRadar: boolean;
   economic: boolean;
   waterways: boolean;
   outages: boolean;

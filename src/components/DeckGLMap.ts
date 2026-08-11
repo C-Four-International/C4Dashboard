@@ -486,8 +486,8 @@ export class DeckGLMap {
             this.mapTilerRadarLayer.animateByFactor(3600);
           }
           
-          const isWeatherEnabled = this.state.layers.weather;
-          if (isWeatherEnabled) {
+          const isWeatherRadarEnabled = this.state.layers.weatherRadar;
+          if (isWeatherRadarEnabled) {
             this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
             this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
           }
@@ -495,7 +495,7 @@ export class DeckGLMap {
           // Initialize Weather Time Tracking Bar
           this.weatherTimeBar = document.createElement('div');
           this.weatherTimeBar.className = 'weather-time-bar';
-          this.weatherTimeBar.style.display = isWeatherEnabled ? 'flex' : 'none';
+          this.weatherTimeBar.style.display = isWeatherRadarEnabled ? 'flex' : 'none';
           this.container.appendChild(this.weatherTimeBar);
 
           // Bind tick event
@@ -3385,6 +3385,7 @@ export class DeckGLMap {
         { key: 'techEvents', label: t('components.deckgl.layers.techEvents'), icon: '&#128197;' },
         { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
         { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
+        { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
         { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
         { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
       ]
@@ -3401,6 +3402,7 @@ export class DeckGLMap {
           { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '&#128225;' },
           { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
           { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
+          { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
           { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
           { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
           { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
@@ -3413,6 +3415,7 @@ export class DeckGLMap {
             { key: 'speciesRecovery', label: 'Species Recovery', icon: '&#128062;' },
             { key: 'renewableInstallations', label: 'Clean Energy', icon: '&#9889;' },
             { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
+            { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
           ]
           : [
             { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
@@ -3432,6 +3435,7 @@ export class DeckGLMap {
             { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
             { key: 'climate', label: t('components.deckgl.layers.climateAnomalies'), icon: '&#127787;' },
             { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
+            { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
             { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
             { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
             { key: 'threatScore', label: 'Threat Score', icon: '&#128308;' },
@@ -3809,10 +3813,10 @@ export class DeckGLMap {
 
     if (this.maplibreMap) {
       try {
-        const isWeatherEnabled = this.state.layers.weather;
+        const isWeatherRadarEnabled = this.state.layers.weatherRadar;
         
         // Handle Precipitation Layer
-        if (isWeatherEnabled) {
+        if (isWeatherRadarEnabled) {
           if (!this.maplibreMap.getLayer('maptiler-precipitation') && this.mapTilerPrecipitationLayer) {
             this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
           }
@@ -3823,7 +3827,7 @@ export class DeckGLMap {
         }
 
         // Handle Radar Layer
-        if (isWeatherEnabled) {
+        if (isWeatherRadarEnabled) {
           if (!this.maplibreMap.getLayer('maptiler-radar') && this.mapTilerRadarLayer) {
             this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
           }
@@ -3835,7 +3839,7 @@ export class DeckGLMap {
 
         // Toggle Time Tracking Bar Visibility
         if (this.weatherTimeBar) {
-          this.weatherTimeBar.style.display = isWeatherEnabled ? 'flex' : 'none';
+          this.weatherTimeBar.style.display = isWeatherRadarEnabled ? 'flex' : 'none';
         }
       } catch (e) {
         console.warn('[DeckGLMap] Failed to toggle weather layers:', e);
