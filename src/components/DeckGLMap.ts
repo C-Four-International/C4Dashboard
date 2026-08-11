@@ -7,6 +7,8 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { Layer, LayersList, PickingInfo } from '@deck.gl/core';
 import { GeoJsonLayer, ScatterplotLayer, PathLayer, IconLayer, TextLayer, PolygonLayer } from '@deck.gl/layers';
 import maplibregl from 'maplibre-gl';
+import * as maptilerSdk from '@maptiler/sdk';
+import * as maptilerWeather from '@maptiler/weather';
 import Supercluster from 'supercluster';
 import type {
   MapLayers,
@@ -263,6 +265,8 @@ export class DeckGLMap {
   private earthquakes: Earthquake[] = [];
   private weatherAlerts: WeatherAlert[] = [];
   private outages: InternetOutage[] = [];
+  private mapTilerPrecipitationLayer: any = null;
+  private mapTilerRadarLayer: any = null;
   private cyberThreats: CyberThreat[] = [];
   private aisDisruptions: AisDisruptionEvent[] = [];
   private aisDensity: AisDensityZone[] = [];
@@ -455,6 +459,26 @@ export class DeckGLMap {
       this.webglLost = false;
       console.info('[DeckGLMap] WebGL context restored');
       this.maplibreMap?.triggerRepaint();
+    });
+
+    this.maplibreMap.on('load', () => {
+      const apiKey = import.meta.env.VITE_MAPTILER_API_KEY;
+      if (apiKey && this.maplibreMap) {
+        maptilerSdk.config.apiKey = apiKey;
+        try {
+          this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation' });
+          this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar' });
+          
+          this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
+          this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
+
+          const isWeatherEnabled = this.state.layers.weather;
+          this.maplibreMap.setLayoutProperty('maptiler-precipitation', 'visibility', isWeatherEnabled ? 'visible' : 'none');
+          this.maplibreMap.setLayoutProperty('maptiler-radar', 'visibility', isWeatherEnabled ? 'visible' : 'none');
+        } catch (e) {
+          console.warn('[DeckGLMap] Failed to initialize MapTiler weather layers:', e);
+        }
+      }
     });
   }
 
@@ -3740,6 +3764,20 @@ export class DeckGLMap {
       const toggle = this.container.querySelector(`.layer-toggle[data-layer="${key}"] input`) as HTMLInputElement;
       if (toggle) toggle.checked = value;
     });
+
+    if (this.maplibreMap) {
+      try {
+        const isWeatherEnabled = this.state.layers.weather;
+        if (this.maplibreMap.getLayer('maptiler-precipitation')) {
+          this.maplibreMap.setLayoutProperty('maptiler-precipitation', 'visibility', isWeatherEnabled ? 'visible' : 'none');
+        }
+        if (this.maplibreMap.getLayer('maptiler-radar')) {
+          this.maplibreMap.setLayoutProperty('maptiler-radar', 'visibility', isWeatherEnabled ? 'visible' : 'none');
+        }
+      } catch (e) {
+        console.warn('[DeckGLMap] Failed to toggle weather layers:', e);
+      }
+    }
   }
 
   public getState(): DeckMapState {
