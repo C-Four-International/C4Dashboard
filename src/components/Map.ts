@@ -357,6 +357,7 @@ export class MapComponent {
       'sanctions', 'economic', 'waterways',               // geopolitical/economic
       'natural', 'weather', 'weatherRadar', 'fires',                      // natural events
       'flights',                                          // aviation
+    ];
     const happyLayers: (keyof MapLayers)[] = [
       'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations', 'weather', 'weatherRadar',
     ];
