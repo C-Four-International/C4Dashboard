@@ -431,10 +431,10 @@ export class DeckGLMap {
     const preset = VIEW_PRESETS[this.state.view];
     const initialTheme = getCurrentTheme();
 
-    this.maplibreMap = new maplibregl.Map({
+    const mapOptions = {
       container: 'deckgl-basemap',
       style: initialTheme === 'light' ? LIGHT_STYLE : DARK_STYLE,
-      center: [preset.longitude, preset.latitude],
+      center: [preset.longitude, preset.latitude] as [number, number],
       zoom: preset.zoom,
       renderWorldCopies: false,
       attributionControl: false,
@@ -447,7 +447,18 @@ export class DeckGLMap {
           touchPitch: false,
         }
         : {}),
-    });
+    };
+
+    const apiKey = import.meta.env.VITE_MAPTILER_API_KEY;
+    if (apiKey) {
+      maptilerSdk.config.apiKey = apiKey;
+      this.maplibreMap = new maptilerSdk.Map({
+        ...mapOptions,
+        maptilerLogo: false,
+      }) as unknown as maplibregl.Map;
+    } else {
+      this.maplibreMap = new maplibregl.Map(mapOptions);
+    }
 
     const canvas = this.maplibreMap.getCanvas();
     canvas.addEventListener('webglcontextlost', (e) => {
@@ -462,19 +473,7 @@ export class DeckGLMap {
     });
 
     this.maplibreMap.on('load', () => {
-      const apiKey = import.meta.env.VITE_MAPTILER_API_KEY;
       if (apiKey && this.maplibreMap) {
-        maptilerSdk.config.apiKey = apiKey;
-        // MapTiler Weather SDK expects a MapTiler Map instance which has getSdkConfig() and getMaptilerSessionId().
-        // Since we are using standard maplibregl.Map, we polyfill them here.
-        if (typeof (this.maplibreMap as any).getSdkConfig !== 'function') {
-          (this.maplibreMap as any).getSdkConfig = () => maptilerSdk.config;
-        }
-        if (typeof (this.maplibreMap as any).getMaptilerSessionId !== 'function') {
-          // Provide a random session ID or use the config's session if it exists
-          (this.maplibreMap as any).getMaptilerSessionId = () => maptilerSdk.config.session || crypto.randomUUID();
-        }
-
         try {
           this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation', opacity: 0.8 });
           this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar', opacity: 0.8 });
