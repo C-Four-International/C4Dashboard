@@ -78,7 +78,8 @@ export class App {
       mapLayers = { ...defaultLayers };
       panelSettings = { ...DEFAULT_PANELS };
     } else {
-      mapLayers = loadFromStorage<MapLayers>(STORAGE_KEYS.mapLayers, defaultLayers);
+      const storedLayers = loadFromStorage<MapLayers>(STORAGE_KEYS.mapLayers, defaultLayers);
+      mapLayers = { ...defaultLayers, ...storedLayers };
       // Happy variant: force non-happy layers off even if localStorage has stale true values
       if (currentVariant === 'happy') {
         const unhappyLayers: (keyof MapLayers)[] = ['conflicts', 'bases', 'hotspots', 'nuclear', 'irradiators', 'sanctions', 'military', 'protests', 'pipelines', 'waterways', 'ais', 'flights', 'spaceports', 'minerals', 'natural', 'fires', 'outages', 'cyberThreats', 'weather', 'economic', 'cables', 'datacenters', 'ucdpEvents', 'displacement', 'climate'];
