@@ -5851,28 +5851,26 @@ a.prediction-link:hover {
   align-items: center;
   gap: 8px;
   padding: 6px 16px;
-  background: rgba(15, 15, 15, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
-  font-size: 11px;
-  color: var(--text);
+  font-size: 9px;
+  color: var(--text-dim);
   letter-spacing: 0.5px;
   z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 12px var(--shadow-color);
   pointer-events: none;
   transition: opacity 0.3s ease;
 }
 
 .weather-time-icon {
-  font-size: 13px;
-  color: #3b82f6; /* Weather blue accent */
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
 .weather-time-text {
-  font-family: monospace;
-  font-weight: 500;
+  font-weight: normal;
+  text-transform: uppercase;
 }
 
 .map-legend-item {
