@@ -495,7 +495,7 @@ export class DeckGLMap {
     if (!this.maplibreMap) return;
 
     this.deckOverlay = new MapboxOverlay({
-      interleaved: true,
+      interleaved: false,
       layers: this.buildLayers(),
       getTooltip: (info: PickingInfo) => this.getTooltip(info),
       onClick: (info: PickingInfo) => this.handleClick(info),
