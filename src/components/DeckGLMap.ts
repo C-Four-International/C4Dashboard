@@ -476,8 +476,8 @@ export class DeckGLMap {
     this.maplibreMap.on('load', () => {
       if (apiKey && this.maplibreMap) {
         try {
-          this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation', opacity: 0.8 });
-          this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar', opacity: 0.8 });
+          this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
+          this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
           
           if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
             this.mapTilerPrecipitationLayer.animateByFactor(3600);
