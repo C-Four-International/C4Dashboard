@@ -465,6 +465,12 @@ export class DeckGLMap {
       const apiKey = import.meta.env.VITE_MAPTILER_API_KEY;
       if (apiKey && this.maplibreMap) {
         maptilerSdk.config.apiKey = apiKey;
+        // MapTiler Weather SDK expects a MapTiler Map instance which has getSdkConfig().
+        // Since we are using standard maplibregl.Map, we polyfill it here.
+        if (typeof (this.maplibreMap as any).getSdkConfig !== 'function') {
+          (this.maplibreMap as any).getSdkConfig = () => maptilerSdk.config;
+        }
+
         try {
           this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation' });
           this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar' });
