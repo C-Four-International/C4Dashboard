@@ -476,8 +476,15 @@ export class DeckGLMap {
         }
 
         try {
-          this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation' });
-          this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar' });
+          this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation', opacity: 0.8 });
+          this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar', opacity: 0.8 });
+          
+          if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
+            this.mapTilerPrecipitationLayer.animateByFactor(3600);
+          }
+          if (typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
+            this.mapTilerRadarLayer.animateByFactor(3600);
+          }
           
           const isWeatherEnabled = this.state.layers.weather;
           if (isWeatherEnabled) {
