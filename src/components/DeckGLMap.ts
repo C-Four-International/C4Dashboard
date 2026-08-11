@@ -465,10 +465,14 @@ export class DeckGLMap {
       const apiKey = import.meta.env.VITE_MAPTILER_API_KEY;
       if (apiKey && this.maplibreMap) {
         maptilerSdk.config.apiKey = apiKey;
-        // MapTiler Weather SDK expects a MapTiler Map instance which has getSdkConfig().
-        // Since we are using standard maplibregl.Map, we polyfill it here.
+        // MapTiler Weather SDK expects a MapTiler Map instance which has getSdkConfig() and getMaptilerSessionId().
+        // Since we are using standard maplibregl.Map, we polyfill them here.
         if (typeof (this.maplibreMap as any).getSdkConfig !== 'function') {
           (this.maplibreMap as any).getSdkConfig = () => maptilerSdk.config;
+        }
+        if (typeof (this.maplibreMap as any).getMaptilerSessionId !== 'function') {
+          // Provide a random session ID or use the config's session if it exists
+          (this.maplibreMap as any).getMaptilerSessionId = () => maptilerSdk.config.session || crypto.randomUUID();
         }
 
         try {
