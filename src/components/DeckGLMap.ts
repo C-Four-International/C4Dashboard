@@ -438,7 +438,6 @@ export class DeckGLMap {
       center: [preset.longitude, preset.latitude] as [number, number],
       zoom: preset.zoom,
       renderWorldCopies: false as false,
-      maxBounds: [[-180, -85.0511], [180, 85.0511]] as [[number, number], [number, number]],
       attributionControl: false as false,
       interactive: true,
       ...(MAP_INTERACTION_MODE === 'flat'
