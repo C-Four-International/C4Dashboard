@@ -5841,6 +5841,40 @@ a.prediction-link:hover {
   z-index: 100;
 }
 
+/* Weather animation time tracker */
+.weather-time-bar {
+  position: absolute;
+  bottom: 40px; /* Above the legend bar */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(15, 15, 15, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text);
+  letter-spacing: 0.5px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.weather-time-icon {
+  font-size: 13px;
+  color: #3b82f6; /* Weather blue accent */
+}
+
+.weather-time-text {
+  font-family: monospace;
+  font-weight: 500;
+}
+
 .map-legend-item {
   display: flex;
   align-items: center;

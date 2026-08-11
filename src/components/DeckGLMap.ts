@@ -272,6 +272,7 @@ export class DeckGLMap {
   private aisDensity: AisDensityZone[] = [];
   private cableAdvisories: CableAdvisory[] = [];
   private repairShips: RepairShip[] = [];
+  private weatherTimeBar: HTMLElement | null = null;
   private healthByCableId: Record<string, CableHealthRecord> = {};
   private protests: SocialUnrestEvent[] = [];
   private militaryFlights: MilitaryFlight[] = [];
@@ -490,6 +491,30 @@ export class DeckGLMap {
             this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
             this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
           }
+
+          // Initialize Weather Time Tracking Bar
+          this.weatherTimeBar = document.createElement('div');
+          this.weatherTimeBar.className = 'weather-time-bar';
+          this.weatherTimeBar.style.display = isWeatherEnabled ? 'flex' : 'none';
+          this.container.appendChild(this.weatherTimeBar);
+
+          // Bind tick event
+          this.mapTilerPrecipitationLayer.on('tick', () => {
+            if (!this.weatherTimeBar || !this.mapTilerPrecipitationLayer) return;
+            const date = typeof this.mapTilerPrecipitationLayer.getAnimationTimeDate === 'function' 
+              ? this.mapTilerPrecipitationLayer.getAnimationTimeDate() 
+              : new Date();
+              
+            this.weatherTimeBar.innerHTML = `
+              <span class="weather-time-icon">&#9928;</span>
+              <span class="weather-time-text">
+                ${new Intl.DateTimeFormat('en-US', {
+                  month: 'short', day: 'numeric', year: 'numeric',
+                  hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+                }).format(date)}
+              </span>
+            `;
+          });
         } catch (e) {
           console.warn('[DeckGLMap] Failed to initialize MapTiler weather layers:', e);
         }
@@ -3806,6 +3831,11 @@ export class DeckGLMap {
           if (this.maplibreMap.getLayer('maptiler-radar')) {
             this.maplibreMap.removeLayer('maptiler-radar');
           }
+        }
+
+        // Toggle Time Tracking Bar Visibility
+        if (this.weatherTimeBar) {
+          this.weatherTimeBar.style.display = isWeatherEnabled ? 'flex' : 'none';
         }
       } catch (e) {
         console.warn('[DeckGLMap] Failed to toggle weather layers:', e);
