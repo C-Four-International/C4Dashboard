@@ -1569,26 +1569,7 @@ export class DeckGLMap {
       getRadius: 15000,
       radiusMinPixels: 10,
       radiusMaxPixels: 30,
-      pickable: true,
-      onClick: (info) => {
-        if (info.object) {
-          const d = info.object;
-          this.popup.show({
-            type: 'news' as import('./MapPopup').PopupType,
-            data: {
-              html: `
-                <div style="padding: 4px;">
-                  <h4 style="margin: 0 0 4px 0; color: #fff;">${d.station.name}</h4>
-                  <div style="font-size: 1.5em; font-weight: bold; margin-bottom: 4px;">AQI: ${d.aqi}</div>
-                  <div style="font-size: 0.8em; color: #aaa;">${new Date(d.station.time).toLocaleString()}</div>
-                </div>
-              `
-            } as any,
-            x: info.x,
-            y: info.y
-          });
-        }
-      }
+      pickable: false
     });
 
     const textLayer = new TextLayer<import('@/types').AQIStation>({
