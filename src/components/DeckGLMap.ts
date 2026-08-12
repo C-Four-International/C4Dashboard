@@ -170,6 +170,7 @@ const LAYER_ZOOM_THRESHOLDS: Partial<Record<keyof MapLayers, { minZoom: number; 
   irradiators: { minZoom: 4 },
   spaceports: { minZoom: 3 },
   gulfInvestments: { minZoom: 2, showLabels: 5 },
+  aqi: { minZoom: 2, showLabels: 4 },
 };
 // Export for external use
 export { LAYER_ZOOM_THRESHOLDS };
@@ -302,6 +303,9 @@ export class DeckGLMap {
   private countriesGeoJsonData: FeatureCollection<Geometry> | null = null;
   private usStateFeatures: any[] = [];
   private canadaProvinceFeatures: any[] = [];
+  private aqiData: import('@/types').AQIStation[] = [];
+  private lastAqiBounds: string = '';
+  private aqiFetchPending: boolean = false;
 
   // Country highlight state
   private countryGeoJsonLoaded = false;
@@ -396,7 +400,16 @@ export class DeckGLMap {
       this.rebuildDatacenterSupercluster();
       this.initDeck();
       this.loadCountryBoundaries();
+      if (this.state.layers.aqi && this.isLayerVisible('aqi')) {
+        this.fetchAQIData();
+      }
       this.render();
+    });
+
+    this.maplibreMap?.on('moveend', () => {
+      if (this.state.layers.aqi && this.isLayerVisible('aqi')) {
+        this.fetchAQIData();
+      }
     });
 
     this.setupResizeObserver();
@@ -1482,6 +1495,10 @@ export class DeckGLMap {
       }
     }
 
+    if (mapLayers.aqi && this.aqiData.length > 0) {
+      layers.push(...this.createAqiLayers());
+    }
+
     const result = layers.filter(Boolean) as LayersList;
     
     const collisionExt = new CollisionFilterExtension();
@@ -1502,6 +1519,90 @@ export class DeckGLMap {
       console.warn(`[DeckGLMap] buildLayers took ${elapsed.toFixed(2)}ms (>16ms budget), ${result.length} layers`);
     }
     return collidableResult as LayersList;
+  }
+
+  private async fetchAQIData(): Promise<void> {
+    if (!this.maplibreMap) return;
+    const bounds = this.maplibreMap.getBounds();
+    const boundsStr = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+    
+    // Don't fetch if bounds haven't changed much or if currently fetching
+    if (this.aqiFetchPending || this.lastAqiBounds === boundsStr) return;
+    
+    this.aqiFetchPending = true;
+    this.lastAqiBounds = boundsStr;
+    
+    try {
+      const response = await fetch(`/api/aqi?bounds=${boundsStr}`);
+      if (response.ok) {
+        const json = await response.json();
+        if (json.status === 'ok' && json.data) {
+          // Filter out stations with invalid '-' AQI
+          this.aqiData = json.data.filter((s: any) => s.aqi && s.aqi !== '-');
+          this.render();
+        }
+      }
+    } catch (e) {
+      console.error('[DeckGLMap] Failed to fetch AQI data:', e);
+    } finally {
+      this.aqiFetchPending = false;
+    }
+  }
+
+  private createAqiLayers(): Layer[] {
+    const getAqiColor = (aqiStr: string): [number, number, number, number] => {
+      const aqi = parseInt(aqiStr, 10);
+      if (isNaN(aqi)) return [128, 128, 128, 200];
+      if (aqi <= 50) return [0, 153, 102, 220]; // Green
+      if (aqi <= 100) return [255, 222, 51, 220]; // Yellow
+      if (aqi <= 150) return [255, 153, 51, 220]; // Orange
+      if (aqi <= 200) return [204, 0, 51, 220]; // Red
+      if (aqi <= 300) return [102, 0, 153, 220]; // Purple
+      return [126, 0, 35, 220]; // Maroon
+    };
+
+    const scatterLayer = new ScatterplotLayer<import('@/types').AQIStation>({
+      id: 'aqi-bubbles-layer',
+      data: this.aqiData,
+      getPosition: d => [d.lon, d.lat],
+      getFillColor: d => getAqiColor(d.aqi),
+      getRadius: 15000,
+      radiusMinPixels: 10,
+      radiusMaxPixels: 30,
+      pickable: true,
+      onClick: (info) => {
+        if (info.object) {
+          const d = info.object;
+          this.popup.show({
+            type: 'news' as import('./MapPopup').PopupType,
+            data: {
+              html: `
+                <div style="padding: 4px;">
+                  <h4 style="margin: 0 0 4px 0; color: #fff;">${d.station.name}</h4>
+                  <div style="font-size: 1.5em; font-weight: bold; margin-bottom: 4px;">AQI: ${d.aqi}</div>
+                  <div style="font-size: 0.8em; color: #aaa;">${new Date(d.station.time).toLocaleString()}</div>
+                </div>
+              `
+            } as any,
+            x: info.x,
+            y: info.y
+          });
+        }
+      }
+    });
+
+    const textLayer = new TextLayer<import('@/types').AQIStation>({
+      id: 'aqi-text-layer',
+      data: this.aqiData,
+      getPosition: d => [d.lon, d.lat],
+      getText: d => d.aqi,
+      getSize: 12,
+      getColor: [255, 255, 255, 255],
+      getAlignmentBaseline: 'center',
+      pickable: false
+    });
+
+    return [scatterLayer, textLayer];
   }
 
   // Layer creation methods

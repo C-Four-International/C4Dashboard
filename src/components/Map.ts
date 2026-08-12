@@ -339,7 +339,7 @@ export class MapComponent {
       'cables', 'pipelines', 'outages', 'datacenters',   // infrastructure
       // cyberThreats is intentionally hidden on SVG/mobile fallback (DeckGL desktop only)
       'ais', 'flights',                                   // transport
-      'natural', 'weather', 'fires',                      // natural
+      'natural', 'weather', 'fires', 'aqi',               // natural
       'threatScore',                                      // threat score
       'economic',                                         // economic
       'waterways',                                        // labels
@@ -347,7 +347,7 @@ export class MapComponent {
     const techLayers: (keyof MapLayers)[] = [
       'cables', 'datacenters', 'outages',                // tech infrastructure
       'startupHubs', 'cloudRegions', 'accelerators', 'techHQs', 'techEvents', // tech ecosystem
-      'natural', 'weather', 'weatherRadar', 'fires',                      // natural events
+      'natural', 'weather', 'weatherRadar', 'fires', 'aqi',                   // natural events
       'economic',                                         // economic/geographic
       'flights',                                          // aviation
     ];
@@ -355,11 +355,11 @@ export class MapComponent {
       'stockExchanges', 'financialCenters', 'centralBanks', 'commodityHubs', // finance ecosystem
       'cables', 'pipelines', 'outages',                   // infrastructure
       'sanctions', 'economic', 'waterways',               // geopolitical/economic
-      'natural', 'weather', 'weatherRadar', 'fires',                      // natural events
+      'natural', 'weather', 'weatherRadar', 'fires', 'aqi',               // natural events
       'flights',                                          // aviation
     ];
     const happyLayers: (keyof MapLayers)[] = [
-      'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations', 'weather', 'weatherRadar',
+      'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations', 'weather', 'weatherRadar', 'aqi',
     ];
     const layers = SITE_VARIANT === 'tech' ? techLayers : SITE_VARIANT === 'finance' ? financeLayers : SITE_VARIANT === 'happy' ? happyLayers : fullLayers;
     const layerLabelKeys: Partial<Record<keyof MapLayers, string>> = {
@@ -392,6 +392,7 @@ export class MapComponent {
       commodityHubs: 'components.deckgl.layers.commodityHubs',
       gulfInvestments: 'components.deckgl.layers.gulfInvestments',
       fires: 'components.deckgl.layers.satelliteFires',
+      aqi: 'components.deckgl.layers.aqi',
       threatScore: 'Threat Score',
     };
     const getLayerLabel = (layer: keyof MapLayers): string => {

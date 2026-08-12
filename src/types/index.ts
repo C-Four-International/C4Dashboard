@@ -463,6 +463,17 @@ export interface Earthquake {
   url: string;
 }
 
+export interface AQIStation {
+  lat: number;
+  lon: number;
+  uid: number;
+  aqi: string;
+  station: {
+    name: string;
+    time: string;
+  };
+}
+
 export interface Monitor {
   id: string;
   keywords: string[];
@@ -491,6 +502,7 @@ export interface MapLayers {
   sanctions: boolean;
   weather: boolean;
   weatherRadar: boolean;
+  aqi?: boolean;
   economic: boolean;
   waterways: boolean;
   outages: boolean;
