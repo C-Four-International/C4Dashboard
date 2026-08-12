@@ -3545,7 +3545,7 @@ export class DeckGLMap {
         { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
         { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
         { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
-        { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '&#127788;' },
+        { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
         { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
         { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
       ]
@@ -3563,7 +3563,7 @@ export class DeckGLMap {
           { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
           { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
           { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
-          { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '&#127788;' },
+          { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
           { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
           { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
           { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
@@ -3577,7 +3577,7 @@ export class DeckGLMap {
             { key: 'renewableInstallations', label: 'Clean Energy', icon: '&#9889;' },
             { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
             { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
-            { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '&#127788;' },
+            { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
           ]
           : [
             { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
@@ -3598,7 +3598,7 @@ export class DeckGLMap {
             { key: 'climate', label: t('components.deckgl.layers.climateAnomalies'), icon: '&#127787;' },
             { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
             { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
-            { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '&#127788;' },
+            { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
             { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
             { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
             { key: 'threatScore', label: 'Threat Score', icon: '&#128308;' },
