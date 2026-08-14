@@ -603,7 +603,7 @@ export class DeckGLMap {
     if (!this.maplibreMap) return;
 
     this.deckOverlay = new MapboxOverlay({
-      interleaved: false,
+      interleaved: true,
       layers: this.buildLayers(),
       getTooltip: (info: PickingInfo) => this.getTooltip(info),
       onClick: (info: PickingInfo) => this.handleClick(info),
@@ -1626,7 +1626,7 @@ export class DeckGLMap {
       minZoom: 0,
       maxZoom: 8,
       tileSize: 256,
-      opacity: 0.8,
+      opacity: 0.4,
       getTileData: async (props: any) => {
         const { bbox } = props;
         if (!bbox) return null;
@@ -4896,6 +4896,8 @@ export class DeckGLMap {
     this.maplibreMap.once('style.load', () => {
       this.loadCountryBoundaries();
       this.updateCountryLayerPaint(theme);
+      // Restore map layers (like weather radar) that are lost during setStyle
+      this.setLayers(this.state.layers);
       // Re-render deck.gl overlay after style swap — interleaved layers need
       // the new MapLibre style to be loaded before they can re-insert.
       this.render();
