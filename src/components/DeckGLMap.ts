@@ -3684,11 +3684,13 @@ export class DeckGLMap {
       helpItem(label('underseaCables'), 'infraCables'),
       helpItem(label('aiDataCenters'), 'infraDatacenters'),
       helpItem(label('internetOutages'), 'infraOutages'),
-      helpItem(label('cyberThreats'), 'techCyberThreats'),
     ])}
         ${helpSection('naturalEconomic', [
       helpItem(label('naturalEvents'), 'naturalEventsTech'),
       helpItem(label('fires'), 'techFires'),
+      helpItem(label('weatherAlerts'), 'weatherAlerts'),
+      helpItem(label('weatherRadar'), 'weatherRadarDesc'),
+      helpItem(label('aqi'), 'aqiDesc'),
       helpItem(staticLabel('countries'), 'countriesOverlay'),
     ])}
       </div>
@@ -3708,13 +3710,13 @@ export class DeckGLMap {
       helpItem(label('underseaCables'), 'financeCables'),
       helpItem(label('pipelines'), 'financePipelines'),
       helpItem(label('internetOutages'), 'financeOutages'),
-      helpItem(label('cyberThreats'), 'financeCyberThreats'),
       helpItem(label('tradeRoutes'), 'tradeRoutes'),
     ])}
         ${helpSection('macroContext', [
-      helpItem(label('economicCenters'), 'economicCenters'),
       helpItem(label('strategicWaterways'), 'macroWaterways'),
       helpItem(label('weatherAlerts'), 'weatherAlertsMarket'),
+      helpItem(label('weatherRadar'), 'weatherRadarDesc'),
+      helpItem(label('aqi'), 'aqiDesc'),
       helpItem(label('naturalEvents'), 'naturalEventsMacro'),
     ])}
       </div>
@@ -3728,6 +3730,7 @@ export class DeckGLMap {
       helpItem(staticLabel('timeExtended'), 'timeExtended'),
     ], 'timeAffects')}
         ${helpSection('geopolitical', [
+      helpItem(label('alertStatus'), 'alertStatusDesc'),
       helpItem(label('dayNight'), 'dayNight'),
       helpItem(label('conflictZones'), 'geoConflicts'),
       helpItem(label('intelHotspots'), 'geoHotspots'),
@@ -3753,8 +3756,11 @@ export class DeckGLMap {
       helpItem(label('naturalEvents'), 'naturalEventsFull'),
       helpItem(label('fires'), 'firesFull'),
       helpItem(label('weatherAlerts'), 'weatherAlerts'),
+      helpItem(label('weatherRadar'), 'weatherRadarDesc'),
+      helpItem(label('aqi'), 'aqiDesc'),
       helpItem(label('climateAnomalies'), 'climateAnomalies'),
       helpItem(label('criticalMinerals'), 'mineralsFull'),
+      helpItem(label('threatScore'), 'threatScoreDesc'),
     ])}
         ${helpSection('labels', [
       helpItem(staticLabel('countries'), 'countriesOverlay'),

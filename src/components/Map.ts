@@ -463,11 +463,13 @@ export class MapComponent {
       helpItem(label('underseaCables'), 'infraCables'),
       helpItem(label('aiDataCenters'), 'infraDatacenters'),
       helpItem(label('internetOutages'), 'infraOutages'),
-      helpItem(label('cyberThreats'), 'techCyberThreats'),
     ])}
         ${helpSection('naturalEconomic', [
       helpItem(label('naturalEvents'), 'naturalEventsTech'),
       helpItem(label('fires'), 'techFires'),
+      helpItem(label('weatherAlerts'), 'weatherAlerts'),
+      helpItem(label('weatherRadar'), 'weatherRadarDesc'),
+      helpItem(label('aqi'), 'aqiDesc'),
       helpItem(staticLabel('countries'), 'countriesOverlay'),
     ])}
       </div>
@@ -487,12 +489,12 @@ export class MapComponent {
       helpItem(label('underseaCables'), 'financeCables'),
       helpItem(label('pipelines'), 'financePipelines'),
       helpItem(label('internetOutages'), 'financeOutages'),
-      helpItem(label('cyberThreats'), 'financeCyberThreats'),
     ])}
         ${helpSection('macroContext', [
-      helpItem(label('economicCenters'), 'economicCenters'),
       helpItem(label('strategicWaterways'), 'macroWaterways'),
       helpItem(label('weatherAlerts'), 'weatherAlertsMarket'),
+      helpItem(label('weatherRadar'), 'weatherRadarDesc'),
+      helpItem(label('aqi'), 'aqiDesc'),
       helpItem(label('naturalEvents'), 'naturalEventsMacro'),
     ])}
       </div>
@@ -506,26 +508,23 @@ export class MapComponent {
       helpItem(staticLabel('timeExtended'), 'timeExtended'),
     ], 'timeAffects')}
         ${helpSection('geopolitical', [
+      helpItem(label('alertStatus'), 'alertStatusDesc'),
       helpItem(label('conflictZones'), 'geoConflicts'),
       helpItem(label('intelHotspots'), 'geoHotspots'),
       helpItem(staticLabel('sanctions'), 'geoSanctions'),
       helpItem(label('protests'), 'geoProtests'),
-      helpItem(label('ucdpEvents'), 'geoUcdpEvents'),
-      helpItem(label('displacementFlows'), 'geoDisplacement'),
     ])}
         ${helpSection('militaryStrategic', [
       helpItem(label('militaryBases'), 'militaryBases'),
       helpItem(label('nuclearSites'), 'militaryNuclear'),
       helpItem(label('gammaIrradiators'), 'militaryIrradiators'),
       helpItem(label('militaryActivity'), 'militaryActivity'),
-      helpItem(label('spaceports'), 'militarySpaceports'),
     ])}
         ${helpSection('infrastructure', [
       helpItem(label('underseaCables'), 'infraCablesFull'),
       helpItem(label('pipelines'), 'infraPipelinesFull'),
       helpItem(label('internetOutages'), 'infraOutages'),
       helpItem(label('aiDataCenters'), 'infraDatacentersFull'),
-      helpItem(label('cyberThreats'), 'infraCyberThreats'),
     ])}
         ${helpSection('transport', [
       helpItem(label('shipTraffic'), 'transportShipping'),
@@ -535,9 +534,9 @@ export class MapComponent {
       helpItem(label('naturalEvents'), 'naturalEventsFull'),
       helpItem(label('fires'), 'firesFull'),
       helpItem(label('weatherAlerts'), 'weatherAlerts'),
-      helpItem(label('climateAnomalies'), 'climateAnomalies'),
-      helpItem(label('economicCenters'), 'economicCenters'),
-      helpItem(label('criticalMinerals'), 'mineralsFull'),
+      helpItem(label('aqi'), 'aqiDesc'),
+      helpItem(label('economicCenters'), 'economicCentersDesc'),
+      helpItem(label('threatScore'), 'threatScoreDesc'),
     ])}
         ${helpSection('labels', [
       helpItem(staticLabel('countries'), 'countriesOverlay'),

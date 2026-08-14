@@ -826,7 +826,10 @@
         "commodityHubs": "Commodity Hubs",
         "gulfInvestments": "GCC Investments",
         "tradeRoutes": "Trade Routes",
-        "dayNight": "Day / Night"
+        "dayNight": "Day / Night",
+        "weatherRadar": "Weather Radar",
+        "alertStatus": "Alert Status",
+        "threatScore": "Threat Score"
       },
       "tooltip": {
         "earthquake": "Earthquake",
@@ -920,7 +923,14 @@
           "techFires": "Active wildfires near tech infrastructure",
           "financeGulfInvestments": "GCC sovereign wealth fund investments and FDI",
           "tradeRoutes": "Major global shipping lanes connecting ports through strategic chokepoints",
-          "dayNight": "Live solar terminator overlay — shades the night hemisphere based on current UTC time, updating every 5 minutes"
+          "dayNight": "Live solar terminator overlay — shades the night hemisphere based on current UTC time, updating every 5 minutes",
+          "alertStatusDesc": "Global alert and DEFCON level indicators",
+          "weatherRadarDesc": "Live precipitation and weather radar overlays",
+          "aqiDesc": "Real-time Air Quality Index (AQI) sensor data",
+          "geoSanctions": "Active international sanctions against countries",
+          "geoProtests": "Reported protest events and civil unrest",
+          "threatScoreDesc": "Calculated threat and instability scoring",
+          "economicCentersDesc": "Major economic centers and GDP hubs"
         },
         "notes": {
           "timeAffects": "Affects: Earthquakes, Weather, Protests, Outages"
