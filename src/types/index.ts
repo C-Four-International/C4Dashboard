@@ -503,6 +503,7 @@ export interface MapLayers {
   weather: boolean;
   weatherRadar: boolean;
   aqi?: boolean;
+  gpsJamming: boolean;
   economic: boolean;
   waterways: boolean;
   outages: boolean;

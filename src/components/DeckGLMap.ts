@@ -306,6 +306,8 @@ export class DeckGLMap {
   private aqiData: import('@/types').AQIStation[] = [];
   private lastAqiBounds: string = '';
   private aqiFetchPending: boolean = false;
+  private gpsJammingData: import('@/services/gps-jamming').GpsJammingPoint[] = [];
+  private gpsJammingFetchPending: boolean = false;
 
   // Country highlight state
   private countryGeoJsonLoaded = false;
@@ -402,6 +404,9 @@ export class DeckGLMap {
       this.loadCountryBoundaries();
       if (this.state.layers.aqi && this.isLayerVisible('aqi')) {
         this.fetchAQIData();
+      }
+      if (this.state.layers.gpsJamming) {
+        this.fetchGpsJammingData();
       }
       this.render();
     });
@@ -1499,6 +1504,10 @@ export class DeckGLMap {
       layers.push(...this.createAqiLayers());
     }
 
+    if (mapLayers.gpsJamming && this.gpsJammingData.length > 0) {
+      layers.push(this.createGpsJammingLayer());
+    }
+
     const result = layers.filter(Boolean) as LayersList;
     
     const collisionExt = new CollisionFilterExtension();
@@ -1549,6 +1558,20 @@ export class DeckGLMap {
     }
   }
 
+  private async fetchGpsJammingData(): Promise<void> {
+    if (this.gpsJammingFetchPending) return;
+    this.gpsJammingFetchPending = true;
+    try {
+      const { fetchGpsJammingData } = await import('@/services/gps-jamming');
+      this.gpsJammingData = await fetchGpsJammingData();
+      this.render();
+    } catch (e) {
+      console.error('[DeckGLMap] Failed to fetch GPS Jamming data:', e);
+    } finally {
+      this.gpsJammingFetchPending = false;
+    }
+  }
+
   private createAqiLayers(): Layer[] {
     const getAqiColor = (aqiStr: string): [number, number, number, number] => {
       const aqi = parseInt(aqiStr, 10);
@@ -1584,6 +1607,26 @@ export class DeckGLMap {
     });
 
     return [scatterLayer, textLayer];
+  }
+
+  private createGpsJammingLayer(): HeatmapLayer {
+    return new HeatmapLayer<import('@/services/gps-jamming').GpsJammingPoint>({
+      id: 'gps-jamming-heatmap-layer',
+      data: this.gpsJammingData,
+      getPosition: d => [d[0], d[1]],
+      getWeight: d => d[2],
+      radiusPixels: 40,
+      intensity: 1,
+      threshold: 0.1,
+      colorRange: [
+        [255, 255, 178],
+        [254, 204, 92],
+        [253, 141, 60],
+        [240, 59, 32],
+        [189, 0, 38]
+      ],
+      pickable: false
+    });
   }
 
   // Layer creation methods
@@ -3710,6 +3753,7 @@ export class DeckGLMap {
       helpItem(label('underseaCables'), 'financeCables'),
       helpItem(label('pipelines'), 'financePipelines'),
       helpItem(label('internetOutages'), 'financeOutages'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
       helpItem(label('tradeRoutes'), 'tradeRoutes'),
     ])}
         ${helpSection('macroContext', [

@@ -214,7 +214,7 @@ export class App {
       panels: {},
       newsPanels: {},
       panelSettings,
-      mapLayers,
+      mapLayers: { ...mapLayers, gpsJamming: false },
       allNews: [],
       newsByCategory: {},
       latestMarkets: [],

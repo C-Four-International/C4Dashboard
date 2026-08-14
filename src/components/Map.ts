@@ -336,7 +336,7 @@ export class MapComponent {
       'conflicts', 'hotspots', 'sanctions', 'protests',  // geopolitical
       'bases', 'nuclear', 'irradiators',                 // military/strategic
       'military',                                         // military tracking (flights + vessels)
-      'cables', 'pipelines', 'outages', 'datacenters',   // infrastructure
+      'cables', 'pipelines', 'outages', 'datacenters', 'gpsJamming', // infrastructure
       // cyberThreats is intentionally hidden on SVG/mobile fallback (DeckGL desktop only)
       'ais', 'flights',                                   // transport
       'natural', 'weather', 'fires', 'aqi',               // natural
@@ -394,6 +394,7 @@ export class MapComponent {
       fires: 'components.deckgl.layers.satelliteFires',
       aqi: 'components.deckgl.layers.aqi',
       threatScore: 'Threat Score',
+      gpsJamming: 'components.deckgl.layers.gpsJamming',
     };
     const getLayerLabel = (layer: keyof MapLayers): string => {
       if (layer === 'sanctions') return t('components.deckgl.layerHelp.labels.sanctions');
@@ -463,6 +464,7 @@ export class MapComponent {
       helpItem(label('underseaCables'), 'infraCables'),
       helpItem(label('aiDataCenters'), 'infraDatacenters'),
       helpItem(label('internetOutages'), 'infraOutages'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
     ])}
         ${helpSection('naturalEconomic', [
       helpItem(label('naturalEvents'), 'naturalEventsTech'),
@@ -489,6 +491,7 @@ export class MapComponent {
       helpItem(label('underseaCables'), 'financeCables'),
       helpItem(label('pipelines'), 'financePipelines'),
       helpItem(label('internetOutages'), 'financeOutages'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
     ])}
         ${helpSection('macroContext', [
       helpItem(label('strategicWaterways'), 'macroWaterways'),
@@ -525,6 +528,7 @@ export class MapComponent {
       helpItem(label('pipelines'), 'infraPipelinesFull'),
       helpItem(label('internetOutages'), 'infraOutages'),
       helpItem(label('aiDataCenters'), 'infraDatacentersFull'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
     ])}
         ${helpSection('transport', [
       helpItem(label('shipTraffic'), 'transportShipping'),
