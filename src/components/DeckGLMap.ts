@@ -1625,12 +1625,14 @@ export class DeckGLMap {
   }
 
   private createAgriculturalStressLayer(service: string, id: string): TileLayer {
+    const isLight = getCurrentTheme() === 'light';
+
     return new TileLayer({
       id: `agricultural-stress-${id}-layer`,
       minZoom: 0,
       maxZoom: 8,
       tileSize: 256,
-      opacity: 0.6,
+      opacity: 0.85,
       getTileData: async (props: any) => {
         const { bbox } = props;
         if (!bbox) return null;
@@ -1645,7 +1647,15 @@ export class DeckGLMap {
         return new BitmapLayer(props, {
           data: undefined,
           image: props.data,
-          bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]]
+          bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]],
+          transparentColor: [0, 0, 0, 0],
+          parameters: {
+            blend: true,
+            blendFunc: isLight 
+              ? [WebGLRenderingContext.DST_COLOR, WebGLRenderingContext.ONE_MINUS_SRC_ALPHA] 
+              : [WebGLRenderingContext.SRC_ALPHA, WebGLRenderingContext.ONE],
+            blendEquation: WebGLRenderingContext.FUNC_ADD
+          }
         });
       },
       pickable: false,
