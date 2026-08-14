@@ -1245,6 +1245,16 @@ export class DeckGLMap {
       if (alertLayer) layers.push(alertLayer);
     }
 
+    if (mapLayers.agriculturalStressDI) {
+      layers.push(this.createAgriculturalStressLayer('DI_A', 'di'));
+    }
+    if (mapLayers.agriculturalStressASI) {
+      layers.push(this.createAgriculturalStressLayer('ASI_A', 'asi'));
+    }
+    if (mapLayers.agriculturalStressVCI) {
+      layers.push(this.createAgriculturalStressLayer('VCI_M', 'vci'));
+    }
+
     // Undersea cables layer
     if (mapLayers.cables) {
       layers.push(this.createCablesLayer());
@@ -1511,16 +1521,6 @@ export class DeckGLMap {
 
     if (mapLayers.gpsJamming && this.gpsJammingData.length > 0) {
       layers.push(this.createGpsJammingLayer());
-    }
-
-    if (mapLayers.agriculturalStressDI) {
-      layers.push(this.createAgriculturalStressLayer('DI_A', 'di'));
-    }
-    if (mapLayers.agriculturalStressASI) {
-      layers.push(this.createAgriculturalStressLayer('ASI_A', 'asi'));
-    }
-    if (mapLayers.agriculturalStressVCI) {
-      layers.push(this.createAgriculturalStressLayer('VCI_M', 'vci'));
     }
 
     const result = layers.filter(Boolean) as LayersList;
