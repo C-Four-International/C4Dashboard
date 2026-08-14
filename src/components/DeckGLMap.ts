@@ -1616,10 +1616,10 @@ export class DeckGLMap {
 
   private createAgriculturalStressLayer(): TileLayer[] {
     const createTileLayer = (service: string, id: string) => {
-      const baseUrl = `https://asis-esri.fao.org/image/rest/services/${service}/ImageServer/exportImage`;
+      const baseUrl = `/api/asis?service=${service}&bbox={west},{south},{east},{north}`;
       return new TileLayer({
         id: `agricultural-stress-${id}-layer`,
-        data: `${baseUrl}?bbox={west},{south},{east},{north}&bboxSR=4326&imageSR=3857&size=256,256&format=png32&transparent=true&f=image`,
+        data: baseUrl,
         minZoom: 0,
         maxZoom: 8,
         tileSize: 256,
