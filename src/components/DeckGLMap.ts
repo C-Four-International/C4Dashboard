@@ -4009,6 +4009,14 @@ export class DeckGLMap {
       if (toggle) toggle.checked = value;
     });
 
+    // Fetch data for dynamic layers if they are enabled
+    if (layers.gpsJamming) {
+      this.fetchGpsJammingData();
+    }
+    if (layers.aqi) {
+      this.fetchAQIData();
+    }
+
     if (this.maplibreMap) {
       try {
         const isWeatherRadarEnabled = this.state.layers.weatherRadar;
