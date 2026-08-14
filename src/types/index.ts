@@ -504,6 +504,7 @@ export interface MapLayers {
   weatherRadar: boolean;
   aqi?: boolean;
   gpsJamming: boolean;
+  agriculturalStress: boolean;
   economic: boolean;
   waterways: boolean;
   outages: boolean;

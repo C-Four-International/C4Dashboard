@@ -359,7 +359,7 @@ export class MapComponent {
       'flights',                                          // aviation
     ];
     const happyLayers: (keyof MapLayers)[] = [
-      'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations', 'weather', 'weatherRadar', 'aqi', 'gpsJamming',
+      'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations', 'weather', 'weatherRadar', 'aqi', 'gpsJamming', 'agriculturalStress',
     ];
     const layers = SITE_VARIANT === 'tech' ? techLayers : SITE_VARIANT === 'finance' ? financeLayers : SITE_VARIANT === 'happy' ? happyLayers : fullLayers;
     const layerLabelKeys: Partial<Record<keyof MapLayers, string>> = {
@@ -379,6 +379,7 @@ export class MapComponent {
       natural: 'components.deckgl.layers.naturalEvents',
       weather: 'components.deckgl.layers.weather',
       gpsJamming: 'components.deckgl.layers.gpsJamming',
+      agriculturalStress: 'components.deckgl.layers.agriculturalStress',
       weatherRadar: 'Weather Radar',
       economic: 'components.deckgl.layers.economicCenters',
       waterways: 'components.deckgl.layers.strategicWaterways',
@@ -395,7 +396,6 @@ export class MapComponent {
       fires: 'components.deckgl.layers.satelliteFires',
       aqi: 'components.deckgl.layers.aqi',
       threatScore: 'Threat Score',
-      gpsJamming: 'components.deckgl.layers.gpsJamming',
     };
     const getLayerLabel = (layer: keyof MapLayers): string => {
       if (layer === 'sanctions') return t('components.deckgl.layerHelp.labels.sanctions');
@@ -540,6 +540,8 @@ export class MapComponent {
       helpItem(label('fires'), 'firesFull'),
       helpItem(label('weather'), 'weatherAlerts'),
       helpItem(label('aqi'), 'aqiDesc'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
+      helpItem(label('agriculturalStress'), 'agriculturalStressDesc'),
       helpItem(label('economicCenters'), 'economicCentersDesc'),
       helpItem(label('threatScore'), 'threatScoreDesc'),
     ])}

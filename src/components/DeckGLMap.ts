@@ -5,7 +5,8 @@
  */
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { Layer, LayersList, PickingInfo } from '@deck.gl/core';
-import { GeoJsonLayer, ScatterplotLayer, PathLayer, IconLayer, TextLayer, PolygonLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, ScatterplotLayer, PathLayer, IconLayer, TextLayer, PolygonLayer, BitmapLayer } from '@deck.gl/layers';
+import { TileLayer } from '@deck.gl/geo-layers';
 import maplibregl from 'maplibre-gl';
 import * as maptilerSdk from '@maptiler/sdk';
 import * as maptilerWeather from '@maptiler/weather';
@@ -1508,6 +1509,10 @@ export class DeckGLMap {
       layers.push(this.createGpsJammingLayer());
     }
 
+    if (mapLayers.agriculturalStress) {
+      layers.push(this.createAgriculturalStressLayer());
+    }
+
     const result = layers.filter(Boolean) as LayersList;
     
     const collisionExt = new CollisionFilterExtension();
@@ -1607,6 +1612,29 @@ export class DeckGLMap {
     });
 
     return [scatterLayer, textLayer];
+  }
+
+  private createAgriculturalStressLayer(): TileLayer {
+    // Note: Using a placeholder FAO ASIS ImageServer export endpoint until confirmed
+    const baseUrl = 'https://extfao.fao.org/arcgis/rest/services/ASIS/ASI_Global_dekadal/ImageServer/exportImage';
+    
+    return new TileLayer({
+      id: 'agricultural-stress-layer',
+      data: `${baseUrl}?bbox={west},{south},{east},{north}&bboxSR=4326&imageSR=3857&size=256,256&format=png32&transparent=true&f=image`,
+      minZoom: 0,
+      maxZoom: 8,
+      tileSize: 256,
+      opacity: 0.7,
+      renderSubLayers: (props: any) => {
+        const { boundingBox } = props.tile;
+        return new BitmapLayer(props, {
+          data: undefined,
+          image: props.data,
+          bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]]
+        });
+      },
+      pickable: false,
+    });
   }
 
   private createGpsJammingLayer(): HeatmapLayer {
@@ -3630,6 +3658,7 @@ export class DeckGLMap {
             { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
             { key: 'threatScore', label: 'Threat Score', icon: '&#128308;' },
             { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
+            { key: 'agriculturalStress', label: t('components.deckgl.layers.agriculturalStress'), icon: '&#127806;' },
             { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
             { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
           ];
@@ -3796,6 +3825,7 @@ export class DeckGLMap {
       helpItem(label('pipelines'), 'infraPipelinesFull'),
       helpItem(label('aiDataCenters'), 'infraDatacentersFull'),
       helpItem(label('gpsJamming'), 'gpsJammingDesc'),
+      helpItem(label('agriculturalStress'), 'agriculturalStressDesc'),
     ])}
         ${helpSection('transport', [
       helpItem(label('shipTraffic'), 'transportShipping'),
