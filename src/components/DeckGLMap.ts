@@ -1510,7 +1510,7 @@ export class DeckGLMap {
     }
 
     if (mapLayers.agriculturalStress) {
-      layers.push(this.createAgriculturalStressLayer());
+      layers.push(...this.createAgriculturalStressLayer());
     }
 
     const result = layers.filter(Boolean) as LayersList;
@@ -1614,28 +1614,37 @@ export class DeckGLMap {
     return [scatterLayer, textLayer];
   }
 
-  private createAgriculturalStressLayer(): TileLayer {
-    // Note: Using a public Landsat ImageServer as a placeholder until the exact FAO ASIS URL is provided
-    // The previous FAO endpoint (extfao.fao.org) was not resolving publicly.
-    const baseUrl = 'https://landsat2.arcgis.com/arcgis/rest/services/Landsat/MS/ImageServer/exportImage';
-    
-    return new TileLayer({
-      id: 'agricultural-stress-layer',
-      data: `${baseUrl}?bbox={west},{south},{east},{north}&bboxSR=4326&imageSR=3857&size=256,256&format=png32&transparent=true&f=image`,
-      minZoom: 0,
-      maxZoom: 8,
-      tileSize: 256,
-      opacity: 0.7,
-      renderSubLayers: (props: any) => {
-        const { boundingBox } = props.tile;
-        return new BitmapLayer(props, {
-          data: undefined,
-          image: props.data,
-          bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]]
-        });
-      },
-      pickable: false,
-    });
+  private createAgriculturalStressLayer(): TileLayer[] {
+    // Note: Using a public Landsat ImageServer as a placeholder until the exact FAO ASIS URLs are provided.
+    // The endpoints to hook into are Drought Intensity (DI), Agricultural Stress Index (ASI), and Vegetation Condition Index (VCI).
+    const createTileLayer = (id: string, color: [number, number, number]) => {
+      const baseUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export';
+      return new TileLayer({
+        id: `agricultural-stress-${id}-layer`,
+        data: `${baseUrl}?bbox={west},{south},{east},{north}&bboxSR=4326&imageSR=3857&size=256,256&format=png32&transparent=true&f=image#${id}`,
+        minZoom: 0,
+        maxZoom: 8,
+        tileSize: 256,
+        opacity: 0.6,
+        renderSubLayers: (props: any) => {
+          const { boundingBox } = props.tile;
+          return new BitmapLayer(props, {
+            data: undefined,
+            image: props.data,
+            bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]],
+            tintColor: color
+          });
+        },
+        pickable: false,
+      });
+    };
+
+    // Render the three requested ASIS endpoints as distinct sub-layers with different tints for visibility
+    return [
+      createTileLayer('vci', [0, 255, 0]),    // Vegetation Condition Index (Green tint, bottom)
+      createTileLayer('asi', [255, 165, 0]),  // Agricultural Stress Index (Orange tint, middle)
+      createTileLayer('di', [255, 0, 0])      // Drought Intensity (Red tint, top)
+    ];
   }
 
   private createGpsJammingLayer(): HeatmapLayer {
