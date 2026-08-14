@@ -821,8 +821,8 @@ export class DeckGLMap {
     this.lastSCZoom = -1;
   }
 
-  private rebuildTechEventSupercluster(): void {
-    const points = this.techEvents.map((e, i) => ({
+  private rebuildTechEventSupercluster(source: TechEventMarker[] = this.filterByTime(this.techEvents, e => e.startDate)): void {
+    const points = source.map((e, i) => ({
       type: 'Feature' as const,
       geometry: { type: 'Point' as const, coordinates: [e.lng, e.lat] as [number, number] },
       properties: {
@@ -1234,6 +1234,11 @@ export class DeckGLMap {
     const filteredMilitaryFlightClusters = this.filterMilitaryFlightClustersByTime(this.militaryFlightClusters);
     const filteredMilitaryVesselClusters = this.filterMilitaryVesselClustersByTime(this.militaryVesselClusters);
     const filteredUcdpEvents = this.filterByTime(this.ucdpEvents, (event) => event.date_start);
+    const filteredCyberThreats = this.filterByTime(this.cyberThreats, (threat) => threat.lastSeen || threat.firstSeen);
+    const filteredFires = this.filterByTime(this.firmsFireData, (fire) => fire.acq_date);
+    const filteredAqi = this.filterByTime(this.aqiData, (aqi) => aqi.station.time);
+    const filteredSpeciesRecovery = this.filterByTime(this.speciesRecoveryZones, (zone) => zone.lastUpdated);
+    const filteredNewsLocations = this.filterByTime(this.newsLocations, (loc) => loc.timestamp);
 
     // Day/Night terminator layer — rendered first (background, behind everything)
     if (mapLayers.dayNight) {
@@ -1323,8 +1328,8 @@ export class DeckGLMap {
     }
 
     // Satellite fires layer (NASA FIRMS)
-    if (mapLayers.fires && this.firmsFireData.length > 0) {
-      layers.push(this.createFiresLayer());
+    if (mapLayers.fires && filteredFires.length > 0) {
+      layers.push(this.createFiresLayer(filteredFires));
     }
 
     // Weather alerts layer
@@ -1339,9 +1344,9 @@ export class DeckGLMap {
     }
 
     // Cyber threat IOC layer
-    if (mapLayers.cyberThreats && this.cyberThreats.length > 0) {
-      layers.push(this.createCyberThreatsLayer());
-      layers.push(this.createGhostLayer('cyber-threats-layer', this.cyberThreats, d => [d.lon, d.lat], { radiusMinPixels: 12 }));
+    if (mapLayers.cyberThreats && filteredCyberThreats.length > 0) {
+      layers.push(this.createCyberThreatsLayer(filteredCyberThreats));
+      layers.push(this.createGhostLayer('cyber-threats-layer', filteredCyberThreats, d => [d.lon, d.lat], { radiusMinPixels: 12 }));
     }
 
     // AIS density layer
@@ -1492,8 +1497,8 @@ export class DeckGLMap {
       if (choropleth) layers.push(choropleth);
     }
     // Phase 8: Species recovery zones
-    if (mapLayers.speciesRecovery && this.speciesRecoveryZones.length > 0) {
-      layers.push(this.createSpeciesRecoveryLayer());
+    if (mapLayers.speciesRecovery && filteredSpeciesRecovery.length > 0) {
+      layers.push(this.createSpeciesRecoveryLayer(filteredSpeciesRecovery));
     }
     // Phase 8: Renewable energy installations
     if (mapLayers.renewableInstallations && this.renewableInstallations.length > 0) {
@@ -1501,8 +1506,8 @@ export class DeckGLMap {
     }
 
     // News geo-locations (always shown if data exists)
-    if (this.newsLocations.length > 0) {
-      layers.push(...this.createNewsLocationsLayer());
+    if (filteredNewsLocations.length > 0) {
+      layers.push(...this.createNewsLocationsLayer(filteredNewsLocations));
     }
 
     // Threat Score Layer
@@ -1515,8 +1520,8 @@ export class DeckGLMap {
       }
     }
 
-    if (mapLayers.aqi && this.aqiData.length > 0) {
-      layers.push(...this.createAqiLayers());
+    if (mapLayers.aqi && filteredAqi.length > 0) {
+      layers.push(...this.createAqiLayers(filteredAqi));
     }
 
     if (mapLayers.gpsJamming && this.gpsJammingData.length > 0) {
@@ -1587,7 +1592,7 @@ export class DeckGLMap {
     }
   }
 
-  private createAqiLayers(): Layer[] {
+  private createAqiLayers(aqiData: import('@/types').AQIStation[]): Layer[] {
     const getAqiColor = (aqiStr: string): [number, number, number, number] => {
       const aqi = parseInt(aqiStr, 10);
       if (isNaN(aqi)) return [128, 128, 128, 200];
@@ -1601,7 +1606,7 @@ export class DeckGLMap {
 
     const scatterLayer = new ScatterplotLayer<import('@/types').AQIStation>({
       id: 'aqi-bubbles-layer',
-      data: this.aqiData,
+      data: aqiData,
       getPosition: d => [d.lon, d.lat],
       getFillColor: d => getAqiColor(d.aqi),
       getRadius: 15000,
@@ -1612,7 +1617,7 @@ export class DeckGLMap {
 
     const textLayer = new TextLayer<import('@/types').AQIStation>({
       id: 'aqi-text-layer',
-      data: this.aqiData,
+      data: aqiData,
       getPosition: d => [d.lon, d.lat],
       getText: d => String(d.aqi),
       getSize: 12,
@@ -2149,13 +2154,13 @@ export class DeckGLMap {
     });
   }
 
-  private createFiresLayer(): ScatterplotLayer {
+  private createFiresLayer(fires: any[]): ScatterplotLayer {
     return new ScatterplotLayer({
       id: 'fires-layer',
-      data: this.firmsFireData,
-      getPosition: (d: (typeof this.firmsFireData)[0]) => [d.lon, d.lat],
-      getRadius: (d: (typeof this.firmsFireData)[0]) => Math.min(d.frp * 200, 30000) || 5000,
-      getFillColor: (d: (typeof this.firmsFireData)[0]) => {
+      data: fires,
+      getPosition: (d: any) => [d.lon, d.lat],
+      getRadius: (d: any) => Math.min(d.frp * 200, 30000) || 5000,
+      getFillColor: (d: any) => {
         if (d.brightness > 400) return [255, 30, 0, 220] as [number, number, number, number];
         if (d.brightness > 350) return [255, 140, 0, 200] as [number, number, number, number];
         return [255, 220, 50, 180] as [number, number, number, number];
@@ -2200,10 +2205,10 @@ export class DeckGLMap {
     });
   }
 
-  private createCyberThreatsLayer(): ScatterplotLayer<CyberThreat> {
+  private createCyberThreatsLayer(threats: CyberThreat[]): ScatterplotLayer<CyberThreat> {
     return new ScatterplotLayer<CyberThreat>({
       id: 'cyber-threats-layer',
-      data: this.cyberThreats,
+      data: threats,
       getPosition: (d) => [d.lon, d.lat],
       getRadius: (d) => {
         switch (d.severity) {
@@ -2906,10 +2911,10 @@ export class DeckGLMap {
     }
   }
 
-  private createNewsLocationsLayer(): ScatterplotLayer[] {
+  private createNewsLocationsLayer(newsLocations: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date; items?: import('@/types').NewsItem[] }>): ScatterplotLayer[] {
     const zoom = this.maplibreMap?.getZoom() || 2;
     const alphaScale = zoom < 2.5 ? 0.4 : zoom < 4 ? 0.7 : 1.0;
-    const filteredNewsLocations = this.filterByTime(this.newsLocations, (location) => location.timestamp);
+    const filteredNewsLocations = this.filterByTime(newsLocations, (location) => location.timestamp);
     const THREAT_RGB: Record<string, [number, number, number]> = {
       critical: [239, 68, 68],
       high: [249, 115, 22],
@@ -3100,10 +3105,10 @@ export class DeckGLMap {
     });
   }
 
-  private createSpeciesRecoveryLayer(): ScatterplotLayer {
+  private createSpeciesRecoveryLayer(zones: Array<SpeciesRecovery & { recoveryZone: { name: string; lat: number; lon: number } }>): ScatterplotLayer {
     return new ScatterplotLayer({
       id: 'species-recovery-layer',
-      data: this.speciesRecoveryZones,
+      data: zones,
       getPosition: (d: (typeof this.speciesRecoveryZones)[number]) => [d.recoveryZone.lon, d.recoveryZone.lat],
       getRadius: 50000,
       radiusMinPixels: 8,
@@ -4041,6 +4046,7 @@ export class DeckGLMap {
   public setTimeRange(range: TimeRange): void {
     this.state.timeRange = range;
     this.rebuildProtestSupercluster();
+    this.rebuildTechEventSupercluster();
     this.onTimeRangeChange?.(range);
     this.updateTimeSliderButtons();
     this.render(); // Debounced
