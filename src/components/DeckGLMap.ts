@@ -1627,6 +1627,13 @@ export class DeckGLMap {
   private createAgriculturalStressLayer(service: string, id: string): TileLayer {
     const isLight = getCurrentTheme() === 'light';
 
+    // WebGL constants for blending
+    const GL_ONE = 1;
+    const GL_SRC_ALPHA = 0x0302;
+    const GL_ONE_MINUS_SRC_ALPHA = 0x0303;
+    const GL_DST_COLOR = 0x0306;
+    const GL_FUNC_ADD = 0x8006;
+
     return new TileLayer({
       id: `agricultural-stress-${id}-layer`,
       minZoom: 0,
@@ -1648,13 +1655,13 @@ export class DeckGLMap {
           data: undefined,
           image: props.data,
           bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]],
-          transparentColor: [0, 0, 0, 0],
           parameters: {
             blend: true,
+            // Use 4-element array to avoid invalid WebGL operations on the alpha channel
             blendFunc: isLight 
-              ? [WebGLRenderingContext.DST_COLOR, WebGLRenderingContext.ONE_MINUS_SRC_ALPHA] 
-              : [WebGLRenderingContext.SRC_ALPHA, WebGLRenderingContext.ONE],
-            blendEquation: WebGLRenderingContext.FUNC_ADD
+              ? [GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA] 
+              : [GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE],
+            blendEquation: GL_FUNC_ADD
           }
         });
       },
