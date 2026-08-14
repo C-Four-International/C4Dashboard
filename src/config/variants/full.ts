@@ -66,6 +66,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   weatherRadar: true,
   aqi: false,
   gpsJamming: false,
+  agriculturalStress: false,
   economic: true,
   waterways: true,
   outages: true,
