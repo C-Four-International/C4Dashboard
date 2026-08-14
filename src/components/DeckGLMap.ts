@@ -1615,9 +1615,9 @@ export class DeckGLMap {
       data: this.gpsJammingData,
       getPosition: d => [d[0], d[1]],
       getWeight: d => d[2],
-      radiusPixels: 40,
-      intensity: 1,
-      threshold: 0.1,
+      radiusPixels: 60,
+      intensity: 4,
+      threshold: 0.01,
       colorRange: [
         [255, 255, 178],
         [254, 204, 92],

@@ -45,9 +45,10 @@ export default async function handler(req) {
     const jammedPoints = [];
     if (data && data.ac) {
       for (const plane of data.ac) {
-        if (plane.lat && plane.lon && (plane.nic < 7 || plane.nac_p < 8)) {
+        // Loosen to NIC < 8 or NACp < 9 to capture more slightly degraded signals
+        if (plane.lat && plane.lon && (plane.nic < 8 || plane.nac_p < 9)) {
           // Weight calculation: lower NIC/NACp means stronger jamming
-          const weight = ((7 - (plane.nic || 0)) + (8 - (plane.nac_p || 0))) / 15;
+          const weight = ((8 - (plane.nic || 0)) + (9 - (plane.nac_p || 0))) / 17;
           jammedPoints.push([plane.lon, plane.lat, Math.max(0.1, weight)]);
         }
       }
