@@ -359,7 +359,7 @@ export class MapComponent {
       'flights',                                          // aviation
     ];
     const happyLayers: (keyof MapLayers)[] = [
-      'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations', 'weather', 'weatherRadar', 'aqi', 'gpsJamming', 'agriculturalStress',
+      'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations', 'weather', 'weatherRadar', 'aqi', 'gpsJamming', 'agriculturalStressDI', 'agriculturalStressASI', 'agriculturalStressVCI',
     ];
     const layers = SITE_VARIANT === 'tech' ? techLayers : SITE_VARIANT === 'finance' ? financeLayers : SITE_VARIANT === 'happy' ? happyLayers : fullLayers;
     const layerLabelKeys: Partial<Record<keyof MapLayers, string>> = {
@@ -379,7 +379,9 @@ export class MapComponent {
       natural: 'components.deckgl.layers.naturalEvents',
       weather: 'components.deckgl.layers.weather',
       gpsJamming: 'components.deckgl.layers.gpsJamming',
-      agriculturalStress: 'components.deckgl.layers.agriculturalStress',
+      agriculturalStressDI: 'components.deckgl.layers.agriculturalStressDI',
+      agriculturalStressASI: 'components.deckgl.layers.agriculturalStressASI',
+      agriculturalStressVCI: 'components.deckgl.layers.agriculturalStressVCI',
       weatherRadar: 'Weather Radar',
       economic: 'components.deckgl.layers.economicCenters',
       waterways: 'components.deckgl.layers.strategicWaterways',
@@ -541,7 +543,9 @@ export class MapComponent {
       helpItem(label('weather'), 'weatherAlerts'),
       helpItem(label('aqi'), 'aqiDesc'),
       helpItem(label('gpsJamming'), 'gpsJammingDesc'),
-      helpItem(label('agriculturalStress'), 'agriculturalStressDesc'),
+      helpItem(label('agriculturalStressDI'), 'agriculturalStressDIDesc'),
+      helpItem(label('agriculturalStressASI'), 'agriculturalStressASIDesc'),
+      helpItem(label('agriculturalStressVCI'), 'agriculturalStressVCIDesc'),
       helpItem(label('economicCenters'), 'economicCentersDesc'),
       helpItem(label('threatScore'), 'threatScoreDesc'),
     ])}

@@ -98,7 +98,7 @@ const layers = {
   weather: false,
   weatherRadar: false,
   gpsJamming: false,
-  agriculturalStress: false,
+  agriculturalStressDI: false, agriculturalStressASI: false, agriculturalStressVCI: false,
   economic: false,
   waterways: false,
   outages: false,

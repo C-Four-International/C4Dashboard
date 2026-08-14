@@ -1509,8 +1509,14 @@ export class DeckGLMap {
       layers.push(this.createGpsJammingLayer());
     }
 
-    if (mapLayers.agriculturalStress) {
-      layers.push(...this.createAgriculturalStressLayer());
+    if (mapLayers.agriculturalStressDI) {
+      layers.push(this.createAgriculturalStressLayer('DI_A', 'di'));
+    }
+    if (mapLayers.agriculturalStressASI) {
+      layers.push(this.createAgriculturalStressLayer('ASI_A', 'asi'));
+    }
+    if (mapLayers.agriculturalStressVCI) {
+      layers.push(this.createAgriculturalStressLayer('VCI_M', 'vci'));
     }
 
     const result = layers.filter(Boolean) as LayersList;
@@ -1614,41 +1620,32 @@ export class DeckGLMap {
     return [scatterLayer, textLayer];
   }
 
-  private createAgriculturalStressLayer(): TileLayer[] {
-    const createTileLayer = (service: string, id: string) => {
-      return new TileLayer({
-        id: `agricultural-stress-${id}-layer`,
-        minZoom: 0,
-        maxZoom: 8,
-        tileSize: 256,
-        opacity: 0.8,
-        getTileData: async (props: any) => {
-          const { bbox } = props;
-          if (!bbox) return null;
-          const url = `/api/asis?service=${service}&bbox=${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
-          const response = await fetch(url);
-          if (!response.ok) throw new Error('Failed to fetch tile');
-          const blob = await response.blob();
-          return createImageBitmap(blob);
-        },
-        renderSubLayers: (props: any) => {
-          const { boundingBox } = props.tile;
-          return new BitmapLayer(props, {
-            data: undefined,
-            image: props.data,
-            bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]]
-          });
-        },
-        pickable: false,
-      });
-    };
-
-    // Render the three live ASIS endpoints as distinct sub-layers
-    return [
-      createTileLayer('VCI_M', 'vci'), // Vegetation Condition Index (bottom)
-      createTileLayer('ASI_A', 'asi'), // Agricultural Stress Index (middle)
-      createTileLayer('DI_A', 'di')    // Drought Intensity (top)
-    ];
+  private createAgriculturalStressLayer(service: string, id: string): TileLayer {
+    return new TileLayer({
+      id: `agricultural-stress-${id}-layer`,
+      minZoom: 0,
+      maxZoom: 8,
+      tileSize: 256,
+      opacity: 0.8,
+      getTileData: async (props: any) => {
+        const { bbox } = props;
+        if (!bbox) return null;
+        const url = `/api/asis?service=${service}&bbox=${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to fetch tile');
+        const blob = await response.blob();
+        return createImageBitmap(blob);
+      },
+      renderSubLayers: (props: any) => {
+        const { boundingBox } = props.tile;
+        return new BitmapLayer(props, {
+          data: undefined,
+          image: props.data,
+          bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]]
+        });
+      },
+      pickable: false,
+    });
   }
 
   private createGpsJammingLayer(): HeatmapLayer {
@@ -3672,7 +3669,9 @@ export class DeckGLMap {
             { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
             { key: 'threatScore', label: 'Threat Score', icon: '&#128308;' },
             { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
-            { key: 'agriculturalStress', label: t('components.deckgl.layers.agriculturalStress'), icon: '&#127806;' },
+            { key: 'agriculturalStressDI', label: t('components.deckgl.layers.agriculturalStressDI'), icon: '&#127806;' },
+            { key: 'agriculturalStressASI', label: t('components.deckgl.layers.agriculturalStressASI'), icon: '&#127806;' },
+            { key: 'agriculturalStressVCI', label: t('components.deckgl.layers.agriculturalStressVCI'), icon: '&#127806;' },
             { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
             { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
           ];
@@ -3839,7 +3838,9 @@ export class DeckGLMap {
       helpItem(label('pipelines'), 'infraPipelinesFull'),
       helpItem(label('aiDataCenters'), 'infraDatacentersFull'),
       helpItem(label('gpsJamming'), 'gpsJammingDesc'),
-      helpItem(label('agriculturalStress'), 'agriculturalStressDesc'),
+      helpItem(label('agriculturalStressDI'), 'agriculturalStressDIDesc'),
+      helpItem(label('agriculturalStressASI'), 'agriculturalStressASIDesc'),
+      helpItem(label('agriculturalStressVCI'), 'agriculturalStressVCIDesc'),
     ])}
         ${helpSection('transport', [
       helpItem(label('shipTraffic'), 'transportShipping'),
