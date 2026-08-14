@@ -1625,21 +1625,12 @@ export class DeckGLMap {
   }
 
   private createAgriculturalStressLayer(service: string, id: string): TileLayer {
-    const isLight = getCurrentTheme() === 'light';
-
-    // WebGL constants for blending
-    const GL_ONE = 1;
-    const GL_SRC_ALPHA = 0x0302;
-    const GL_ONE_MINUS_SRC_ALPHA = 0x0303;
-    const GL_DST_COLOR = 0x0306;
-    const GL_FUNC_ADD = 0x8006;
-
     return new TileLayer({
       id: `agricultural-stress-${id}-layer`,
       minZoom: 0,
       maxZoom: 8,
       tileSize: 256,
-      opacity: 0.85,
+      opacity: 0.5, // Exactly balanced between 0.4 and 0.6
       getTileData: async (props: any) => {
         const { bbox } = props;
         if (!bbox) return null;
@@ -1655,14 +1646,8 @@ export class DeckGLMap {
           data: undefined,
           image: props.data,
           bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]],
-          parameters: {
-            blend: true,
-            // Use 4-element array to avoid invalid WebGL operations on the alpha channel
-            blendFunc: isLight 
-              ? [GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA] 
-              : [GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE],
-            blendEquation: GL_FUNC_ADD
-          }
+          // Optional: If the FAO tiles have a solid white background covering the map, uncomment the line below:
+          // transparentColor: [255, 255, 255, 255]
         });
       },
       pickable: false,
