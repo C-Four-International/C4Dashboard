@@ -4128,7 +4128,7 @@ export class DeckGLMap {
       if (!style || !style.layers || style.layers.length === 0) return;
       
       const layers = style.layers;
-      const lastLayerId = layers[layers.length - 1].id;
+      const lastLayerId = layers[layers.length - 1]?.id;
       if (lastLayerId !== 'maptiler-radar' && lastLayerId !== 'maptiler-precipitation') {
         if (this.maplibreMap.getLayer('maptiler-precipitation')) {
           this.maplibreMap.moveLayer('maptiler-precipitation');
