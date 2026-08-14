@@ -10,12 +10,21 @@ const breaker = createCircuitBreaker<GpsJammingPoint[]>({
 
 export async function fetchGpsJammingData(): Promise<GpsJammingPoint[]> {
   return breaker.execute(async () => {
-    const response = await fetch('/api/gps-jamming');
+    const response = await fetch('https://api.adsb.lol/v2/all');
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    const data: GpsJammingPoint[] = await response.json();
-    return data;
+    const data = await response.json();
+    const jammedPoints: GpsJammingPoint[] = [];
+    if (data && data.ac) {
+      for (const plane of data.ac) {
+        if (plane.lat && plane.lon && (plane.nic < 8 || plane.nac_p < 9)) {
+          const weight = ((8 - (plane.nic || 0)) + (9 - (plane.nac_p || 0))) / 17;
+          jammedPoints.push([plane.lon, plane.lat, Math.max(0.1, weight)]);
+        }
+      }
+    }
+    return jammedPoints;
   }, []);
 }
 
