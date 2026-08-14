@@ -3838,9 +3838,7 @@ export class DeckGLMap {
       helpItem(label('pipelines'), 'infraPipelinesFull'),
       helpItem(label('aiDataCenters'), 'infraDatacentersFull'),
       helpItem(label('gpsJamming'), 'gpsJammingDesc'),
-      helpItem(label('agriculturalStressDI'), 'agriculturalStressDIDesc'),
-      helpItem(label('agriculturalStressASI'), 'agriculturalStressASIDesc'),
-      helpItem(label('agriculturalStressVCI'), 'agriculturalStressVCIDesc'),
+      helpItem('AGRICULTURAL STRESS (FAO ASIS)', 'agriculturalStressGroupDesc'),
     ])}
         ${helpSection('transport', [
       helpItem(label('shipTraffic'), 'transportShipping'),

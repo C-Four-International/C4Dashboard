@@ -543,9 +543,7 @@ export class MapComponent {
       helpItem(label('weather'), 'weatherAlerts'),
       helpItem(label('aqi'), 'aqiDesc'),
       helpItem(label('gpsJamming'), 'gpsJammingDesc'),
-      helpItem(label('agriculturalStressDI'), 'agriculturalStressDIDesc'),
-      helpItem(label('agriculturalStressASI'), 'agriculturalStressASIDesc'),
-      helpItem(label('agriculturalStressVCI'), 'agriculturalStressVCIDesc'),
+      helpItem('AGRICULTURAL STRESS (FAO ASIS)', 'agriculturalStressGroupDesc'),
       helpItem(label('economicCenters'), 'economicCentersDesc'),
       helpItem(label('threatScore'), 'threatScoreDesc'),
     ])}
