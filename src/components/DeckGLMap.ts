@@ -375,11 +375,17 @@ export class DeckGLMap {
     this.debouncedRebuildLayers = debounce(() => {
       if (this.renderPaused || this.webglLost || !this.maplibreMap) return;
       this.maplibreMap.resize();
-      try { this.deckOverlay?.setProps({ layers: this.buildLayers() }); } catch { /* map mid-teardown */ }
+      try { 
+        this.deckOverlay?.setProps({ layers: this.buildLayers() }); 
+        this.moveWeatherLayersToTop();
+      } catch { /* map mid-teardown */ }
     }, 150);
     this.rafUpdateLayers = rafSchedule(() => {
       if (this.renderPaused || this.webglLost || !this.maplibreMap) return;
-      try { this.deckOverlay?.setProps({ layers: this.buildLayers() }); } catch { /* map mid-teardown */ }
+      try { 
+        this.deckOverlay?.setProps({ layers: this.buildLayers() }); 
+        this.moveWeatherLayersToTop();
+      } catch { /* map mid-teardown */ }
     });
 
     this.setupDOM();
@@ -4070,6 +4076,8 @@ export class DeckGLMap {
         if (isWeatherRadarEnabled) {
           if (!this.maplibreMap.getLayer('maptiler-precipitation') && this.mapTilerPrecipitationLayer) {
             this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
+          } else if (this.maplibreMap.getLayer('maptiler-precipitation')) {
+            this.maplibreMap.moveLayer('maptiler-precipitation');
           }
         } else {
           if (this.maplibreMap.getLayer('maptiler-precipitation')) {
@@ -4081,6 +4089,8 @@ export class DeckGLMap {
         if (isWeatherRadarEnabled) {
           if (!this.maplibreMap.getLayer('maptiler-radar') && this.mapTilerRadarLayer) {
             this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
+          } else if (this.maplibreMap.getLayer('maptiler-radar')) {
+            this.maplibreMap.moveLayer('maptiler-radar');
           }
         } else {
           if (this.maplibreMap.getLayer('maptiler-radar')) {
@@ -4092,10 +4102,25 @@ export class DeckGLMap {
         if (this.weatherTimeBar) {
           this.weatherTimeBar.style.display = isWeatherRadarEnabled ? 'flex' : 'none';
         }
+
+        // Ensure they are pushed above any deck.gl layers that might have been added
+        this.moveWeatherLayersToTop();
       } catch (e) {
         console.warn('[DeckGLMap] Failed to toggle weather layers:', e);
       }
     }
+  }
+
+  private moveWeatherLayersToTop(): void {
+    if (!this.maplibreMap || !this.state.layers.weatherRadar) return;
+    try {
+      if (this.maplibreMap.getLayer('maptiler-precipitation')) {
+        this.maplibreMap.moveLayer('maptiler-precipitation');
+      }
+      if (this.maplibreMap.getLayer('maptiler-radar')) {
+        this.maplibreMap.moveLayer('maptiler-radar');
+      }
+    } catch { /* ignore */ }
   }
 
   public getState(): DeckMapState {
