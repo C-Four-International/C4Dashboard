@@ -1618,10 +1618,10 @@ export class DeckGLMap {
     // Note: Using a public Landsat ImageServer as a placeholder until the exact FAO ASIS URLs are provided.
     // The endpoints to hook into are Drought Intensity (DI), Agricultural Stress Index (ASI), and Vegetation Condition Index (VCI).
     const createTileLayer = (id: string, color: [number, number, number]) => {
-      const baseUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export';
+      const baseUrl = 'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png';
       return new TileLayer({
         id: `agricultural-stress-${id}-layer`,
-        data: `${baseUrl}?bbox={west},{south},{east},{north}&bboxSR=4326&imageSR=3857&size=256,256&format=png32&transparent=true&f=image#${id}`,
+        data: `${baseUrl}`,
         minZoom: 0,
         maxZoom: 8,
         tileSize: 256,
