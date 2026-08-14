@@ -422,10 +422,6 @@ export class DeckGLMap {
       }
     });
 
-    this.maplibreMap?.on('idle', () => {
-      this.moveWeatherLayersToTop();
-    });
-
     this.setupResizeObserver();
 
     this.createControls();
@@ -503,6 +499,14 @@ export class DeckGLMap {
     this.maplibreMap.on('load', () => {
       if (apiKey && this.maplibreMap) {
         try {
+          if (!this.maplibreMap.getLayer('deck-gl-overlay')) {
+            this.maplibreMap.addLayer({
+              id: 'deck-gl-overlay',
+              type: 'background',
+              paint: { 'background-opacity': 0 }
+            });
+          }
+
           this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
           this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
 
@@ -1622,8 +1626,7 @@ export class DeckGLMap {
       getSize: 12,
       getColor: [255, 255, 255, 255],
       getAlignmentBaseline: 'center',
-      pickable: false,
-      parameters: { depthCompare: 'always' }
+      pickable: false
     });
 
     return [scatterLayer, textLayer];
@@ -1665,7 +1668,6 @@ export class DeckGLMap {
       getWeight: d => d[2],
       radiusPixels: 60,
       intensity: 4,
-      parameters: { depthCompare: 'always' },
       threshold: 0.01,
       colorRange: [
         [255, 255, 178],
@@ -4106,25 +4108,10 @@ export class DeckGLMap {
         if (this.weatherTimeBar) {
           this.weatherTimeBar.style.display = isWeatherRadarEnabled ? 'flex' : 'none';
         }
-
-        // Ensure they are pushed above any deck.gl layers that might have been added
-        this.moveWeatherLayersToTop();
       } catch (e) {
         console.warn('[DeckGLMap] Failed to toggle weather layers:', e);
       }
     }
-  }
-
-  private moveWeatherLayersToTop(): void {
-    if (!this.maplibreMap || !this.state.layers.weatherRadar) return;
-    try {
-      if (this.maplibreMap.getLayer('maptiler-precipitation')) {
-        this.maplibreMap.moveLayer('maptiler-precipitation');
-      }
-      if (this.maplibreMap.getLayer('maptiler-radar')) {
-        this.maplibreMap.moveLayer('maptiler-radar');
-      }
-    } catch { /* ignore */ }
   }
 
   public getState(): DeckMapState {
@@ -4925,6 +4912,15 @@ export class DeckGLMap {
     this.maplibreMap.once('style.load', () => {
       this.loadCountryBoundaries();
       this.updateCountryLayerPaint(theme);
+      
+      if (!this.maplibreMap?.getLayer('deck-gl-overlay')) {
+        this.maplibreMap?.addLayer({
+          id: 'deck-gl-overlay',
+          type: 'background',
+          paint: { 'background-opacity': 0 }
+        });
+      }
+
       // Restore map layers (like weather radar) that are lost during setStyle
       this.setLayers(this.state.layers);
       // Re-render deck.gl overlay after style swap — interleaved layers need
