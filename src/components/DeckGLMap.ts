@@ -377,14 +377,12 @@ export class DeckGLMap {
       this.maplibreMap.resize();
       try {
         this.deckOverlay?.setProps({ layers: this.buildLayers() });
-        setTimeout(() => this.moveWeatherLayersToTop(), 50);
       } catch { /* map mid-teardown */ }
     }, 150);
     this.rafUpdateLayers = rafSchedule(() => {
       if (this.renderPaused || this.webglLost || !this.maplibreMap) return;
       try {
         this.deckOverlay?.setProps({ layers: this.buildLayers() });
-        setTimeout(() => this.moveWeatherLayersToTop(), 50);
       } catch { /* map mid-teardown */ }
     });
 
@@ -422,6 +420,10 @@ export class DeckGLMap {
       if (this.state.layers.aqi && this.isLayerVisible('aqi')) {
         this.fetchAQIData();
       }
+    });
+
+    this.maplibreMap?.on('idle', () => {
+      this.moveWeatherLayersToTop();
     });
 
     this.setupResizeObserver();
@@ -1620,7 +1622,8 @@ export class DeckGLMap {
       getSize: 12,
       getColor: [255, 255, 255, 255],
       getAlignmentBaseline: 'center',
-      pickable: false
+      pickable: false,
+      parameters: { depthTest: false }
     });
 
     return [scatterLayer, textLayer];
@@ -1662,6 +1665,7 @@ export class DeckGLMap {
       getWeight: d => d[2],
       radiusPixels: 60,
       intensity: 4,
+      parameters: { depthTest: false },
       threshold: 0.01,
       colorRange: [
         [255, 255, 178],
