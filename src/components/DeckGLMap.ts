@@ -1615,36 +1615,32 @@ export class DeckGLMap {
   }
 
   private createAgriculturalStressLayer(): TileLayer[] {
-    // Note: Using a public Landsat ImageServer as a placeholder until the exact FAO ASIS URLs are provided.
-    // The endpoints to hook into are Drought Intensity (DI), Agricultural Stress Index (ASI), and Vegetation Condition Index (VCI).
-    const createTileLayer = (id: string, color: [number, number, number]) => {
-      // Using an Esri Reference layer as a placeholder because it serves transparent tiles, preventing the entire map from being covered
-      const baseUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
+    const createTileLayer = (service: string, id: string) => {
+      const baseUrl = `https://asis-esri.fao.org/image/rest/services/${service}/ImageServer/exportImage`;
       return new TileLayer({
         id: `agricultural-stress-${id}-layer`,
-        data: `${baseUrl}`,
+        data: `${baseUrl}?bbox={west},{south},{east},{north}&bboxSR=4326&imageSR=3857&size=256,256&format=png32&transparent=true&f=image`,
         minZoom: 0,
         maxZoom: 8,
         tileSize: 256,
-        opacity: 0.6,
+        opacity: 0.8,
         renderSubLayers: (props: any) => {
           const { boundingBox } = props.tile;
           return new BitmapLayer(props, {
             data: undefined,
             image: props.data,
-            bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]],
-            tintColor: color
+            bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]]
           });
         },
         pickable: false,
       });
     };
 
-    // Render the three requested ASIS endpoints as distinct sub-layers with different tints for visibility
+    // Render the three live ASIS endpoints as distinct sub-layers
     return [
-      createTileLayer('vci', [0, 255, 0]),    // Vegetation Condition Index (Green tint, bottom)
-      createTileLayer('asi', [255, 165, 0]),  // Agricultural Stress Index (Orange tint, middle)
-      createTileLayer('di', [255, 0, 0])      // Drought Intensity (Red tint, top)
+      createTileLayer('VCI_M', 'vci'), // Vegetation Condition Index (bottom)
+      createTileLayer('ASI_A', 'asi'), // Agricultural Stress Index (middle)
+      createTileLayer('DI_A', 'di')    // Drought Intensity (top)
     ];
   }
 
