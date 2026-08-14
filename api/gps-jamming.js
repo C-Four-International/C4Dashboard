@@ -23,34 +23,42 @@ export default async function handler(req) {
   }
 
   try {
-    // We hit ADSB.lol v2/all to get a global picture for jamming detection
-    const upstreamUrl = 'https://api.adsb.lol/v2/all';
+    const endpoints = [
+      'https://api.adsb.lol/v2/lat/33.0/lon/35.0/dist/250',
+      'https://api.adsb.lol/v2/lat/47.0/lon/32.0/dist/250',
+      'https://api.adsb.lol/v2/lat/55.0/lon/21.0/dist/250',
+      'https://api.adsb.lol/v2/lat/38.0/lon/127.0/dist/250'
+    ];
 
-    const response = await fetch(upstreamUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'WorldMonitor/EdgeProxy',
-      },
-      signal: AbortSignal.timeout(15000) 
-    });
-
-    if (!response.ok) {
-      throw new Error(`Upstream returned ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    // Filter the huge payload down to just what we need:
-    // Aircraft with degraded GPS integrity (NIC < 7 or NACp < 8)
     const jammedPoints = [];
-    if (data && data.ac) {
-      for (const plane of data.ac) {
-        // Loosen to NIC < 8 or NACp < 9 to capture more slightly degraded signals
-        if (plane.lat && plane.lon && (plane.nic < 8 || plane.nac_p < 9)) {
-          // Weight calculation: lower NIC/NACp means stronger jamming
-          const weight = ((8 - (plane.nic || 0)) + (9 - (plane.nac_p || 0))) / 17;
-          jammedPoints.push([plane.lon, plane.lat, Math.max(0.1, weight)]);
+    
+    for (const url of endpoints) {
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'C4Dashboard/EdgeProxy',
+          },
+          signal: AbortSignal.timeout(5000) 
+        });
+
+        if (!response.ok) {
+          console.warn(`[GPS Jamming] Upstream ${url} returned ${response.status}`);
+          continue; // Skip this region on failure
         }
+
+        const data = await response.json();
+        
+        if (data && data.ac) {
+          for (const plane of data.ac) {
+            if (plane.lat && plane.lon && (plane.nic < 8 || plane.nac_p < 9)) {
+              const weight = ((8 - (plane.nic || 0)) + (9 - (plane.nac_p || 0))) / 17;
+              jammedPoints.push([plane.lon, plane.lat, Math.max(0.1, weight)]);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`[GPS Jamming] Failed to fetch ${url}:`, err.message);
       }
     }
 
