@@ -1616,14 +1616,21 @@ export class DeckGLMap {
 
   private createAgriculturalStressLayer(): TileLayer[] {
     const createTileLayer = (service: string, id: string) => {
-      const baseUrl = `/api/asis?service=${service}&bbox={west},{south},{east},{north}`;
       return new TileLayer({
         id: `agricultural-stress-${id}-layer`,
-        data: baseUrl,
         minZoom: 0,
         maxZoom: 8,
         tileSize: 256,
         opacity: 0.8,
+        getTileData: async (props: any) => {
+          const { bbox } = props;
+          if (!bbox) return null;
+          const url = `/api/asis?service=${service}&bbox=${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Failed to fetch tile');
+          const blob = await response.blob();
+          return createImageBitmap(blob);
+        },
         renderSubLayers: (props: any) => {
           const { boundingBox } = props.tile;
           return new BitmapLayer(props, {
