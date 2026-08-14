@@ -375,16 +375,16 @@ export class DeckGLMap {
     this.debouncedRebuildLayers = debounce(() => {
       if (this.renderPaused || this.webglLost || !this.maplibreMap) return;
       this.maplibreMap.resize();
-      try { 
-        this.deckOverlay?.setProps({ layers: this.buildLayers() }); 
-        this.moveWeatherLayersToTop();
+      try {
+        this.deckOverlay?.setProps({ layers: this.buildLayers() });
+        setTimeout(() => this.moveWeatherLayersToTop(), 50);
       } catch { /* map mid-teardown */ }
     }, 150);
     this.rafUpdateLayers = rafSchedule(() => {
       if (this.renderPaused || this.webglLost || !this.maplibreMap) return;
-      try { 
-        this.deckOverlay?.setProps({ layers: this.buildLayers() }); 
-        this.moveWeatherLayersToTop();
+      try {
+        this.deckOverlay?.setProps({ layers: this.buildLayers() });
+        setTimeout(() => this.moveWeatherLayersToTop(), 50);
       } catch { /* map mid-teardown */ }
     });
 
@@ -503,14 +503,14 @@ export class DeckGLMap {
         try {
           this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
           this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
-          
+
           if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
             this.mapTilerPrecipitationLayer.animateByFactor(3600);
           }
           if (typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
             this.mapTilerRadarLayer.animateByFactor(3600);
           }
-          
+
           const isWeatherRadarEnabled = this.state.layers.weatherRadar;
           if (isWeatherRadarEnabled) {
             this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
@@ -521,7 +521,7 @@ export class DeckGLMap {
           this.weatherTimeBar = document.createElement('div');
           this.weatherTimeBar.className = 'weather-time-bar';
           this.weatherTimeBar.style.display = isWeatherRadarEnabled ? 'flex' : 'none';
-          
+
           this.weatherTimeBar.innerHTML = `
             <div class="weather-controls">
               <button class="weather-btn weather-speed-down" title="Slower">&#8722;</button>
@@ -589,10 +589,10 @@ export class DeckGLMap {
           // Bind tick event
           this.mapTilerPrecipitationLayer.on('tick', () => {
             if (!timeText || !this.mapTilerPrecipitationLayer) return;
-            const date = typeof this.mapTilerPrecipitationLayer.getAnimationTimeDate === 'function' 
-              ? this.mapTilerPrecipitationLayer.getAnimationTimeDate() 
+            const date = typeof this.mapTilerPrecipitationLayer.getAnimationTimeDate === 'function'
+              ? this.mapTilerPrecipitationLayer.getAnimationTimeDate()
               : new Date();
-              
+
             timeText.innerText = new Intl.DateTimeFormat('en-US', {
               month: 'short', day: 'numeric', year: 'numeric',
               hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
@@ -1526,7 +1526,7 @@ export class DeckGLMap {
     }
 
     const result = layers.filter(Boolean) as LayersList;
-    
+
     const collisionExt = new CollisionFilterExtension();
     const collidableResult = result.map((layer: any) => {
       const type = layer?.constructor?.layerName;
@@ -1551,13 +1551,13 @@ export class DeckGLMap {
     if (!this.maplibreMap) return;
     const bounds = this.maplibreMap.getBounds();
     const boundsStr = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
-    
+
     // Don't fetch if bounds haven't changed much or if currently fetching
     if (this.aqiFetchPending || this.lastAqiBounds === boundsStr) return;
-    
+
     this.aqiFetchPending = true;
     this.lastAqiBounds = boundsStr;
-    
+
     try {
       const response = await fetch(`/api/aqi?bounds=${boundsStr}`);
       if (response.ok) {
@@ -1616,7 +1616,7 @@ export class DeckGLMap {
       id: 'aqi-text-layer',
       data: this.aqiData,
       getPosition: d => [d.lon, d.lat],
-      getText: d => d.aqi,
+      getText: d => String(d.aqi),
       getSize: 12,
       getColor: [255, 255, 255, 255],
       getAlignmentBaseline: 'center',
@@ -1632,7 +1632,7 @@ export class DeckGLMap {
       minZoom: 0,
       maxZoom: 8,
       tileSize: 256,
-      opacity: 0.4,
+      opacity: 0.6,
       getTileData: async (props: any) => {
         const { bbox } = props;
         if (!bbox) return null;
@@ -1681,7 +1681,7 @@ export class DeckGLMap {
     if (regionalThreats.length > 0) {
       console.log('[ThreatScore] Data hook payload:', regionalThreats.slice(0, 5));
     }
-    
+
     return new ScatterplotLayer<RegionalThreat>({
       id: 'threat-score-layer',
       data: regionalThreats,
@@ -1704,9 +1704,9 @@ export class DeckGLMap {
       stroked: true,
       getLineColor: (d: RegionalThreat) => {
         const t = d.threatScore;
-        if (t < 0.5) return [64, 255, 120, 255]; 
-        if (t < 1.0) return [255, 255, 0, 255];  
-        if (t < 1.5) return [255, 180, 0, 255];  
+        if (t < 0.5) return [64, 255, 120, 255];
+        if (t < 1.0) return [255, 255, 0, 255];
+        if (t < 1.5) return [255, 180, 0, 255];
         if (t < 3.0) return [255, 100, 100, 255];
         return [255, 50, 80, 255];
       },
@@ -4071,7 +4071,7 @@ export class DeckGLMap {
     if (this.maplibreMap) {
       try {
         const isWeatherRadarEnabled = this.state.layers.weatherRadar;
-        
+
         // Handle Precipitation Layer
         if (isWeatherRadarEnabled) {
           if (!this.maplibreMap.getLayer('maptiler-precipitation') && this.mapTilerPrecipitationLayer) {
@@ -4588,7 +4588,7 @@ export class DeckGLMap {
     const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"] input`) as HTMLInputElement;
     if (toggle) toggle.checked = this.state.layers[layer];
     this.render();
-    
+
     if (layer === 'alertStatus' && this.state.layers[layer]) {
       import('@/services/alert-status').then(({ AlertStatusService }) => {
         AlertStatusService.getInstance().fetchStatuses().then(() => this.debouncedRebuildLayers());
