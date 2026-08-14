@@ -67,6 +67,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   aqi: false,
   gpsJamming: false,
   economic: true,
+  waterways: true,
   outages: true,
   cyberThreats: false,
   datacenters: false,
