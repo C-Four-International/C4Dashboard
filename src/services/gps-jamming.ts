@@ -26,7 +26,7 @@ export async function fetchGpsJammingData(): Promise<GpsJammingPoint[]> {
       console.log('[GPS Jamming] Fetching targeted hotspot data from api.adsb.lol...');
       
       const responses = await Promise.all(
-        endpoints.map(url => fetch(url).catch(e => null)) // Ignore individual failures
+        endpoints.map(url => fetch(url).catch(() => null)) // Ignore individual failures
       );
 
       const jammedPoints: GpsJammingPoint[] = [];
