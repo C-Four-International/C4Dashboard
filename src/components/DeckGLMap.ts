@@ -3570,6 +3570,7 @@ export class DeckGLMap {
         { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
         { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
         { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
+        { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
         { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
         { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
       ]
@@ -3588,6 +3589,7 @@ export class DeckGLMap {
           { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
           { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
           { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
+          { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
           { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
           { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
           { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
@@ -3602,6 +3604,7 @@ export class DeckGLMap {
             { key: 'weather', label: t('components.deckgl.layers.weatherAlerts'), icon: '&#9928;' },
             { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
             { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
+            { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
           ]
           : [
             { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
@@ -3626,6 +3629,7 @@ export class DeckGLMap {
             { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
             { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
             { key: 'threatScore', label: 'Threat Score', icon: '&#128308;' },
+            { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
             { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
             { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
           ];
@@ -3731,7 +3735,7 @@ export class DeckGLMap {
         ${helpSection('naturalEconomic', [
       helpItem(label('naturalEvents'), 'naturalEventsTech'),
       helpItem(label('fires'), 'techFires'),
-      helpItem(label('weatherAlerts'), 'weatherAlerts'),
+      helpItem(label('weather'), 'weatherAlerts'),
       helpItem(label('weatherRadar'), 'weatherRadarDesc'),
       helpItem(label('aqi'), 'aqiDesc'),
       helpItem(staticLabel('countries'), 'countriesOverlay'),
@@ -3758,7 +3762,7 @@ export class DeckGLMap {
     ])}
         ${helpSection('macroContext', [
       helpItem(label('strategicWaterways'), 'macroWaterways'),
-      helpItem(label('weatherAlerts'), 'weatherAlertsMarket'),
+      helpItem(label('weather'), 'weatherAlertsMarket'),
       helpItem(label('weatherRadar'), 'weatherRadarDesc'),
       helpItem(label('aqi'), 'aqiDesc'),
       helpItem(label('naturalEvents'), 'naturalEventsMacro'),
@@ -3799,7 +3803,7 @@ export class DeckGLMap {
         ${helpSection('naturalEconomic', [
       helpItem(label('naturalEvents'), 'naturalEventsFull'),
       helpItem(label('fires'), 'firesFull'),
-      helpItem(label('weatherAlerts'), 'weatherAlerts'),
+      helpItem(label('weather'), 'weatherAlerts'),
       helpItem(label('weatherRadar'), 'weatherRadarDesc'),
       helpItem(label('aqi'), 'aqiDesc'),
       helpItem(label('climateAnomalies'), 'climateAnomalies'),

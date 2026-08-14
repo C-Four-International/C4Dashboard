@@ -345,7 +345,7 @@ export class MapComponent {
       'waterways',                                        // labels
     ];
     const techLayers: (keyof MapLayers)[] = [
-      'cables', 'datacenters', 'outages',                // tech infrastructure
+      'cables', 'datacenters', 'outages', 'gpsJamming',  // tech infrastructure
       'startupHubs', 'cloudRegions', 'accelerators', 'techHQs', 'techEvents', // tech ecosystem
       'natural', 'weather', 'weatherRadar', 'fires', 'aqi',                   // natural events
       'economic',                                         // economic/geographic
@@ -353,13 +353,13 @@ export class MapComponent {
     ];
     const financeLayers: (keyof MapLayers)[] = [
       'stockExchanges', 'financialCenters', 'centralBanks', 'commodityHubs', // finance ecosystem
-      'cables', 'pipelines', 'outages',                   // infrastructure
+      'cables', 'pipelines', 'outages', 'gpsJamming',      // infrastructure
       'sanctions', 'economic', 'waterways',               // geopolitical/economic
       'natural', 'weather', 'weatherRadar', 'fires', 'aqi',               // natural events
       'flights',                                          // aviation
     ];
     const happyLayers: (keyof MapLayers)[] = [
-      'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations', 'weather', 'weatherRadar', 'aqi',
+      'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations', 'weather', 'weatherRadar', 'aqi', 'gpsJamming',
     ];
     const layers = SITE_VARIANT === 'tech' ? techLayers : SITE_VARIANT === 'finance' ? financeLayers : SITE_VARIANT === 'happy' ? happyLayers : fullLayers;
     const layerLabelKeys: Partial<Record<keyof MapLayers, string>> = {
@@ -469,7 +469,7 @@ export class MapComponent {
         ${helpSection('naturalEconomic', [
       helpItem(label('naturalEvents'), 'naturalEventsTech'),
       helpItem(label('fires'), 'techFires'),
-      helpItem(label('weatherAlerts'), 'weatherAlerts'),
+      helpItem(label('weather'), 'weatherAlerts'),
       helpItem(label('weatherRadar'), 'weatherRadarDesc'),
       helpItem(label('aqi'), 'aqiDesc'),
       helpItem(staticLabel('countries'), 'countriesOverlay'),
@@ -495,7 +495,7 @@ export class MapComponent {
     ])}
         ${helpSection('macroContext', [
       helpItem(label('strategicWaterways'), 'macroWaterways'),
-      helpItem(label('weatherAlerts'), 'weatherAlertsMarket'),
+      helpItem(label('weather'), 'weatherAlertsMarket'),
       helpItem(label('weatherRadar'), 'weatherRadarDesc'),
       helpItem(label('aqi'), 'aqiDesc'),
       helpItem(label('naturalEvents'), 'naturalEventsMacro'),
@@ -537,7 +537,7 @@ export class MapComponent {
         ${helpSection('naturalEconomic', [
       helpItem(label('naturalEvents'), 'naturalEventsFull'),
       helpItem(label('fires'), 'firesFull'),
-      helpItem(label('weatherAlerts'), 'weatherAlerts'),
+      helpItem(label('weather'), 'weatherAlerts'),
       helpItem(label('aqi'), 'aqiDesc'),
       helpItem(label('economicCenters'), 'economicCentersDesc'),
       helpItem(label('threatScore'), 'threatScoreDesc'),
