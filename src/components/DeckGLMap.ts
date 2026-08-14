@@ -422,6 +422,10 @@ export class DeckGLMap {
       }
     });
 
+    this.maplibreMap?.on('render', () => {
+      this.enforceLayerOrder();
+    });
+
     this.setupResizeObserver();
 
     this.createControls();
@@ -1615,7 +1619,8 @@ export class DeckGLMap {
       getRadius: 15000,
       radiusMinPixels: 10,
       radiusMaxPixels: 30,
-      pickable: false
+      pickable: false,
+      getPolygonOffset: () => [0, -10000]
     });
 
     const textLayer = new TextLayer<import('@/types').AQIStation>({
@@ -1626,7 +1631,8 @@ export class DeckGLMap {
       getSize: 12,
       getColor: [255, 255, 255, 255],
       getAlignmentBaseline: 'center',
-      pickable: false
+      pickable: false,
+      getPolygonOffset: () => [0, -10000]
     });
 
     return [scatterLayer, textLayer];
@@ -1669,6 +1675,7 @@ export class DeckGLMap {
       radiusPixels: 60,
       intensity: 4,
       threshold: 0.01,
+      getPolygonOffset: () => [0, -10000],
       colorRange: [
         [255, 255, 178],
         [254, 204, 92],
@@ -4112,6 +4119,25 @@ export class DeckGLMap {
         console.warn('[DeckGLMap] Failed to toggle weather layers:', e);
       }
     }
+  }
+
+  private enforceLayerOrder(): void {
+    if (!this.maplibreMap || !this.state.layers.weatherRadar) return;
+    try {
+      const style = this.maplibreMap.getStyle();
+      if (!style || !style.layers || style.layers.length === 0) return;
+      
+      const layers = style.layers;
+      const lastLayerId = layers[layers.length - 1].id;
+      if (lastLayerId !== 'maptiler-radar' && lastLayerId !== 'maptiler-precipitation') {
+        if (this.maplibreMap.getLayer('maptiler-precipitation')) {
+          this.maplibreMap.moveLayer('maptiler-precipitation');
+        }
+        if (this.maplibreMap.getLayer('maptiler-radar')) {
+          this.maplibreMap.moveLayer('maptiler-radar');
+        }
+      }
+    } catch { /* ignore */ }
   }
 
   public getState(): DeckMapState {
