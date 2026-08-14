@@ -1623,7 +1623,7 @@ export class DeckGLMap {
       getColor: [255, 255, 255, 255],
       getAlignmentBaseline: 'center',
       pickable: false,
-      parameters: { depthTest: false }
+      parameters: { depthCompare: 'always' }
     });
 
     return [scatterLayer, textLayer];
@@ -1665,7 +1665,7 @@ export class DeckGLMap {
       getWeight: d => d[2],
       radiusPixels: 60,
       intensity: 4,
-      parameters: { depthTest: false },
+      parameters: { depthCompare: 'always' },
       threshold: 0.01,
       colorRange: [
         [255, 255, 178],
