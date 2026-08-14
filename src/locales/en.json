@@ -829,6 +829,7 @@
         "tradeRoutes": "Trade Routes",
         "dayNight": "Day / Night",
         "weatherRadar": "Weather Radar",
+        "weather": "Weather Alerts",
         "alertStatus": "Alert Status",
         "threatScore": "Threat Score"
       },

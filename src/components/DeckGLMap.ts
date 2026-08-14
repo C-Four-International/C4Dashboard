@@ -3731,6 +3731,7 @@ export class DeckGLMap {
       helpItem(label('underseaCables'), 'infraCables'),
       helpItem(label('aiDataCenters'), 'infraDatacenters'),
       helpItem(label('internetOutages'), 'infraOutages'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
     ])}
         ${helpSection('naturalEconomic', [
       helpItem(label('naturalEvents'), 'naturalEventsTech'),
@@ -3794,6 +3795,7 @@ export class DeckGLMap {
       helpItem(label('underseaCables'), 'infraCablesFull'),
       helpItem(label('pipelines'), 'infraPipelinesFull'),
       helpItem(label('aiDataCenters'), 'infraDatacentersFull'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
     ])}
         ${helpSection('transport', [
       helpItem(label('shipTraffic'), 'transportShipping'),
