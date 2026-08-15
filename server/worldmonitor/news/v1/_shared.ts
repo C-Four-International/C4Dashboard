@@ -68,72 +68,66 @@ export function buildArticlePrompts(
     if (isTechVariant) {
       systemPrompt = `${dateContext}
 
-Summarize the single most important tech/startup headline in 2 concise sentences MAX (under 60 words total).
+Summarize the single most important tech/startup headline in 2 concise sentences (under 60 words total).
 Rules:
-- Each numbered headline below is a SEPARATE, UNRELATED story
-- Pick the ONE most significant headline and summarize ONLY that story
-- NEVER combine or merge facts, names, or details from different headlines
-- Focus ONLY on technology, startups, AI, funding, product launches, or developer news
-- IGNORE political news, trade policy, tariffs, government actions unless directly about tech regulation
-- Lead with the company/product/technology name
-- No bullet points, no meta-commentary, no elaboration beyond the core facts${langInstruction}`;
+- Treat each numbered headline as a separate story.
+- Select only the one most significant headline and summarize its facts exclusively.
+- Focus strictly on technology, startups, AI, funding, product launches, or developer news.
+- Exclude political news or government actions unless directly related to tech regulation.
+- Lead with the company, product, or technology name.
+- Output direct facts only in paragraph form. Omit bullet points, meta-commentary, or elaboration.${langInstruction}`;
     } else {
       systemPrompt = `${dateContext}
 
-Summarize the single most important headline in 2 concise sentences MAX (under 60 words total).
+Summarize the single most important headline in 2 concise sentences (under 60 words total).
 Rules:
-- Each numbered headline below is a SEPARATE, UNRELATED story
-- Pick the ONE most significant headline and summarize ONLY that story
-- NEVER combine or merge people, places, or facts from different headlines into one sentence
-- Lead with WHAT happened and WHERE - be specific
-- NEVER start with "Breaking news", "Good evening", "Tonight", or TV-style openings
-- Start directly with the subject of the chosen headline
-- If intelligence context is provided, use it only if it relates to your chosen headline
-- No bullet points, no meta-commentary, no elaboration beyond the core facts${langInstruction}`;
+- Treat each numbered headline as a separate, unrelated story.
+- Select only the one most significant headline and summarize its facts exclusively.
+- Lead directly with what happened and where.
+- Start your response immediately with the subject of the chosen headline. Omit introductory phrases (e.g., "Breaking news", "Good evening").
+- If intelligence context is provided, integrate it only if it relates directly to your chosen headline.
+- Output direct facts only. Omit bullet points, meta-commentary, or elaboration.${langInstruction}`;
     }
-    userPrompt = `Each headline below is a separate story. Pick the most important ONE and summarize only that story:\n${headlineText}${intelSection}`;
+    userPrompt = `Pick the most important single story from the headlines below and summarize it:\n\n### Headlines ###\n${headlineText}\n### Context ###${intelSection}`;
   } else if (opts.mode === 'analysis') {
     if (isTechVariant) {
       systemPrompt = `${dateContext}
 
-Analyze the most significant tech/startup development in 2 concise sentences MAX (under 60 words total).
+Analyze the most significant tech/startup development in 2 concise sentences (under 60 words total).
 Rules:
-- Each numbered headline below is a SEPARATE, UNRELATED story
-- Pick the ONE most significant story and analyze ONLY that
-- NEVER combine facts from different headlines
-- Focus ONLY on technology implications: funding trends, AI developments, market shifts, product strategy
-- IGNORE political implications, trade wars, government unless directly about tech policy
-- Lead with the insight, no filler or elaboration`;
+- Treat each numbered headline as a separate, unrelated story.
+- Select only the one most significant story and analyze its implications exclusively.
+- Focus strictly on technology implications: funding trends, AI developments, market shifts, product strategy.
+- Exclude political implications or government actions unless directly related to tech policy.
+- Lead directly with the insight. Omit filler text or elaboration.`;
     } else {
       systemPrompt = `${dateContext}
 
-Analyze the most significant development in 2 concise sentences MAX (under 60 words total). Be direct and specific.
+Analyze the most significant development in 2 concise sentences (under 60 words total). Be direct and specific.
 Rules:
-- Each numbered headline below is a SEPARATE, UNRELATED story
-- Pick the ONE most significant story and analyze ONLY that
-- NEVER combine or merge people, places, or facts from different headlines
-- Lead with the insight - what's significant and why
-- NEVER start with "Breaking news", "Tonight", "The key/dominant narrative is"
-- Start with substance, no filler or elaboration
-- If intelligence context is provided, use it only if it relates to your chosen headline`;
+- Treat each numbered headline as a separate, unrelated story.
+- Select only the one most significant story and analyze its implications exclusively.
+- Lead directly with the insight explaining what is significant and why.
+- Start your response immediately with substance. Omit introductory phrases (e.g., "Breaking news", "The key narrative is").
+- Omit filler text or elaboration.
+- If intelligence context is provided, integrate it only if it relates directly to your chosen headline.`;
     }
     userPrompt = isTechVariant
-      ? `Each headline is a separate story. What's the key tech trend?\n${headlineText}${intelSection}`
-      : `Each headline is a separate story. What's the key pattern or risk?\n${headlineText}${intelSection}`;
+      ? `What is the key tech trend based on these headlines?\n\n### Headlines ###\n${headlineText}\n### Context ###${intelSection}`
+      : `What is the key pattern or risk based on these headlines?\n\n### Headlines ###\n${headlineText}\n### Context ###${intelSection}`;
   } else if (opts.mode === 'translate') {
     const targetLang = opts.variant;
-    systemPrompt = `You are a professional news translator. Translate the following news headlines/summaries into ${targetLang}.
+    systemPrompt = `You are a professional news translator. Translate the following text into ${targetLang}.
 Rules:
 - Maintain the original tone and journalistic style.
-- Do NOT add any conversational filler (e.g., "Here is the translation").
-- Output ONLY the translated text.
+- Output ONLY the translated text. Omit all conversational filler.
 - If the text is already in ${targetLang}, return it as is.`;
-    userPrompt = `Translate to ${targetLang}:\n${headlines[0]}`;
+    userPrompt = `Translate the following to ${targetLang}:\n\n### Text to Translate ###\n${headlines[0]}`;
   } else {
     systemPrompt = isTechVariant
-      ? `${dateContext}\n\nPick the most important tech headline and summarize it in 2 concise sentences (under 60 words). Each headline is a separate story - NEVER merge facts from different headlines. Focus on startups, AI, funding, products. Ignore politics unless directly about tech regulation.${langInstruction}`
-      : `${dateContext}\n\nPick the most important headline and summarize it in 2 concise sentences (under 60 words). Each headline is a separate, unrelated story - NEVER merge people or facts from different headlines. Lead with substance. NEVER start with "Breaking news" or "Tonight".${langInstruction}`;
-    userPrompt = `Each headline is a separate story. Key takeaway from the most important one:\n${headlineText}${intelSection}`;
+      ? `${dateContext}\n\nSummarize the most important tech headline in 2 concise sentences (under 60 words). Treat each headline as a separate story. Select one story and summarize it exclusively. Focus on startups, AI, funding, and products. Exclude politics unless directly about tech regulation.${langInstruction}`
+      : `${dateContext}\n\nSummarize the most important headline in 2 concise sentences (under 60 words). Treat each headline as a separate, unrelated story. Select one story and summarize it exclusively. Lead directly with substance. Omit introductory phrases like "Breaking news".${langInstruction}`;
+    userPrompt = `Key takeaway from the most important headline:\n\n### Headlines ###\n${headlineText}\n### Context ###${intelSection}`;
   }
 
   return { systemPrompt, userPrompt };
@@ -172,7 +166,7 @@ export function getProviderCredentials(provider: string): ProviderCredentials | 
     if (!apiKey) return null;
     return {
       apiUrl: 'https://api.groq.com/openai/v1/chat/completions',
-      model: 'llama-3.1-8b-instant',
+      model: 'openai/gpt-oss-20b',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',

@@ -565,7 +565,7 @@ interface CountryIntelRequest {
 
 | Env Var | Required | Upstream URL |
 |---------|----------|--------------|
-| `GROQ_API_KEY` | Yes | Groq API (llama3 model) |
+| `GROQ_API_KEY` | Yes | Groq API (gpt-oss-20b model) |
 
 **Caching**
 
@@ -1301,7 +1301,7 @@ interface ClassifyItem {
 
 | Env Var | Required | Upstream |
 |---------|----------|----------|
-| `GROQ_API_KEY` | Yes | Groq (llama3) |
+| `GROQ_API_KEY` | Yes | Groq (gpt-oss-20b) |
 
 **Caching**
 
@@ -1341,7 +1341,7 @@ Single event classification.
 
 | Env Var | Required | Upstream |
 |---------|----------|----------|
-| `GROQ_API_KEY` | Yes | Groq (llama3) |
+| `GROQ_API_KEY` | Yes | Groq (gpt-oss-20b) |
 
 **Caching**
 

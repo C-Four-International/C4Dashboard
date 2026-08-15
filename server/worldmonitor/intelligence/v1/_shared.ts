@@ -8,7 +8,7 @@
 
 export const UPSTREAM_TIMEOUT_MS = 55_000;
 export const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-export const GROQ_MODEL = 'llama-3.1-8b-instant';
+export const GROQ_MODEL = 'openai/gpt-oss-20b';
 
 // ========================================================================
 // Tier-1 country definitions (used by risk-scores + country-intel-brief)
