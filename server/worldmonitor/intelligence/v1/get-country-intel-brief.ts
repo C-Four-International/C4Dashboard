@@ -97,6 +97,11 @@ Rules:
         const brief = data.choices?.[0]?.message?.content?.trim() || '';
         if (!brief) continue;
 
+        // If the model refuses to answer due to lack of web search capabilities, continue to the next model/fallback
+        if (brief.includes('unable to access') || brief.includes('I cannot verify') || brief.includes('real-time') || brief.includes('knowledge is current only up to')) {
+          continue;
+        }
+
         return {
           countryCode: req.countryCode,
           countryName,
@@ -126,7 +131,7 @@ Rules:
               parts: [{ text: `### Target Country ###\n${countryName} (${req.countryCode})` }]
             }],
             tools: [{
-              googleSearchRetrieval: {}
+              googleSearch: {}
             }],
             generationConfig: {
               temperature: 0.7,
