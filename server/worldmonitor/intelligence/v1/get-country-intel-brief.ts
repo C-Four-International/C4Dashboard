@@ -14,6 +14,34 @@ import { UPSTREAM_TIMEOUT_MS, TIER1_COUNTRIES } from './_shared';
 // ========================================================================
 const INTEL_CACHE_TTL = 43200; // 12 hours
 // ========================================================================
+// Free Web Scraper (DuckDuckGo HTML)
+// ========================================================================
+async function fetchFreeNewsContext(countryName: string): Promise<string> {
+  try {
+    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(countryName + ' news')}`;
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+    });
+    if (!resp.ok) return 'No reliable news data could be retrieved at this time.';
+    
+    const text = await resp.text();
+    const snippets: string[] = [];
+    const regex = /<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi;
+    let match;
+    while ((match = regex.exec(text)) !== null && snippets.length < 10) {
+      let cleanSnippet = match[1].replace(/<[^>]*>?/gm, '').trim();
+      cleanSnippet = cleanSnippet.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+      if (cleanSnippet) snippets.push(`- ${cleanSnippet}`);
+    }
+    
+    return snippets.length > 0 ? snippets.join('\n') : 'No recent verified news found.';
+  } catch (err) {
+    console.error('[fetchFreeNewsContext] Error scraping news:', err);
+    return 'News context unavailable.';
+  }
+}
+
+// ========================================================================
 // RPC handler
 // ========================================================================
 
@@ -39,7 +67,7 @@ export async function getCountryIntelBrief(
   const ip = rawIp.split(',')[0].trim();
   
   if (ip !== 'unknown') {
-    const isAllowed = await checkRateLimit(`ratelimit:brief:${ip}`, 5, 86400);
+    const isAllowed = await checkRateLimit(`ratelimit:brief:${ip}`, 10, 86400);
     if (!isAllowed) {
       return { ...empty, brief: 'RATE_LIMIT_EXCEEDED' };
     }
@@ -64,7 +92,7 @@ Write a concise intelligence brief for the requested country covering:
 7. Sources - list the relevant news feeds used, if available, and provide the specific dates of the sourced data to assure the user of its recency.
 
 Rules:
-- SEARCH REQUIREMENT: Use your web search and browser tools to find the latest verified news and situation reports for the designated country. Focus on reputable news agencies (BBC, NPR, CBC, SkyNews, AP, Reuters, Al Jazeera, Al Arabiya, ABC, CBS).
+- USE PROVIDED CONTEXT: You must base your briefing exclusively on the "Recent Verified News" provided in the prompt. Focus on reputable news agencies (BBC, NPR, CBC, SkyNews, AP, Reuters, Al Jazeera, Al Arabiya, ABC, CBS) if they are mentioned.
 - STRICT REQUIREMENT: You are explicitly prohibited from using the White House official press outlet, whitehouse.gov, or any whitehouse.gov subdomains as a source. Do not cite them.
 - RECENT DATA ONLY: Prioritize information from the last 24-72 hours.
 - STRICT REQUIREMENT: You are explicitly prohibited from providing made up names, places, or information in place of real data. This includes making up articles from the news agencies listed. Do not hallucinate. If you cannot find data, simply output "NO RELIABLE DATA AT THIS TIME", and provide reasoning.
@@ -81,6 +109,8 @@ Rules:
 
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
     try {
+      const recentNewsContext = await fetchFreeNewsContext(countryName);
+
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiApiKey}`;
       const resp = await fetch(geminiUrl, {
         method: 'POST',
@@ -93,10 +123,7 @@ Rules:
           },
           contents: [{
             role: 'user',
-            parts: [{ text: `### Target Country ###\n${countryName} (${req.countryCode})` }]
-          }],
-          tools: [{
-            google_search: {}
+            parts: [{ text: `### Target Country ###\n${countryName} (${req.countryCode})\n\n### Recent Verified News ###\n${recentNewsContext}` }]
           }],
           generationConfig: {
             temperature: 0.7,
