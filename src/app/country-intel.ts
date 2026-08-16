@@ -385,6 +385,7 @@ export class CountryIntelManager implements AppModule {
     GB: ['united kingdom', 'british', 'london', 'uk '],
     BR: ['brazil', 'brazilian', 'brasilia', 'lula', 'bolsonaro'],
     AE: ['united arab emirates', 'uae', 'emirati', 'dubai', 'abu dhabi'],
+    GL: ['greenland', 'greenlandic', 'nuuk'],
   };
 
   private static otherCountryTermsCache: Map<string, string[]> = new Map();
