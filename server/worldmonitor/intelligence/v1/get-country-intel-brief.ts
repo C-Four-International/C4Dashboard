@@ -6,7 +6,7 @@ import type {
   GetCountryIntelBriefResponse,
 } from '../../../../src/generated/server/worldmonitor/intelligence/v1/service_server';
 
-import { cachedFetchJson } from '../../../_shared/redis';
+import { cachedFetchJson, checkRateLimit } from '../../../_shared/redis';
 import { UPSTREAM_TIMEOUT_MS, TIER1_COUNTRIES } from './_shared';
 
 // ========================================================================
@@ -31,6 +31,16 @@ export async function getCountryIntelBrief(
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
   if (!geminiApiKey) return empty;
+
+  const rawIp = _ctx.headers['x-forwarded-for'] || _ctx.headers['x-real-ip'] || 'unknown';
+  const ip = rawIp.split(',')[0].trim();
+  
+  if (ip !== 'unknown') {
+    const isAllowed = await checkRateLimit(`ratelimit:brief:${ip}`, 5, 86400);
+    if (!isAllowed) {
+      return { ...empty, brief: 'RATE_LIMIT_EXCEEDED' };
+    }
+  }
 
   const cacheKey = `ci-sebuf:v2:${req.countryCode}`;
   const countryName = TIER1_COUNTRIES[req.countryCode] || req.countryCode;

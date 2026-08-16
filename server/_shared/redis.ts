@@ -158,3 +158,42 @@ export async function cachedFetchJsonWithMeta<T>(
   const data = await promise;
   return { data, source: 'fresh' };
 }
+
+/**
+ * Basic fixed-window rate limiter using Upstash pipeline.
+ * Returns true if allowed, false if limit exceeded.
+ */
+export async function checkRateLimit(key: string, limit: number, windowSeconds: number): Promise<boolean> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return true; // Fail open if no redis configured
+
+  const prefixedKey = prefixKey(key);
+  try {
+    const pipeline = [
+      ['INCR', prefixedKey],
+      ['EXPIRE', prefixedKey, windowSeconds.toString(), 'NX']
+    ];
+    
+    const resp = await fetch(`${url}/pipeline`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(pipeline),
+      signal: AbortSignal.timeout(3_000),
+    });
+    
+    if (!resp.ok) return true; // Fail open on error
+    const data = await resp.json() as Array<{ result?: string | number }>;
+    
+    const countRaw = data[0]?.result;
+    const count = typeof countRaw === 'number' ? countRaw : parseInt(String(countRaw), 10);
+    
+    if (!isNaN(count) && count > limit) {
+      return false; // Rate limit exceeded
+    }
+  } catch {
+    // Fail open
+  }
+  return true;
+}
+

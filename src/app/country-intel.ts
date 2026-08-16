@@ -209,7 +209,11 @@ export class CountryIntelManager implements AppModule {
       } catch { /* server unreachable */ }
 
       if (briefText) {
-        this.ctx.countryBriefPage!.updateBrief({ brief: briefText, country, code });
+        if (briefText === 'RATE_LIMIT_EXCEEDED') {
+          this.ctx.countryBriefPage!.updateBrief({ brief: '', country, code, error: 'Daily briefing limit reached. Please try again tomorrow.' });
+        } else {
+          this.ctx.countryBriefPage!.updateBrief({ brief: briefText, country, code });
+        }
       } else {
         const briefHeadlines = (context.headlines as string[] | undefined) || [];
         let fallbackBrief = '';
