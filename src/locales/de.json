@@ -17,7 +17,7 @@
     "predictionMarkets": "Prognosemärkte",
     "loadingMarkets": "Prognosemärkte werden geladen...",
     "infrastructure": "Infrastrukturexposition",
-    "briefUnavailable": "KI-Brief nicht verfügbar – konfigurieren Sie GROQ_API_KEY in den Einstellungen.",
+    "briefUnavailable": "KI-Brief nicht verfügbar – konfigurieren Sie GEMINI_API_KEY in den Einstellungen.",
     "cached": "Zwischengespeichert",
     "fresh": "Aktuell",
     "noMarkets": "Keine Prognosemärkte gefunden",
@@ -365,7 +365,7 @@
       "fresh": "Frisch",
       "noMarkets": "Keine Prognosemärkte gefunden",
       "predictionMarkets": "Prognosemärkte",
-      "unavailable": "KI-Brief nicht verfügbar – konfigurieren Sie GROQ_API_KEY in den Einstellungen."
+      "unavailable": "KI-Brief nicht verfügbar – konfigurieren Sie GEMINI_API_KEY in den Einstellungen."
     },
     "countryBrief": {
       "components": {
@@ -398,7 +398,7 @@
       "predictionMarkets": "Prognosemärkte",
       "loadingMarkets": "Prognosemärkte werden geladen...",
       "infrastructure": "Infrastrukturexposition",
-      "briefUnavailable": "KI-Brief nicht verfügbar – konfigurieren Sie GROQ_API_KEY in den Einstellungen.",
+      "briefUnavailable": "KI-Brief nicht verfügbar – konfigurieren Sie GEMINI_API_KEY in den Einstellungen.",
       "cached": "zwischengespeichert",
       "fresh": "Frisch",
       "noMarkets": "Keine Prognosemärkte gefunden",
@@ -1141,7 +1141,7 @@
     },
     "insights": {
       "noStories": "Noch keine aktuellen oder quellenübergreifenden Meldungen",
-      "infoTooltip": "<strong>AI-gestützte Analyse</strong><br>• <strong>World Brief</strong>: KI-Zusammenfassung (Groq/OpenRouter)<br>• <strong>Sentiment</strong>: Nachrichtentonanalyse<br>• <strong>Velocity</strong>: Schnelllebige Geschichten<br>• <strong>Focal Points</strong>: Korreliert Nachrichtenentitäten mit Kartensignale (Militär, Proteste, Ausfälle)<br><em>Nur Desktop • Unterstützt von Llama 3.3 + Focal Point Detection</em>",
+      "infoTooltip": "<strong>AI-gestützte Analyse</strong><br>• <strong>World Brief</strong>: KI-Zusammenfassung (Gemini/OpenRouter)<br>• <strong>Sentiment</strong>: Nachrichtentonanalyse<br>• <strong>Velocity</strong>: Schnelllebige Geschichten<br>• <strong>Focal Points</strong>: Korreliert Nachrichtenentitäten mit Kartensignale (Militär, Proteste, Ausfälle)<br><em>Nur Desktop • Unterstützt von Llama 3.3 + Focal Point Detection</em>",
       "step": "Step {{step}}/{{total}}",
       "waitingForData": "Waiting for news data...",
       "rankingStories": "Ranking important stories...",
@@ -1153,7 +1153,7 @@
       "mapFlashLabel": "Live Event Pulse",
       "mapFlashDesc": "Flash locations on the map when breaking news arrives",
       "aiFlowTitle": "Settings",
-      "aiFlowCloudLabel": "Cloud-KI (Groq & OpenRouter)",
+      "aiFlowCloudLabel": "Cloud-KI (Gemini & OpenRouter)",
       "aiFlowCloudDesc": "Schlagzeilen zur KI-Zusammenfassung an die Cloud senden (empfohlen)",
       "aiFlowBrowserLabel": "Lokales Browser-Modell",
       "aiFlowBrowserDesc": "KI lokal in Ihrem Browser ausführen",

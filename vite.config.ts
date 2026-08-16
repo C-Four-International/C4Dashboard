@@ -236,7 +236,7 @@ function sebufApiPlugin(): Plugin {
 
   async function buildRouter() {
     console.log('[sebuf-api] Building router...');
-    console.log(`  - Groq: ${process.env.GROQ_API_KEY ? 'CONFIGURED' : 'MISSING'}`);
+    console.log(`  - Gemini: ${process.env.GEMINI_API_KEY ? 'CONFIGURED' : 'MISSING'}`);
     console.log(`  - OpenRouter: ${process.env.OPENROUTER_API_KEY ? 'CONFIGURED' : 'MISSING'}`);
     console.log(`  - Redis: ${process.env.UPSTASH_REDIS_REST_URL ? 'CONFIGURED' : 'MISSING'}`);
 

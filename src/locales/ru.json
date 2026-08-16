@@ -17,7 +17,7 @@
     "predictionMarkets": "Рынки прогнозов",
     "loadingMarkets": "Загрузка рынков прогнозов...",
     "infrastructure": "Инфраструктурная уязвимость",
-    "briefUnavailable": "ИИ-сводка недоступна — настройте GROQ_API_KEY в Настройках.",
+    "briefUnavailable": "ИИ-сводка недоступна — настройте GEMINI_API_KEY в Настройках.",
     "cached": "Кэш",
     "fresh": "Свежие",
     "noMarkets": "Рынки прогнозов не найдены",
@@ -387,7 +387,7 @@
       "fresh": "Свежие",
       "noMarkets": "Рынки прогнозов не найдены",
       "predictionMarkets": "Рынки прогнозов",
-      "unavailable": "ИИ-сводка недоступна — настройте GROQ_API_KEY в Настройках."
+      "unavailable": "ИИ-сводка недоступна — настройте GEMINI_API_KEY в Настройках."
     },
     "countryBrief": {
       "identifying": "Определение страны...",
@@ -403,7 +403,7 @@
       "predictionMarkets": "Рынки прогнозов",
       "loadingMarkets": "Загрузка рынков прогнозов...",
       "infrastructure": "Инфраструктурная уязвимость",
-      "briefUnavailable": "ИИ-сводка недоступна — настройте GROQ_API_KEY в Настройках.",
+      "briefUnavailable": "ИИ-сводка недоступна — настройте GEMINI_API_KEY в Настройках.",
       "cached": "Кэш",
       "fresh": "Свежие",
       "noMarkets": "Рынки прогнозов не найдены",
@@ -888,7 +888,7 @@
     },
     "insights": {
       "noStories": "Пока нет экстренных или мультиисточниковых сюжетов",
-      "infoTooltip": "<strong>ИИ-аналитика</strong><br>• <strong>Мировая сводка</strong>: ИИ-суммаризация (Groq/OpenRouter)<br>• <strong>Тональность</strong>: Анализ тона новостей<br>• <strong>Скорость</strong>: Быстро развивающиеся сюжеты<br>• <strong>Фокусные точки</strong>: Корреляция сущностей новостей с сигналами карты (военные, протесты, сбои)<br><em>Только для десктопа • На основе Llama 3.3 + Обнаружение фокусных точек</em>",
+      "infoTooltip": "<strong>ИИ-аналитика</strong><br>• <strong>Мировая сводка</strong>: ИИ-суммаризация (Gemini/OpenRouter)<br>• <strong>Тональность</strong>: Анализ тона новостей<br>• <strong>Скорость</strong>: Быстро развивающиеся сюжеты<br>• <strong>Фокусные точки</strong>: Корреляция сущностей новостей с сигналами карты (военные, протесты, сбои)<br><em>Только для десктопа • На основе Llama 3.3 + Обнаружение фокусных точек</em>",
       "step": "Step {{step}}/{{total}}",
       "waitingForData": "Waiting for news data...",
       "rankingStories": "Ranking important stories...",
@@ -900,7 +900,7 @@
       "mapFlashLabel": "Live Event Pulse",
       "mapFlashDesc": "Flash locations on the map when breaking news arrives",
       "aiFlowTitle": "Settings",
-      "aiFlowCloudLabel": "Облачный ИИ (Groq & OpenRouter)",
+      "aiFlowCloudLabel": "Облачный ИИ (Gemini & OpenRouter)",
       "aiFlowCloudDesc": "Отправлять заголовки в облако для ИИ-суммирования (рекомендуется)",
       "aiFlowBrowserLabel": "Локальная модель браузера",
       "aiFlowBrowserDesc": "Запустить ИИ локально в браузере",

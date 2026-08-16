@@ -161,12 +161,12 @@ export function getProviderCredentials(provider: string): ProviderCredentials | 
     };
   }
 
-  if (provider === 'groq') {
-    const apiKey = process.env.GROQ_API_KEY;
+  if (provider === 'gemini') {
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return null;
     return {
-      apiUrl: 'https://api.groq.com/openai/v1/chat/completions',
-      model: 'openai/gpt-oss-20b',
+      apiUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+      model: 'gemini-2.5-pro',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',

@@ -22,7 +22,7 @@ import { t } from '@/services/i18n';
 import { trackFeatureToggle } from '@/services/analytics';
 
 const SIGNUP_URLS: Partial<Record<RuntimeSecretKey, string>> = {
-  GROQ_API_KEY: 'https://console.groq.com/keys',
+  GEMINI_API_KEY: 'https://console.Gemini.com/keys',
   OPENROUTER_API_KEY: 'https://openrouter.ai/settings/keys',
   FRED_API_KEY: 'https://fred.stlouisfed.org/docs/api/api_key.html',
   EIA_API_KEY: 'https://www.eia.gov/opendata/register.php',

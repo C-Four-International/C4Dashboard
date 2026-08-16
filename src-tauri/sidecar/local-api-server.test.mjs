@@ -902,7 +902,7 @@ test('treats Cloudflare challenge 403 as soft-pass during secret validation', as
 
   try {
     const response = await postJsonViaHttp(`http://127.0.0.1:${port}/api/local-validate-secret`, {
-      key: 'GROQ_API_KEY',
+      key: 'GEMINI_API_KEY',
       value: 'dummy-key',
     });
     assert.equal(response.status, 200);
@@ -935,7 +935,7 @@ test('does not soft-pass provider auth 403 JSON responses even with cf-ray heade
 
   try {
     const response = await postJsonViaHttp(`http://127.0.0.1:${port}/api/local-validate-secret`, {
-      key: 'GROQ_API_KEY',
+      key: 'GEMINI_API_KEY',
       value: 'invalid-key',
     });
     assert.equal(response.status, 422);

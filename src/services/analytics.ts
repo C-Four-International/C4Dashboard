@@ -32,7 +32,7 @@ function getOrCreateInstallationId(): string {
 // ── Stable property name map for secret keys ──
 
 const SECRET_ANALYTICS_NAMES: Record<RuntimeSecretKey, string> = {
-  GROQ_API_KEY: 'groq',
+  GEMINI_API_KEY: 'gemini',
   OPENROUTER_API_KEY: 'openrouter',
   FRED_API_KEY: 'fred',
   EIA_API_KEY: 'eia',

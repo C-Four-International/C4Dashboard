@@ -2,7 +2,7 @@ import { getApiBaseUrl, isDesktopRuntime } from './runtime';
 import { invokeTauri } from './tauri-bridge';
 
 export type RuntimeSecretKey =
-  | 'GROQ_API_KEY'
+  | 'GEMINI_API_KEY'
   | 'OPENROUTER_API_KEY'
   | 'FRED_API_KEY'
   | 'EIA_API_KEY'
@@ -26,7 +26,7 @@ export type RuntimeSecretKey =
   | 'WTO_API_KEY';
 
 export type RuntimeFeatureId =
-  | 'aiGroq'
+  | 'aiGemini'
   | 'aiOpenRouter'
   | 'economicFred'
   | 'energyEia'
@@ -72,7 +72,7 @@ function getSidecarSecretValidateUrl(): string {
 }
 
 const defaultToggles: Record<RuntimeFeatureId, boolean> = {
-  aiGroq: true,
+  aiGemini: true,
   aiOpenRouter: true,
   economicFred: true,
   energyEia: true,
@@ -97,13 +97,13 @@ export const RUNTIME_FEATURES: RuntimeFeatureDefinition[] = [
     name: 'Ollama local summarization',
     description: 'Local LLM provider via OpenAI-compatible endpoint (Ollama or LM Studio, desktop-first).',
     requiredSecrets: ['OLLAMA_API_URL', 'OLLAMA_MODEL'],
-    fallback: 'Falls back to Groq, then OpenRouter, then local browser model.',
+    fallback: 'Falls back to Gemini, then OpenRouter, then local browser model.',
   },
   {
-    id: 'aiGroq',
-    name: 'Groq summarization',
+    id: 'aiGemini',
+    name: 'Gemini summarization',
     description: 'Primary fast LLM provider used for AI summary generation.',
-    requiredSecrets: ['GROQ_API_KEY'],
+    requiredSecrets: ['GEMINI_API_KEY'],
     fallback: 'Falls back to OpenRouter, then local browser model.',
   },
   {

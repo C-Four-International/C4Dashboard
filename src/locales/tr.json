@@ -17,7 +17,7 @@
     "predictionMarkets": "Tahmin Piyasalari",
     "loadingMarkets": "Tahmin piyasalari yukleniyor...",
     "infrastructure": "Altyapi Maruziyeti",
-    "briefUnavailable": "Yapay zeka brifingi kullanilamaz — Ayarlar'dan GROQ_API_KEY yapilandiriniz.",
+    "briefUnavailable": "Yapay zeka brifingi kullanilamaz — Ayarlar'dan GEMINI_API_KEY yapilandiriniz.",
     "cached": "Onbellekten",
     "fresh": "Guncel",
     "noMarkets": "Tahmin piyasasi bulunamadi",
@@ -387,7 +387,7 @@
       "fresh": "Guncel",
       "noMarkets": "Tahmin piyasasi bulunamadi",
       "predictionMarkets": "Tahmin Piyasalari",
-      "unavailable": "Yapay zeka brifingi kullanilamaz — Ayarlar'dan GROQ_API_KEY yapilandiriniz."
+      "unavailable": "Yapay zeka brifingi kullanilamaz — Ayarlar'dan GEMINI_API_KEY yapilandiriniz."
     },
     "countryBrief": {
       "identifying": "Ulke belirleniyor...",
@@ -403,7 +403,7 @@
       "predictionMarkets": "Tahmin Piyasalari",
       "loadingMarkets": "Tahmin piyasalari yukleniyor...",
       "infrastructure": "Altyapi Maruziyeti",
-      "briefUnavailable": "Yapay zeka brifingi kullanilamaz — Ayarlar'dan GROQ_API_KEY yapilandiriniz.",
+      "briefUnavailable": "Yapay zeka brifingi kullanilamaz — Ayarlar'dan GEMINI_API_KEY yapilandiriniz.",
       "cached": "Onbellekten",
       "fresh": "Guncel",
       "noMarkets": "Tahmin piyasasi bulunamadi",
@@ -888,7 +888,7 @@
     },
     "insights": {
       "noStories": "Henuz son dakika veya coklu kaynak haberi yok",
-      "infoTooltip": "<strong>Yapay Zeka Destekli Analiz</strong><br>• <strong>Dunya Brifingi</strong>: Yapay zeka ozeti (Groq/OpenRouter)<br>• <strong>Duygu Analizi</strong>: Haber ton analizi<br>• <strong>Hiz</strong>: Hizla gelisen haberler<br>• <strong>Odak Noktalari</strong>: Haber varliklarini harita sinyalleriyle iliskilendirir (askeri, protestolar, kesintiler)<br><em>Yalnizca masaustu - Llama 3.3 + Odak Noktasi Tespiti tarafindan desteklenmektedir</em>",
+      "infoTooltip": "<strong>Yapay Zeka Destekli Analiz</strong><br>• <strong>Dunya Brifingi</strong>: Yapay zeka ozeti (Gemini/OpenRouter)<br>• <strong>Duygu Analizi</strong>: Haber ton analizi<br>• <strong>Hiz</strong>: Hizla gelisen haberler<br>• <strong>Odak Noktalari</strong>: Haber varliklarini harita sinyalleriyle iliskilendirir (askeri, protestolar, kesintiler)<br><em>Yalnizca masaustu - Llama 3.3 + Odak Noktasi Tespiti tarafindan desteklenmektedir</em>",
       "step": "Step {{step}}/{{total}}",
       "waitingForData": "Waiting for news data...",
       "rankingStories": "Ranking important stories...",
@@ -900,7 +900,7 @@
       "mapFlashLabel": "Live Event Pulse",
       "mapFlashDesc": "Flash locations on the map when breaking news arrives",
       "aiFlowTitle": "Settings",
-      "aiFlowCloudLabel": "Bulut AI (Groq & OpenRouter)",
+      "aiFlowCloudLabel": "Bulut AI (Gemini & OpenRouter)",
       "aiFlowCloudDesc": "Basliklari AI ozetleme icin buluta gonder (onerilen)",
       "aiFlowBrowserLabel": "Tarayici Yerel Modeli",
       "aiFlowBrowserDesc": "AI'yi tarayicinizda yerel olarak calistirin",

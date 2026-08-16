@@ -356,8 +356,8 @@ export const TECH_COMPANIES: TechCompany[] = [
     stockSymbol: 'CBRS',
   },
   {
-    id: 'groq-hq',
-    name: 'Groq',
+    id: 'Gemini-hq',
+    name: 'gemini',
     sector: 'AI Chips',
     officeType: 'headquarters',
     city: 'Mountain View',

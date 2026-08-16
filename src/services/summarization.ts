@@ -1,7 +1,7 @@
 /**
  * Summarization Service with Fallback Chain
  * Server-side Redis caching handles cross-user deduplication
- * Fallback: Ollama -> Groq -> OpenRouter -> Browser T5
+ * Fallback: Ollama -> Gemini -> OpenRouter -> Browser T5
  *
  * Uses NewsServiceClient.summarizeArticle() RPC instead of legacy
  * per-provider fetch endpoints.
@@ -15,7 +15,7 @@ import { trackLLMUsage, trackLLMFailure } from './analytics';
 import { NewsServiceClient, type SummarizeArticleResponse } from '@/generated/client/worldmonitor/news/v1/service_client';
 import { createCircuitBreaker } from '@/utils';
 
-export type SummarizationProvider = 'ollama' | 'groq' | 'openrouter' | 'browser' | 'cache';
+export type SummarizationProvider = 'ollama' | 'gemini' | 'openrouter' | 'browser' | 'cache';
 
 export interface SummarizationResult {
   summary: string;
@@ -27,7 +27,7 @@ export interface SummarizationResult {
 export type ProgressCallback = (step: number, total: number, message: string) => void;
 
 export interface SummarizeOptions {
-  skipCloudProviders?: boolean;  // true = skip Ollama/Groq/OpenRouter, go straight to browser T5
+  skipCloudProviders?: boolean;  // true = skip Ollama/Gemini/OpenRouter, go straight to browser T5
   skipBrowserFallback?: boolean; // true = skip browser T5 fallback
 }
 
@@ -48,7 +48,7 @@ interface ApiProviderDef {
 
 const API_PROVIDERS: ApiProviderDef[] = [
   { featureId: 'aiOllama',      provider: 'ollama',     label: 'Ollama' },
-  { featureId: 'aiGroq',        provider: 'groq',       label: 'Groq AI' },
+  { featureId: 'aiGemini',        provider: 'gemini',       label: 'Gemini AI' },
   { featureId: 'aiOpenRouter',  provider: 'openrouter', label: 'OpenRouter' },
 ];
 
@@ -149,7 +149,7 @@ async function runApiChain(
 }
 
 /**
- * Generate a summary using the fallback chain: Ollama -> Groq -> OpenRouter -> Browser T5
+ * Generate a summary using the fallback chain: Ollama -> Gemini -> OpenRouter -> Browser T5
  * Server-side Redis caching is handled by the SummarizeArticle RPC handler
  * @param geoContext Optional geographic signal context to include in the prompt
  */
@@ -196,9 +196,9 @@ async function generateSummaryInternal(
         const browserResult = await tryBrowserT5(headlines, 'summarization-beta');
         if (browserResult) {
           console.log('[BETA] Browser T5-small:', browserResult.summary);
-          const groqProvider = API_PROVIDERS.find(p => p.provider === 'groq');
-          if (groqProvider && !options?.skipCloudProviders) tryApiProvider(groqProvider, headlines, geoContext).then(r => {
-            if (r) console.log('[BETA] Groq comparison:', r.summary);
+          const GeminiProvider = API_PROVIDERS.find(p => p.provider === 'gemini');
+          if (GeminiProvider && !options?.skipCloudProviders) tryApiProvider(GeminiProvider, headlines, geoContext).then(r => {
+            if (r) console.log('[BETA] Gemini comparison:', r.summary);
           }).catch(() => {});
 
           return browserResult;
@@ -221,7 +221,7 @@ async function generateSummaryInternal(
       if (!options?.skipCloudProviders) {
         const chainResult = await runApiChain(API_PROVIDERS, headlines, geoContext, undefined, onProgress, 1, totalSteps);
         if (chainResult) {
-          if (chainResult.provider === 'groq') console.log('[BETA] Groq:', chainResult.summary);
+          if (chainResult.provider === 'gemini') console.log('[BETA] Gemini:', chainResult.summary);
           return chainResult;
         }
       }

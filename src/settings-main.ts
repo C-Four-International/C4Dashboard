@@ -65,7 +65,7 @@ function closeSettingsWindow(): void {
   void tryInvokeTauri<void>('close_settings_window').then(() => { }, () => window.close());
 }
 
-const LLM_FEATURES: Array<import('@/services/runtime-config').RuntimeFeatureId> = ['aiOllama', 'aiGroq', 'aiOpenRouter'];
+const LLM_FEATURES: Array<import('@/services/runtime-config').RuntimeFeatureId> = ['aiOllama', 'aiGemini', 'aiOpenRouter'];
 
 function mountPanel(panel: RuntimeConfigPanel, container: HTMLElement): void {
   container.innerHTML = '';
