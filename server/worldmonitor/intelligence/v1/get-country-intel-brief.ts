@@ -8,6 +8,7 @@ import type {
 
 import { cachedFetchJson, checkRateLimit } from '../../../_shared/redis';
 import { UPSTREAM_TIMEOUT_MS, TIER1_COUNTRIES } from './_shared';
+import { XMLParser } from 'fast-xml-parser';
 
 // ========================================================================
 // Constants
@@ -42,6 +43,32 @@ async function fetchFreeNewsContext(countryName: string): Promise<string> {
 }
 
 // ========================================================================
+// RSS Fetcher
+// ========================================================================
+async function fetchRssNewsContext(countryName: string): Promise<string> {
+  try {
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(countryName + ' news')}&hl=en-US&gl=US&ceid=US:en`;
+    const resp = await fetch(url);
+    if (!resp.ok) return '';
+    
+    const xml = await resp.text();
+    const parser = new XMLParser();
+    const parsed = parser.parse(xml);
+    
+    const items = parsed?.rss?.channel?.item;
+    if (!items) return '';
+    
+    const itemList = Array.isArray(items) ? items : [items];
+    const snippets = itemList.slice(0, 5).map((item: any) => `- ${item.title} (${item.pubDate})`);
+    
+    return snippets.join('\n');
+  } catch (err) {
+    console.error('[fetchRssNewsContext] Error fetching RSS:', err);
+    return '';
+  }
+}
+
+// ========================================================================
 // RPC handler
 // ========================================================================
 
@@ -67,7 +94,7 @@ export async function getCountryIntelBrief(
   const ip = rawIp.split(',')[0].trim();
   
   if (ip !== 'unknown') {
-    const isAllowed = await checkRateLimit(`ratelimit:brief:${ip}`, 10, 86400);
+    const isAllowed = await checkRateLimit(`ratelimit:brief:${ip}`, 30, 86400);
     if (!isAllowed) {
       return { ...empty, brief: 'RATE_LIMIT_EXCEEDED' };
     }
@@ -109,7 +136,11 @@ Rules:
 
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
     try {
-      const recentNewsContext = await fetchFreeNewsContext(countryName);
+      const [ddgContext, rssContext] = await Promise.all([
+        fetchFreeNewsContext(countryName),
+        fetchRssNewsContext(countryName)
+      ]);
+      const recentNewsContext = `[DuckDuckGo Web Search Results]\n${ddgContext}\n\n[Google News RSS Feed]\n${rssContext || 'No RSS data available.'}`;
 
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiApiKey}`;
       const resp = await fetch(geminiUrl, {
