@@ -7,7 +7,7 @@ const payload = {
     parts: [{ text: `test` }]
   }],
   tools: [{
-    googleSearch: {}
+    invalid_tool_name_to_test: {}
   }],
   generationConfig: {
     temperature: 0.7,
@@ -21,6 +21,9 @@ fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:ge
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(payload)
 })
-.then(r => r.json().then(data => ({ status: r.status, data })))
-.then(console.log)
+.then(async r => {
+  const status = r.status;
+  const data = await r.json();
+  console.log(JSON.stringify({ status, data }, null, 2));
+})
 .catch(console.error);
