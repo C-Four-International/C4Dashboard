@@ -81,7 +81,7 @@ Rules:
 
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
     try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiApiKey}`;
       const resp = await fetch(geminiUrl, {
         method: 'POST',
         headers: {
@@ -115,7 +115,7 @@ Rules:
             countryCode: req.countryCode,
             countryName,
             brief,
-            model: 'gemini-3.6-flash',
+            model: 'gemini-3.5-flash-lite',
             generatedAt: Date.now(),
           };
         }
@@ -138,7 +138,7 @@ Rules:
       countryCode: req.countryCode,
       countryName,
       brief: `DEBUG AI ERROR: ${debugError}`,
-      model: 'gemini-3.6-flash',
+      model: 'gemini-3.5-flash-lite',
       generatedAt: Date.now(),
     };
   }

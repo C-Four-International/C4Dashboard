@@ -8,7 +8,7 @@
 
 export const UPSTREAM_TIMEOUT_MS = 55_000;
 export const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-export const GEMINI_MODEL = 'gemini-3.6-flash';
+export const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 
 // ========================================================================
 // Tier-1 country definitions (used by risk-scores + country-intel-brief)
