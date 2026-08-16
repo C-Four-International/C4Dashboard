@@ -30,7 +30,10 @@ export async function getCountryIntelBrief(
   };
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
-  if (!geminiApiKey) return empty;
+  if (!geminiApiKey) {
+    console.error('[CountryIntelBrief] Missing GEMINI_API_KEY in environment variables');
+    return empty;
+  }
 
   const rawIp = _ctx.headers['x-forwarded-for'] || _ctx.headers['x-real-ip'] || 'unknown';
   const ip = rawIp.split(',')[0].trim();
@@ -115,6 +118,9 @@ Rules:
             generatedAt: Date.now(),
           };
         }
+      } else {
+        const errText = await resp.text();
+        console.error('[CountryIntelBrief] Gemini API HTTP Error:', resp.status, errText);
       }
     } catch (err) {
       console.error('[CountryIntelBrief] Gemini API debug error:', err);
