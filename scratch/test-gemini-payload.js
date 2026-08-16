@@ -7,7 +7,7 @@ const payload = {
     parts: [{ text: `test` }]
   }],
   tools: [{
-    invalid_tool_name_to_test: {}
+    google_search: {}
   }],
   generationConfig: {
     temperature: 0.7,
@@ -16,7 +16,7 @@ const payload = {
   }
 };
 
-fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=invalid_key', {
+fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=invalid_key', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(payload)
