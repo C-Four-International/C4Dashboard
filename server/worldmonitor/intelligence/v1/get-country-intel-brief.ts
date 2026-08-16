@@ -15,29 +15,41 @@ import { XMLParser } from 'fast-xml-parser';
 // ========================================================================
 const INTEL_CACHE_TTL = 43200; // 12 hours
 // ========================================================================
-// Free Web Scraper (DuckDuckGo HTML)
+// Brave Search API (News)
 // ========================================================================
-async function fetchFreeNewsContext(countryName: string): Promise<string> {
+async function fetchBraveNewsContext(countryName: string): Promise<string> {
+  const apiKey = process.env.BRAVE_API_KEY;
+  if (!apiKey) {
+    console.warn('[fetchBraveNewsContext] Missing BRAVE_API_KEY, skipping Brave news search.');
+    return 'Brave API key not configured.';
+  }
+
   try {
-    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(countryName + ' news')}`;
+    const url = `https://api.search.brave.com/res/v1/news/search?q=${encodeURIComponent(countryName + ' news')}&count=10&freshness=pw`;
     const resp = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+      headers: {
+        'Accept': 'application/json',
+        'Accept-Encoding': 'gzip',
+        'X-Subscription-Token': apiKey
+      }
     });
+
     if (!resp.ok) return 'No reliable news data could be retrieved at this time.';
     
-    const text = await resp.text();
-    const snippets: string[] = [];
-    const regex = /<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi;
-    let match;
-    while ((match = regex.exec(text)) !== null && snippets.length < 10) {
-      let cleanSnippet = match[1].replace(/<[^>]*>?/gm, '').trim();
-      cleanSnippet = cleanSnippet.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
-      if (cleanSnippet) snippets.push(`- ${cleanSnippet}`);
+    const data = await resp.json() as { results?: Array<{ title?: string, description?: string }> };
+    if (!data.results || data.results.length === 0) {
+      return 'No recent verified news found.';
     }
+
+    const snippets = data.results.map(item => {
+      const title = item.title || '';
+      const desc = item.description || '';
+      return `- ${title}: ${desc}`;
+    });
     
-    return snippets.length > 0 ? snippets.join('\n') : 'No recent verified news found.';
+    return snippets.join('\n');
   } catch (err) {
-    console.error('[fetchFreeNewsContext] Error scraping news:', err);
+    console.error('[fetchBraveNewsContext] Error fetching Brave news:', err);
     return 'News context unavailable.';
   }
 }
@@ -136,11 +148,11 @@ Rules:
 
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
     try {
-      const [ddgContext, rssContext] = await Promise.all([
-        fetchFreeNewsContext(countryName),
+      const [braveContext, rssContext] = await Promise.all([
+        fetchBraveNewsContext(countryName),
         fetchRssNewsContext(countryName)
       ]);
-      const recentNewsContext = `[DuckDuckGo Web Search Results]\n${ddgContext}\n\n[Google News RSS Feed]\n${rssContext || 'No RSS data available.'}`;
+      const recentNewsContext = `[Brave Web Search Results]\n${braveContext}\n\n[Google News RSS Feed]\n${rssContext || 'No RSS data available.'}`;
 
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiApiKey}`;
       const resp = await fetch(geminiUrl, {
