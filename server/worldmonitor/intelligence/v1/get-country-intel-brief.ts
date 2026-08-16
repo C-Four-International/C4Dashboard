@@ -81,31 +81,38 @@ Rules:
 
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
     try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiApiKey}`;
-      const resp = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          contents: [{
-            role: 'user',
-            parts: [{ text: `### Target Country ###\n${countryName} (${req.countryCode})` }]
-          }],
-          tools: [{
-            google_search: {}
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 8192,
-            topP: 0.8
-          }
-        }),
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      });
+      const payload = {
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: `### Target Country ###\n${countryName} (${req.countryCode})` }] }],
+        tools: [{ google_search: {} }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 8192, topP: 0.8 }
+      };
+
+      const fetchModel = async (modelName: string) => {
+        return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+        });
+      };
+
+      let activeModel = 'gemini-3.5-flash-lite';
+      let resp = await fetchModel(activeModel);
+
+      if (!resp.ok && resp.status >= 400 && resp.status < 500 && resp.status !== 401 && resp.status !== 403) {
+        // Fallback to older model on 404 or bad request which might be a model availability issue
+        const errText = await resp.text();
+        console.warn(`[CountryIntelBrief] ${activeModel} failed with ${resp.status}. Falling back to gemini-2.5-flash-lite. Error: ${errText}`);
+        activeModel = 'gemini-2.5-flash-lite';
+        resp = await fetchModel(activeModel);
+      } else if (!resp.ok && resp.status >= 500) {
+        // Fallback on 5xx server errors as well
+        const errText = await resp.text();
+        console.warn(`[CountryIntelBrief] ${activeModel} failed with ${resp.status}. Falling back to gemini-2.5-flash-lite. Error: ${errText}`);
+        activeModel = 'gemini-2.5-flash-lite';
+        resp = await fetchModel(activeModel);
+      }
 
       if (resp.ok) {
         const data = (await resp.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
@@ -115,7 +122,7 @@ Rules:
             countryCode: req.countryCode,
             countryName,
             brief,
-            model: 'gemini-3.5-flash-lite',
+            model: activeModel,
             generatedAt: Date.now(),
           };
         }
