@@ -166,7 +166,7 @@ export function getProviderCredentials(provider: string): ProviderCredentials | 
     if (!apiKey) return null;
     return {
       apiUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-      model: 'gemini-1.5-pro',
+      model: 'gemini-3.6-flash',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
