@@ -36,10 +36,11 @@ export async function getCountryIntelBrief(
   const ip = rawIp.split(',')[0].trim();
   
   if (ip !== 'unknown') {
-    const isAllowed = await checkRateLimit(`ratelimit:brief:${ip}`, 5, 86400);
-    if (!isAllowed) {
-      return { ...empty, brief: 'RATE_LIMIT_EXCEEDED' };
-    }
+    // TEMPORARY: disabled rate limit for debugging
+    // const isAllowed = await checkRateLimit(`ratelimit:brief:${ip}`, 5, 86400);
+    // if (!isAllowed) {
+    //   return { ...empty, brief: 'RATE_LIMIT_EXCEEDED' };
+    // }
   }
 
   const cacheKey = `ci-sebuf:v2:${req.countryCode}`;
@@ -115,7 +116,8 @@ Rules:
           };
         }
       }
-    } catch {
+    } catch (err) {
+      console.error('[CountryIntelBrief] Gemini API debug error:', err);
       // Fall through to null if it fails
     }
 
