@@ -25,7 +25,7 @@ export async function getCountryIntelBrief(
     countryCode: req.countryCode,
     countryName: '',
     brief: '',
-    model: 'gemini-2.5-pro',
+    model: 'gemini-1.5-pro',
     generatedAt: Date.now(),
   };
 
@@ -66,7 +66,7 @@ Rules:
 
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
     try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${geminiApiKey}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
       const resp = await fetch(geminiUrl, {
         method: 'POST',
         headers: {
@@ -100,7 +100,7 @@ Rules:
             countryCode: req.countryCode,
             countryName,
             brief,
-            model: 'gemini-2.5-pro',
+            model: 'gemini-1.5-pro',
             generatedAt: Date.now(),
           };
         }

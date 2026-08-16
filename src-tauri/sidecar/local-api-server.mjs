@@ -649,7 +649,7 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
   try {
     switch (key) {
     case 'GEMINI_API_KEY': {
-      const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro?key=${value}`, {
+      const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro?key=${value}`, {
         headers: { 'User-Agent': CHROME_UA },
       });
       const text = await response.text();
