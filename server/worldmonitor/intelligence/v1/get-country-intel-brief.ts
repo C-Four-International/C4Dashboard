@@ -81,7 +81,7 @@ Rules:
             parts: [{ text: `### Target Country ###\n${countryName} (${req.countryCode})` }]
           }],
           tools: [{
-            googleSearch: {}
+            google_search: {}
           }],
           generationConfig: {
             temperature: 0.7,
