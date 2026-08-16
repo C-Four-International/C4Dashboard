@@ -1610,7 +1610,7 @@ export class DeckGLMap {
       getPosition: d => [d.lon, d.lat],
       getFillColor: d => getAqiColor(d.aqi),
       getRadius: 15000,
-      radiusMinPixels: 10,
+      radiusMinPixels: 14,
       radiusMaxPixels: 30,
       pickable: false
     });
@@ -1623,6 +1623,8 @@ export class DeckGLMap {
       getSize: 12,
       getColor: [255, 255, 255, 255],
       getAlignmentBaseline: 'center',
+      getTextAnchor: 'middle',
+      parameters: { depthTest: false },
       pickable: false
     });
 
