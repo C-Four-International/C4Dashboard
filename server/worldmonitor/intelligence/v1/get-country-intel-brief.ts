@@ -64,11 +64,9 @@ Rules:
 - Use plain language, not jargon
 - STRICT REQUIREMENT: You are strictly prohibited from including any code blocks, programming code, or technical markdown formatting (like \`\`\`) in your response. The briefing must be written entirely in natural language.`;
 
-  let debugError = '';
-
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
     try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${geminiApiKey}`;
       const resp = await fetch(geminiUrl, {
         method: 'POST',
         headers: {
@@ -102,30 +100,17 @@ Rules:
             countryCode: req.countryCode,
             countryName,
             brief,
-            model: 'gemini-1.5-pro',
+            model: 'gemini-1.5-pro-latest',
             generatedAt: Date.now(),
           };
         }
-        debugError = `No brief returned. API Data: ${JSON.stringify(data)}`;
-      } else {
-        debugError = `HTTP ${resp.status}: ${await resp.text()}`;
       }
-    } catch (e: any) {
-      debugError = `Fetch Exception: ${e.message}`;
+    } catch {
+      // Fall through to null if it fails
     }
 
     return null;
   });
-
-  if (debugError) {
-    return {
-      countryCode: req.countryCode,
-      countryName,
-      brief: `DEBUG AI ERROR: ${debugError}`,
-      model: 'gemini-1.5-pro',
-      generatedAt: Date.now(),
-    };
-  }
 
   return result || empty;
 }
