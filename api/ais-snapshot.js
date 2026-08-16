@@ -3,7 +3,7 @@ import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 export const config = { runtime: 'edge' };
 
 function getRelayBaseUrl() {
-  let relayUrl = process.env.WS_RELAY_URL;
+  let relayUrl = process.env.WS_RELAY_URL || process.env.VITE_WS_RELAY_URL;
   if (!relayUrl) return null;
   // Auto-prepend https:// if the user forgot the protocol in their environment variables
   if (!relayUrl.startsWith('http') && !relayUrl.startsWith('ws')) {
@@ -63,7 +63,10 @@ export default async function handler(req) {
 
   try {
     const requestUrl = new URL(req.url);
-    const relayUrl = `${relayBaseUrl}/ais/snapshot${requestUrl.search || ''}`;
+    const targetUrl = relayBaseUrl.endsWith('/ais/snapshot') 
+      ? relayBaseUrl 
+      : `${relayBaseUrl}/ais/snapshot`;
+    const relayUrl = `${targetUrl}${requestUrl.search || ''}`;
     const response = await fetchWithTimeout(relayUrl, {
       headers: getRelayHeaders({
         Accept: 'application/json',
