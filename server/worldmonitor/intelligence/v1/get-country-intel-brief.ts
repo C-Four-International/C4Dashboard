@@ -39,11 +39,10 @@ export async function getCountryIntelBrief(
   const ip = rawIp.split(',')[0].trim();
   
   if (ip !== 'unknown') {
-    // TEMPORARY: disabled rate limit for debugging
-    // const isAllowed = await checkRateLimit(`ratelimit:brief:${ip}`, 5, 86400);
-    // if (!isAllowed) {
-    //   return { ...empty, brief: 'RATE_LIMIT_EXCEEDED' };
-    // }
+    const isAllowed = await checkRateLimit(`ratelimit:brief:${ip}`, 5, 86400);
+    if (!isAllowed) {
+      return { ...empty, brief: 'RATE_LIMIT_EXCEEDED' };
+    }
   }
 
   const cacheKey = `ci-sebuf:v2:${req.countryCode}`;
@@ -78,9 +77,11 @@ Rules:
 - Use plain language, not jargon
 - STRICT REQUIREMENT: You are strictly prohibited from including any code blocks, programming code, or technical markdown formatting (like \`\`\`) in your response. The briefing must be written entirely in natural language.`;
 
+  let debugError = '';
+
   const result = await cachedFetchJson<GetCountryIntelBriefResponse | null>(cacheKey, INTEL_CACHE_TTL, async () => {
     try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`;
       const resp = await fetch(geminiUrl, {
         method: 'POST',
         headers: {
@@ -114,21 +115,33 @@ Rules:
             countryCode: req.countryCode,
             countryName,
             brief,
-            model: 'gemini-1.5-flash',
+            model: 'gemini-3.6-flash',
             generatedAt: Date.now(),
           };
         }
+        debugError = `No brief returned. API Data: ${JSON.stringify(data)}`;
       } else {
         const errText = await resp.text();
         console.error('[CountryIntelBrief] Gemini API HTTP Error:', resp.status, errText);
+        debugError = `HTTP ${resp.status}: ${errText}`;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[CountryIntelBrief] Gemini API debug error:', err);
-      // Fall through to null if it fails
+      debugError = `Fetch Exception: ${err.message}`;
     }
 
     return null;
   });
+
+  if (debugError) {
+    return {
+      countryCode: req.countryCode,
+      countryName,
+      brief: `DEBUG AI ERROR: ${debugError}`,
+      model: 'gemini-3.6-flash',
+      generatedAt: Date.now(),
+    };
+  }
 
   return result || empty;
 }
