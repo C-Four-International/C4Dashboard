@@ -24,7 +24,7 @@ async function test() {
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
   if (geminiApiKey) {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${geminiApiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
     const resp = await fetch(geminiUrl, {
       method: 'POST',
       headers: {
