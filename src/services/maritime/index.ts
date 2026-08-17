@@ -208,7 +208,15 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
 
   try {
     // Prefer direct relay path to avoid normal web traffic double-hop via Vercel.
-    return await fetchRawRelaySnapshot(false);
+    const payload = await fetchRawRelaySnapshot(false);
+    
+    // If the relay is disconnected and returns no density data, force the proto fallback
+    const raw = payload as AisSnapshotResponse;
+    if (raw?.status?.connected === false && (!raw.density || raw.density.length === 0)) {
+      throw new Error('Relay disconnected with no data; falling back to proto route');
+    }
+    
+    return payload;
   } catch (rawError) {
     // Desktop fallback: use proto route when relay URL/local relay is unavailable.
     const response = await snapshotBreaker.execute(async () => {
