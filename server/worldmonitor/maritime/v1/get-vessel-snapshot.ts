@@ -111,12 +111,21 @@ async function fetchVesselSnapshotFromVesselApi(): Promise<VesselSnapshot | unde
   }
 
   const CHOKEPOINTS = [
+    // Chokepoints
     { name: 'Strait of Hormuz', lat: 26.5, lon: 56.5 },
     { name: 'Suez Canal', lat: 30.0, lon: 32.5 },
     { name: 'Strait of Malacca', lat: 2.5, lon: 101.5 },
     { name: 'Bab el-Mandeb', lat: 12.5, lon: 43.5 },
     { name: 'Panama Canal', lat: 9.0, lon: -79.5 },
     { name: 'Taiwan Strait', lat: 24.5, lon: 119.5 },
+    
+    // Major Ports
+    { name: 'Port of Shanghai', lat: 31.3, lon: 121.5 },
+    { name: 'Port of Singapore', lat: 1.25, lon: 103.8 },
+    { name: 'Port of Rotterdam', lat: 51.9, lon: 4.0 },
+    { name: 'Port of Los Angeles', lat: 33.7, lon: -118.2 },
+    { name: 'Port of New York', lat: 40.6, lon: -74.0 },
+    { name: 'Pearl River Delta', lat: 22.5, lon: 113.9 },
   ];
 
   let allVessels: VesselPosition[] = [];
