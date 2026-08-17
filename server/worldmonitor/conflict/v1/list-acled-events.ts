@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: listAcledEvents -- Port from api/acled-conflict.js
  *

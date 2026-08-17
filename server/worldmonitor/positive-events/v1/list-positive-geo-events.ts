@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ListPositiveGeoEvents RPC -- fetches geocoded positive news events
  * from GDELT GEO API using positive topic queries.

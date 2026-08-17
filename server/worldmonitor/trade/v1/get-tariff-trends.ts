@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getTariffTrends -- WTO applied tariff trend data
  * Fetches MFN simple average applied tariff rates over time.

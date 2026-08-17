@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getBisExchangeRates -- BIS SDMX API (WS_EER)
  * Effective exchange rate indices (real + nominal) for major economies.

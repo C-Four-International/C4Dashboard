@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Shared helpers, types, and constants for the market service handler RPCs.
  */

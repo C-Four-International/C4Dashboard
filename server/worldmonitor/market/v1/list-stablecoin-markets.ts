@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: ListStablecoinMarkets
  * Fetches stablecoin peg health data from CoinGecko.

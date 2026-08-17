@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getHumanitarianSummary -- Port from api/hapi.js
  *

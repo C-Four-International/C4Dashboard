@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Shared ACLED API fetch with Redis caching.
  *

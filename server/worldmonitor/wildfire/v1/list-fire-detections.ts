@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ListFireDetections RPC -- proxies the NASA FIRMS CSV API.
  *

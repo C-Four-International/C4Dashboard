@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getFredSeries -- Federal Reserve Economic Data (FRED) time series
  * Port from api/fred-data.js

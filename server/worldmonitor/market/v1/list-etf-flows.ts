@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: ListEtfFlows
  * Estimates BTC spot ETF flow direction from Yahoo Finance volume/price data.

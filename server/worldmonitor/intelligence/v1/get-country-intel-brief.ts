@@ -103,7 +103,8 @@ export async function getCountryIntelBrief(
   }
 
   const rawIp = _ctx.headers['x-forwarded-for'] || _ctx.headers['x-real-ip'] || 'unknown';
-  const ip = rawIp.split(',')[0].trim();
+  const ipStr = Array.isArray(rawIp) ? rawIp[0] : rawIp;
+  const ip = (ipStr || 'unknown').split(',')[0].trim();
   
   if (ip !== 'unknown') {
     const isAllowed = await checkRateLimit(`ratelimit:brief:${ip}`, 30, 86400);

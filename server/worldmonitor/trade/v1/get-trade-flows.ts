@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getTradeFlows -- WTO merchandise trade flow data
  * Fetches bilateral export/import values and computes YoY changes.

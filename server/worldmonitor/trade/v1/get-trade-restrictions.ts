@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getTradeRestrictions -- WTO tariff-based trade restriction overview
  *

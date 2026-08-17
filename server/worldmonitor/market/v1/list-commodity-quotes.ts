@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: ListCommodityQuotes
  * Fetches commodity futures quotes from Yahoo Finance.

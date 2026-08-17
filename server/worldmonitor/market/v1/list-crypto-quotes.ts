@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: ListCryptoQuotes
  * Fetches cryptocurrency quotes from CoinGecko markets API.

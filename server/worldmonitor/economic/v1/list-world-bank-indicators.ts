@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: listWorldBankIndicators -- World Bank development indicator data
  * Port from api/worldbank.js

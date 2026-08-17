@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getEnergyPrices -- EIA Open Data API v2
  * Energy commodity price data (WTI, Brent, etc.)

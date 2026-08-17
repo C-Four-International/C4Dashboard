@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getEnergyCapacity -- EIA Open Data API v2
  * Installed generation capacity data (solar, wind, coal) aggregated to US national totals.

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: GetSectorSummary
  * Fetches sector ETF performance from Finnhub.

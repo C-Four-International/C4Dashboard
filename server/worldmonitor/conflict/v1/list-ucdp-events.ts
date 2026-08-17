@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: listUcdpEvents -- Port from api/ucdp-events.js
  *

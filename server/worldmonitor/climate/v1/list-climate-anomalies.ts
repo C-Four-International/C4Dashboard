@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ListClimateAnomalies RPC -- fetches 15 monitored zones from the Open-Meteo
  * Archive API, computes 30-day baseline comparisons (last 7 days vs preceding

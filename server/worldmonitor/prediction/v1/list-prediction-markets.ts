@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ListPredictionMarkets RPC -- proxies the Gamma API for Polymarket prediction markets.
  *

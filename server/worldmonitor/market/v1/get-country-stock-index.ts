@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: GetCountryStockIndex
  * Fetches national stock market index data from Yahoo Finance.

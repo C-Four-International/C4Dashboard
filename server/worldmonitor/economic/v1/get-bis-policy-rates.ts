@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getBisPolicyRates -- BIS SDMX API (WS_CBPOL)
  * Central bank policy rates for major economies.

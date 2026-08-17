@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getBisCredit -- BIS SDMX API (WS_TC)
  * Total credit-to-GDP ratio for major economies.

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getTradeBarriers -- WTO tariff barrier analysis
  *

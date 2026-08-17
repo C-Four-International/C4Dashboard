@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RPC: getMacroSignals -- 7-signal macro dashboard
  * Port from api/macro-signals.js

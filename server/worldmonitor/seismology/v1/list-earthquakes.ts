@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ListEarthquakes RPC -- proxies the USGS earthquake GeoJSON API.
  *

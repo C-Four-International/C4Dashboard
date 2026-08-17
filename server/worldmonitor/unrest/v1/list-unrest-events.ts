@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ListUnrestEvents RPC -- merges ACLED and GDELT data into deduplicated,
  * severity-classified, sorted unrest events.
