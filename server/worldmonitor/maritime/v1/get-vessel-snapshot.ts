@@ -105,10 +105,13 @@ function calculateDensityZones(vessels: VesselPosition[]): AisDensityZone[] {
 
 async function fetchVesselSnapshotFromVesselApi(): Promise<VesselSnapshot | undefined> {
   const apiKey = process.env.VESSELAPI_KEY;
-  if (!apiKey) return undefined;
+  if (!apiKey) {
+    console.warn('[VesselAPI Fallback] VESSELAPI_KEY is missing from environment.');
+    return undefined;
+  }
 
   try {
-    const response = await fetch('https://api.vesselapi.com/v1/search/vessels', {
+    const response = await fetch('https://api.vesselapi.com/v1/search/vessels?pagination.limit=1000', {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Accept': 'application/json',
@@ -116,11 +119,19 @@ async function fetchVesselSnapshotFromVesselApi(): Promise<VesselSnapshot | unde
       signal: AbortSignal.timeout(10000),
     });
 
-    if (!response.ok) return undefined;
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error(`[VesselAPI Fallback] API responded with status ${response.status}:`, errText);
+      return undefined;
+    }
 
     const data = await response.json();
     const vesselsArray = Array.isArray(data) ? data : (data.vessels || data.data || []);
     
+    if (vesselsArray.length === 0) {
+      console.warn('[VesselAPI Fallback] API returned successfully but no vessels were found in the response.');
+    }
+
     const vessels: VesselPosition[] = vesselsArray.map((v: any) => ({
       id: String(v.id || v.mmsi || v.imo || ''),
       lat: Number(v.latitude ?? v.lat),
@@ -134,7 +145,8 @@ async function fetchVesselSnapshotFromVesselApi(): Promise<VesselSnapshot | unde
       densityZones,
       disruptions: [], 
     };
-  } catch {
+  } catch (error) {
+    console.error('[VesselAPI Fallback] Request failed:', error);
     return undefined;
   }
 }
