@@ -26,7 +26,7 @@ export class InsightsPanel extends Panel {
   private lastClusters: ClusteredEvent[] = [];
   private aiFlowUnsubscribe: (() => void) | null = null;
   private updateGeneration = 0;
-  private static readonly BRIEF_COOLDOWN_MS = 120000; // 2 min cooldown (API has limits)
+  private static readonly BRIEF_COOLDOWN_MS = 43200000; // 12 hours cooldown (API has limits)
   private static readonly BRIEF_CACHE_KEY = 'summary:world-brief';
 
   constructor() {
