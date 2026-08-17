@@ -61,22 +61,49 @@ let inFlightRequest: Promise<VesselSnapshot | undefined> | null = null;
 
 
 async function fetchChokepointsFromIMF(): Promise<VesselSnapshot | undefined> {
-  const url = 'https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/PortWatch_chokepoints_database/FeatureServer/0/query?where=1=1&outFields=*&f=json';
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!response.ok) return undefined;
-    const data = await response.json();
-    if (!data.features || !Array.isArray(data.features)) return undefined;
+  const chokepointsUrl = 'https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/PortWatch_chokepoints_database/FeatureServer/0/query?where=1=1&outFields=*&f=json';
+  const dailyDataUrl = 'https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0/query?where=1=1&orderByFields=date DESC&outFields=*&f=json&resultRecordCount=100';
+  const disruptionsUrl = 'https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/portwatch_disruptions_database/FeatureServer/0/query?where=1=1&orderByFields=todate DESC&outFields=*&f=json&returnGeometry=false&resultRecordCount=50';
 
-    let maxCount = 0;
-    for (const feature of data.features) {
-      if (feature.attributes.vessel_count_total > maxCount) {
-        maxCount = feature.attributes.vessel_count_total;
+  try {
+    const [cpRes, dailyRes, distRes] = await Promise.all([
+      fetch(chokepointsUrl, { signal: AbortSignal.timeout(10000) }),
+      fetch(dailyDataUrl, { signal: AbortSignal.timeout(10000) }),
+      fetch(disruptionsUrl, { signal: AbortSignal.timeout(10000) }).catch(() => null)
+    ]);
+
+    if (!cpRes.ok || !dailyRes.ok) return undefined;
+
+    const cpData = await cpRes.json();
+    const dailyData = await dailyRes.json();
+
+    if (!cpData.features || !dailyData.features) return undefined;
+
+    const capacityMap = new Map<string, number>();
+    const countMap = new Map<string, number>();
+    
+    // Ordered by DESC date, so the first time we see a portid, it's the latest data.
+    for (const feature of dailyData.features) {
+      const id = feature.attributes.portid;
+      if (!capacityMap.has(id)) {
+        capacityMap.set(id, feature.attributes.capacity || 0);
+        countMap.set(id, feature.attributes.n_total || 0);
       }
     }
 
-    const densityZones: AisDensityZone[] = data.features.map((feature: any) => {
+    let maxDensity = 0;
+    for (const feature of cpData.features) {
+      const cap = capacityMap.get(feature.attributes.portid) || 0;
+      if (cap > maxDensity) {
+        maxDensity = cap;
+      }
+    }
+
+    const densityZones: AisDensityZone[] = cpData.features.map((feature: any) => {
       const attr = feature.attributes;
+      const capacity = capacityMap.get(attr.portid) || 0;
+      const dailyCount = countMap.get(attr.portid) || 0;
+
       return {
         id: attr.portid,
         name: attr.portname,
@@ -84,17 +111,44 @@ async function fetchChokepointsFromIMF(): Promise<VesselSnapshot | undefined> {
           latitude: attr.lat,
           longitude: attr.lon,
         },
-        intensity: maxCount > 0 ? attr.vessel_count_total / maxCount : 0,
+        intensity: maxDensity > 0 ? capacity / maxDensity : 0,
         deltaPct: 0,
-        shipsPerDay: Math.round(attr.vessel_count_total / 365),
-        note: 'Generated from IMF PortWatch',
+        shipsPerDay: dailyCount,
+        note: 'Generated from IMF PortWatch (Density by Trade Capacity)',
       };
     });
+
+    let disruptions: AisDisruption[] = [];
+    if (distRes && distRes.ok) {
+      const distData = await distRes.json();
+      if (distData.features) {
+        disruptions = distData.features.map((feature: any) => {
+          const attr = feature.attributes;
+          return {
+            id: String(attr.eventid),
+            name: attr.eventname || attr.htmlname || 'Unknown Disruption',
+            type: 'AIS_DISRUPTION_TYPE_UNSPECIFIED',
+            location: {
+              latitude: attr.lat,
+              longitude: attr.long,
+            },
+            severity: attr.alertlevel === 'RED' ? 'AIS_DISRUPTION_SEVERITY_HIGH' :
+                      attr.alertlevel === 'ORANGE' ? 'AIS_DISRUPTION_SEVERITY_ELEVATED' : 'AIS_DISRUPTION_SEVERITY_LOW',
+            changePct: 0,
+            windowHours: 24,
+            darkShips: 0,
+            vesselCount: attr.n_affectedports || 0,
+            region: attr.country || 'Global',
+            description: attr.htmldescription || attr.severitytext || '',
+          };
+        });
+      }
+    }
 
     return {
       snapshotAt: Date.now(),
       densityZones: densityZones.sort((a, b) => b.shipsPerDay - a.shipsPerDay),
-      disruptions: [],
+      disruptions,
     };
   } catch (error) {
     console.error('[IMF PortWatch] Request failed:', error);
