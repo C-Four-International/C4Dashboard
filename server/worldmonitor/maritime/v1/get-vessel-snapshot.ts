@@ -111,7 +111,7 @@ async function fetchVesselSnapshotFromVesselApi(): Promise<VesselSnapshot | unde
   }
 
   try {
-    const response = await fetch('https://api.vesselapi.com/v1/search/vessels?pagination.limit=1000', {
+    const response = await fetch('https://api.vesselapi.com/v1/search/vessels?pagination.limit=1000&filter.vesselType=Cargo', {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Accept': 'application/json',
