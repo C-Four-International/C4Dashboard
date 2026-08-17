@@ -177,7 +177,6 @@ export interface AisDisruptionEvent {
   severity: 'low' | 'elevated' | 'high';
   changePct: number;
   windowHours: number;
-  darkShips?: number;
   vesselCount?: number;
   region?: string;
   description: string;

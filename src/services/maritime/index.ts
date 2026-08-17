@@ -36,7 +36,6 @@ function toDisruptionEvent(proto: ProtoDisruption): AisDisruptionEvent {
     severity: SEVERITY_REVERSE[proto.severity] || 'low',
     changePct: proto.changePct,
     windowHours: proto.windowHours,
-    darkShips: proto.darkShips,
     vesselCount: proto.vesselCount,
     region: proto.region,
     description: proto.description,

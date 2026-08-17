@@ -866,11 +866,9 @@ export class MapPopup {
     const severityClass = escapeHtml(event.severity);
     const severityLabel = escapeHtml(event.severity.toUpperCase());
     const typeLabel = event.type === 'gap_spike' ? t('popups.aisGapSpike') : t('popups.chokepointCongestion');
-    const changeLabel = event.type === 'gap_spike' ? t('popups.darkening') : t('popups.density');
-    const countLabel = event.type === 'gap_spike' ? t('popups.darkShips') : t('popups.vesselCount');
-    const countValue = event.type === 'gap_spike'
-      ? event.darkShips?.toString() || '—'
-      : event.vesselCount?.toString() || '—';
+    const changeLabel = event.type === 'gap_spike' ? t('popups.signalLoss') : t('popups.density');
+    const countLabel = event.type === 'gap_spike' ? t('popups.affectedShips') : t('popups.vesselCount');
+    const countValue = event.vesselCount?.toString() || '—';
 
     return `
       <div class="popup-header ais">

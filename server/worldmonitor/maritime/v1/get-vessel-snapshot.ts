@@ -136,7 +136,6 @@ async function fetchChokepointsFromIMF(): Promise<VesselSnapshot | undefined> {
                       attr.alertlevel === 'ORANGE' ? 'AIS_DISRUPTION_SEVERITY_ELEVATED' : 'AIS_DISRUPTION_SEVERITY_LOW',
             changePct: 0,
             windowHours: 24,
-            darkShips: 0,
             vesselCount: attr.n_affectedports || 0,
             region: attr.country || 'Global',
             description: attr.htmldescription || attr.severitytext || '',
