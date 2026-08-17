@@ -170,8 +170,8 @@ export const CURATED_COUNTRIES: Record<string, CuratedCountryConfig> = {
   },
   KR: {
     name: 'South Korea',
-    scoringKeywords: ['south korea', 'seoul'],
-    searchAliases: ['south korea', 'seoul'],
+    scoringKeywords: ['south korea', 'seoul', 'kr', 'rok'],
+    searchAliases: ['south korea', 'seoul', 'kr', 'rok', 'korean'],
     baselineRisk: 15,
     eventMultiplier: 1.0,
   },
