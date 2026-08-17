@@ -52,8 +52,8 @@ const SEVERITY_MAP: Record<string, AisDisruptionSeverity> = {
   high: 'AIS_DISRUPTION_SEVERITY_HIGH',
 };
 
-// In-memory cache (matches old /api/ais-snapshot behavior)
-const SNAPSHOT_CACHE_TTL_MS = 10_000; // 10 seconds -- matches client poll interval
+// In-memory cache
+const SNAPSHOT_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 let cachedSnapshot: VesselSnapshot | undefined;
 let cacheTimestamp = 0;
 let inFlightRequest: Promise<VesselSnapshot | undefined> | null = null;
@@ -184,6 +184,48 @@ async function fetchVesselSnapshotFromVesselApi(): Promise<VesselSnapshot | unde
   }
 }
 
+async function fetchChokepointsFromIMF(): Promise<VesselSnapshot | undefined> {
+  const url = 'https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/PortWatch_chokepoints_database/FeatureServer/0/query?where=1=1&outFields=*&f=json';
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) return undefined;
+    const data = await response.json();
+    if (!data.features || !Array.isArray(data.features)) return undefined;
+
+    let maxCount = 0;
+    for (const feature of data.features) {
+      if (feature.attributes.vessel_count_total > maxCount) {
+        maxCount = feature.attributes.vessel_count_total;
+      }
+    }
+
+    const densityZones: AisDensityZone[] = data.features.map((feature: any) => {
+      const attr = feature.attributes;
+      return {
+        id: attr.portid,
+        name: attr.portname,
+        location: {
+          latitude: attr.lat,
+          longitude: attr.lon,
+        },
+        intensity: maxCount > 0 ? attr.vessel_count_total / maxCount : 0,
+        deltaPct: 0,
+        shipsPerDay: Math.round(attr.vessel_count_total / 365),
+        note: 'Generated from IMF PortWatch',
+      };
+    });
+
+    return {
+      snapshotAt: Date.now(),
+      densityZones: densityZones.sort((a, b) => b.shipsPerDay - a.shipsPerDay),
+      disruptions: [],
+    };
+  } catch (error) {
+    console.error('[IMF PortWatch] Request failed:', error);
+    return undefined;
+  }
+}
+
 async function fetchVesselSnapshot(): Promise<VesselSnapshot | undefined> {
   // Return cached if fresh
   const now = Date.now();
@@ -196,7 +238,14 @@ async function fetchVesselSnapshot(): Promise<VesselSnapshot | undefined> {
     return inFlightRequest;
   }
 
-  inFlightRequest = fetchVesselSnapshotFromVesselApi();
+  inFlightRequest = (async () => {
+    let result = await fetchChokepointsFromIMF();
+    if (!result || result.densityZones.length === 0) {
+      console.log('[Fallback] Using VesselAPI for vessel snapshot');
+      result = await fetchVesselSnapshotFromVesselApi();
+    }
+    return result;
+  })();
   
   try {
     const result = await inFlightRequest;
