@@ -132,15 +132,6 @@ const SNAPSHOT_STALE_MS = 11 * 60 * 1000; // 11 minutes
 const CALLBACK_RETENTION_MS = 2 * 60 * 60 * 1000; // 2 hours
 const MAX_CALLBACK_TRACKED_VESSELS = 20000;
 
-// ---- Raw Relay URL (for candidate reports path) ----
-
-const SNAPSHOT_PROXY_URL = '/api/ais-snapshot';
-const wsRelayUrl = import.meta.env.VITE_WS_RELAY_URL || '';
-const DIRECT_RAILWAY_SNAPSHOT_URL = wsRelayUrl
-  ? wsRelayUrl.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/$/, '') + '/ais/snapshot'
-  : '';
-const LOCAL_SNAPSHOT_FALLBACK = 'http://localhost:3004/ais/snapshot';
-const isLocalhost = isClientRuntime && window.location.hostname === 'localhost';
 
 // ---- Internal Helpers ----
 
