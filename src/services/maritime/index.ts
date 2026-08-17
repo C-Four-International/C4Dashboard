@@ -329,7 +329,8 @@ async function pollSnapshot(force = false): Promise<void> {
     if (itemCount > 0 || latestStatus.vessels > 0) {
       dataFreshness.recordUpdate('ais', itemCount > 0 ? itemCount : latestStatus.vessels);
     }
-  } catch {
+  } catch (err) {
+    console.error('[AIS Frontend] Failed to fetch or parse snapshot payload:', err);
     latestStatus.connected = false;
   } finally {
     inFlight = false;
