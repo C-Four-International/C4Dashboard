@@ -57,6 +57,88 @@ let cachedSnapshot: VesselSnapshot | undefined;
 let cacheTimestamp = 0;
 let inFlightRequest: Promise<VesselSnapshot | undefined> | null = null;
 
+interface VesselPosition {
+  id?: string;
+  lat?: number;
+  lon?: number;
+}
+
+function calculateDensityZones(vessels: VesselPosition[]): AisDensityZone[] {
+  const gridSize = 5; // 5 degree cells
+  const grid = new Map<string, { lat: number, lon: number, count: number }>();
+
+  for (const v of vessels) {
+    if (v.lat == null || v.lon == null || Number.isNaN(v.lat) || Number.isNaN(v.lon)) continue;
+    const latCell = Math.floor(v.lat / gridSize) * gridSize + (gridSize / 2);
+    const lonCell = Math.floor(v.lon / gridSize) * gridSize + (gridSize / 2);
+    const key = `${latCell},${lonCell}`;
+
+    if (!grid.has(key)) {
+      grid.set(key, { lat: latCell, lon: lonCell, count: 0 });
+    }
+    grid.get(key)!.count += 1;
+  }
+
+  let maxCount = 0;
+  for (const cell of grid.values()) {
+    if (cell.count > maxCount) maxCount = cell.count;
+  }
+
+  const zones: AisDensityZone[] = [];
+  for (const [key, cell] of grid.entries()) {
+    zones.push({
+      id: `zone-${key}`,
+      name: `Region ${cell.lat}°, ${cell.lon}°`,
+      location: {
+        latitude: cell.lat,
+        longitude: cell.lon,
+      },
+      intensity: maxCount > 0 ? cell.count / maxCount : 0,
+      deltaPct: 0,
+      shipsPerDay: cell.count,
+      note: 'Generated from vessel positions',
+    });
+  }
+
+  return zones.sort((a, b) => b.shipsPerDay - a.shipsPerDay).slice(0, 100);
+}
+
+async function fetchVesselSnapshotFromVesselApi(): Promise<VesselSnapshot | undefined> {
+  const apiKey = process.env.VESSELAPI_KEY;
+  if (!apiKey) return undefined;
+
+  try {
+    const response = await fetch('https://api.vesselapi.com/v1/search/vessels', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) return undefined;
+
+    const data = await response.json();
+    const vesselsArray = Array.isArray(data) ? data : (data.vessels || data.data || []);
+    
+    const vessels: VesselPosition[] = vesselsArray.map((v: any) => ({
+      id: String(v.id || v.mmsi || v.imo || ''),
+      lat: Number(v.latitude ?? v.lat),
+      lon: Number(v.longitude ?? v.lon),
+    }));
+
+    const densityZones = calculateDensityZones(vessels);
+
+    return {
+      snapshotAt: Date.now(),
+      densityZones,
+      disruptions: [], 
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 async function fetchVesselSnapshot(): Promise<VesselSnapshot | undefined> {
   // Return cached if fresh
   const now = Date.now();
@@ -69,7 +151,16 @@ async function fetchVesselSnapshot(): Promise<VesselSnapshot | undefined> {
     return inFlightRequest;
   }
 
-  inFlightRequest = fetchVesselSnapshotFromRelay();
+  inFlightRequest = (async () => {
+    let result = await fetchVesselSnapshotFromRelay();
+    if (!result || (result.densityZones.length === 0 && result.disruptions.length === 0)) {
+      const fallbackResult = await fetchVesselSnapshotFromVesselApi();
+      if (fallbackResult) {
+        result = fallbackResult;
+      }
+    }
+    return result;
+  })();
   try {
     const result = await inFlightRequest;
     if (result) {
