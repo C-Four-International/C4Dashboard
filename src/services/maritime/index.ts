@@ -176,65 +176,22 @@ function parseSnapshot(data: unknown): {
 
 // ---- Hybrid Fetch Strategy ----
 
-async function fetchRawRelaySnapshot(includeCandidates: boolean): Promise<unknown> {
-  const query = `?candidates=${includeCandidates ? 'true' : 'false'}`;
+async function fetchSnapshotPayload(_includeCandidates: boolean): Promise<unknown> {
+  const response = await snapshotBreaker.execute(async () => {
+    return client.getVesselSnapshot({});
+  }, emptySnapshotFallback);
 
-  try {
-    const proxied = await fetch(`${SNAPSHOT_PROXY_URL}${query}`, { headers: { Accept: 'application/json' } });
-    if (proxied.ok) return proxied.json();
-  } catch { /* Proxy unavailable -- fall through */ }
-
-  // Local development fallback only.
-  if (isLocalhost && DIRECT_RAILWAY_SNAPSHOT_URL) {
-    try {
-      const railway = await fetch(`${DIRECT_RAILWAY_SNAPSHOT_URL}${query}`, { headers: { Accept: 'application/json' } });
-      if (railway.ok) return railway.json();
-    } catch { /* Railway unavailable -- fall through */ }
+  if (response.snapshot) {
+    return {
+      sequence: 0, // Proto payload does not include relay sequence.
+      status: { connected: true, vessels: 0, messages: 0 },
+      disruptions: response.snapshot.disruptions.map(toDisruptionEvent),
+      density: response.snapshot.densityZones.map(toDensityZone),
+      candidateReports: [],
+    };
   }
 
-  if (isLocalhost) {
-    const local = await fetch(`${LOCAL_SNAPSHOT_FALLBACK}${query}`, { headers: { Accept: 'application/json' } });
-    if (local.ok) return local.json();
-  }
-
-  throw new Error('AIS raw relay snapshot unavailable');
-}
-
-async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown> {
-  if (includeCandidates) {
-    // Candidate reports are only available on the raw relay endpoint.
-    return fetchRawRelaySnapshot(true);
-  }
-
-  try {
-    // Prefer direct relay path to avoid normal web traffic double-hop via Vercel.
-    const payload = await fetchRawRelaySnapshot(false);
-    
-    // If the relay is disconnected and returns no density data, force the proto fallback
-    const raw = payload as AisSnapshotResponse;
-    if (raw?.status?.connected === false && (!raw.density || raw.density.length === 0)) {
-      throw new Error('Relay disconnected with no data; falling back to proto route');
-    }
-    
-    return payload;
-  } catch (rawError) {
-    // Desktop fallback: use proto route when relay URL/local relay is unavailable.
-    const response = await snapshotBreaker.execute(async () => {
-      return client.getVesselSnapshot({});
-    }, emptySnapshotFallback);
-
-    if (response.snapshot) {
-      return {
-        sequence: 0, // Proto payload does not include relay sequence.
-        status: { connected: true, vessels: 0, messages: 0 },
-        disruptions: response.snapshot.disruptions.map(toDisruptionEvent),
-        density: response.snapshot.densityZones.map(toDensityZone),
-        candidateReports: [],
-      };
-    }
-
-    throw rawError;
-  }
+  throw new Error('No snapshot data returned from VesselAPI');
 }
 
 // ---- Callback Emission ----
