@@ -1861,9 +1861,9 @@ const server = http.createServer(async (req, res) => {
 });
 
 function connectUpstream() {
-  // Skip if already connected or connecting
-  if (upstreamSocket?.readyState === WebSocket.OPEN ||
-      upstreamSocket?.readyState === WebSocket.CONNECTING) return;
+  // AISStream.io is down indefinitely. Disabled to prevent infinite connection loops.
+  // console.log('[Relay] AISStream is disabled. Awaiting new provider.');
+  return;
 
   console.log('[Relay] Connecting to aisstream.io...');
   const socket = new WebSocket(AISSTREAM_URL);

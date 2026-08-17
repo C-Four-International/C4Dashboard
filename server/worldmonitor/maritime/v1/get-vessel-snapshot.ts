@@ -110,35 +110,58 @@ async function fetchVesselSnapshotFromVesselApi(): Promise<VesselSnapshot | unde
     return undefined;
   }
 
+  const CHOKEPOINTS = [
+    { name: 'Strait of Hormuz', lat: 26.5, lon: 56.5 },
+    { name: 'Suez Canal', lat: 30.0, lon: 32.5 },
+    { name: 'Strait of Malacca', lat: 2.5, lon: 101.5 },
+    { name: 'Bab el-Mandeb', lat: 12.5, lon: 43.5 },
+    { name: 'Panama Canal', lat: 9.0, lon: -79.5 },
+    { name: 'Taiwan Strait', lat: 24.5, lon: 119.5 },
+  ];
+
+  let allVessels: VesselPosition[] = [];
+
   try {
-    const response = await fetch('https://api.vesselapi.com/v1/search/vessels?pagination.limit=1000&filter.vesselType=Cargo', {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Accept': 'application/json',
-      },
-      signal: AbortSignal.timeout(10000),
+    const fetchPromises = CHOKEPOINTS.map(async (cp) => {
+      // Bounding box size: 2 lat x 2 lon (4 total span, exactly the VesselAPI limit)
+      const url = `https://api.vesselapi.com/v1/location/vessels/bounding-box?filter.lonLeft=${cp.lon - 1}&filter.lonRight=${cp.lon + 1}&filter.latBottom=${cp.lat - 1}&filter.latTop=${cp.lat + 1}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!response.ok) {
+        console.warn(`[VesselAPI] Bounding box ${cp.name} failed: ${response.status}`);
+        return [];
+      }
+      
+      const data = await response.json();
+      const vesselsArray = Array.isArray(data) ? data : (data.vessels || data.data || []);
+      
+      return vesselsArray.map((v: any) => ({
+        id: String(v.id || v.mmsi || v.imo || ''),
+        lat: Number(v.latitude ?? v.lat),
+        lon: Number(v.longitude ?? v.lon),
+      }));
     });
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error(`[VesselAPI Fallback] API responded with status ${response.status}:`, errText);
-      return undefined;
-    }
-
-    const data = await response.json();
-    const vesselsArray = Array.isArray(data) ? data : (data.vessels || data.data || []);
+    const results = await Promise.allSettled(fetchPromises);
     
-    if (vesselsArray.length === 0) {
-      console.warn('[VesselAPI Fallback] API returned successfully but no vessels were found in the response.');
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        allVessels = allVessels.concat(result.value);
+      }
     }
 
-    const vessels: VesselPosition[] = vesselsArray.map((v: any) => ({
-      id: String(v.id || v.mmsi || v.imo || ''),
-      lat: Number(v.latitude ?? v.lat),
-      lon: Number(v.longitude ?? v.lon),
-    }));
+    if (allVessels.length === 0) {
+      console.warn('[VesselAPI Fallback] API returned successfully but no vessels were found in the targeted chokepoints.');
+    }
 
-    const densityZones = calculateDensityZones(vessels);
+    const densityZones = calculateDensityZones(allVessels);
 
     return {
       snapshotAt: Date.now(),
