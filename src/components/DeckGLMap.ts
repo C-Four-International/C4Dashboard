@@ -1624,7 +1624,7 @@ export class DeckGLMap {
       getColor: [255, 255, 255, 255],
       getAlignmentBaseline: 'center',
       getTextAnchor: 'middle',
-      parameters: { depthTest: false },
+      parameters: { depthCompare: 'always' },
       pickable: false
     });
 
