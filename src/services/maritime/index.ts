@@ -177,7 +177,7 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
 
   if (includeCandidates) {
     try {
-      const relayRes = await globalThis.fetch('/api/ais-snapshot?cand=1');
+      const relayRes = await globalThis.fetch('/api/ais-snapshot?candidates=true');
       if (relayRes.ok) {
         const relayData = await relayRes.json() as AisSnapshotResponse;
         if (relayData.candidateReports) {
