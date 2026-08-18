@@ -556,10 +556,11 @@ export async function fetchMilitaryVessels(): Promise<{
     let vessels: MilitaryVessel[] = [];
 
     // Check cache first, but still run USNI merge so output is consistent.
-    if (vesselCache && Date.now() - vesselCache.timestamp < CACHE_TTL) {
-      vessels = vesselCache.data;
-      console.log(`[Military Vessels] Returning cached base vessels: ${vessels.length}`);
-    } else {
+    // TEMPORARILY DISABLED CACHE AS REQUESTED BY USER
+    // if (vesselCache && Date.now() - vesselCache.timestamp < CACHE_TTL) {
+    //   vessels = vesselCache.data;
+    //   console.log(`[Military Vessels] Returning cached base vessels: ${vessels.length}`);
+    // } else {
       // Initialize stream if not running
       if (!isTracking && isAisConfigured()) {
         console.log('[Military Vessels] Initializing stream from fetchMilitaryVessels...');
@@ -577,7 +578,7 @@ export async function fetchMilitaryVessels(): Promise<{
       if (vessels.length > 0) {
         vesselCache = { data: vessels, timestamp: Date.now() };
       }
-    }
+    // }
 
     // Generate AIS-only clusters
     const aisClusters = clusterVessels(vessels);
