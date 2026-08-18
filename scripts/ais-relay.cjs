@@ -536,7 +536,10 @@ const SNAPSHOT_INTERVAL_MS = Math.max(2000, Number(process.env.AIS_SNAPSHOT_INTE
 const CANDIDATE_RETENTION_MS = 6 * 60 * 60 * 1000; // 6 hours
 const MAX_DENSITY_ZONES = 200;
 const MAX_CANDIDATE_REPORTS = 5000;
+const VESSEL_META_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_VESSEL_META = 100000;
 
+const vesselMeta = new Map();
 const vessels = new Map();
 const vesselHistory = new Map();
 const densityGrid = new Map();
@@ -691,6 +694,20 @@ function processRawUpstreamMessage(raw) {
     const parsed = JSON.parse(raw);
     if (parsed?.MessageType === 'PositionReport') {
       processPositionReportForSnapshot(parsed);
+    } else if (parsed?.MessageType === 'ShipStaticData') {
+      const meta = parsed.MetaData || {};
+      const sd = parsed.Message?.ShipStaticData || {};
+      const mmsi = String(meta.MMSI || sd.UserID || '');
+      if (mmsi) {
+        const shipType = Number(sd.Type);
+        if (Number.isFinite(shipType) && shipType > 0) {
+          vesselMeta.set(mmsi, {
+            shipType,
+            shipName: (sd.Name || meta.ShipName || '').trim(),
+            lastSeen: Date.now(),
+          });
+        }
+      }
     }
   } catch {
     // Ignore malformed upstream payloads
@@ -725,13 +742,19 @@ function processPositionReportForSnapshot(data) {
 
   const now = Date.now();
 
+  const cachedMeta = vesselMeta.get(mmsi);
+  const effectiveShipType = Number.isFinite(Number(meta.ShipType))
+    ? Number(meta.ShipType)
+    : (cachedMeta ? cachedMeta.shipType : undefined);
+  const effectiveShipName = (meta.ShipName || (cachedMeta ? cachedMeta.shipName : '')).trim();
+
   vessels.set(mmsi, {
     mmsi,
-    name: meta.ShipName || '',
+    name: effectiveShipName,
     lat,
     lon,
     timestamp: now,
-    shipType: meta.ShipType,
+    shipType: effectiveShipType,
     heading: pos.TrueHeading,
     speed: pos.Sog,
     course: pos.Cog,
@@ -762,10 +785,10 @@ function processPositionReportForSnapshot(data) {
 
   candidateReports.set(mmsi, {
     mmsi,
-    name: meta.ShipName || '',
+    name: effectiveShipName,
     lat,
     lon,
-    shipType: meta.ShipType,
+    shipType: effectiveShipType,
     heading: pos.TrueHeading,
     speed: pos.Sog,
     course: pos.Cog,
@@ -803,6 +826,13 @@ function cleanupAggregates() {
   }
   // Hard cap: keep the most recent vessel histories.
   evictMapByTimestamp(vesselHistory, MAX_VESSEL_HISTORY, (history) => history[history.length - 1] || 0);
+
+  for (const [mmsi, entry] of vesselMeta) {
+    if (entry.lastSeen < now - VESSEL_META_TTL_MS) {
+      vesselMeta.delete(mmsi);
+    }
+  }
+  evictMapByTimestamp(vesselMeta, MAX_VESSEL_META, (entry) => entry.lastSeen || 0);
 
   for (const [key, cell] of densityGrid) {
     cell.previousCount = cell.vessels.size;
@@ -1921,7 +1951,7 @@ function connectUpstream() {
         [Math.max(-90, cp.lat - 5), Math.max(-180, cp.lon - 5)],
         [Math.min(90, cp.lat + 5), Math.min(180, cp.lon + 5)]
       ]),
-      FilterMessageTypes: ['PositionReport'],
+      FilterMessageTypes: ['PositionReport', 'ShipStaticData'],
     }));
   });
 
