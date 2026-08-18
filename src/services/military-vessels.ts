@@ -375,7 +375,7 @@ function processAisPosition(data: AisPositionData): void {
   if (existingVessel) {
     const timeSinceLastUpdate = now - existingVessel.lastAisUpdate.getTime();
     aisGapMinutes = Math.round(timeSinceLastUpdate / (60 * 1000));
-    isDark = aisGapMinutes > 60; // 1 hour gap
+    isDark = aisGapMinutes > 60 && aisGapMinutes <= 7 * 24 * 60; // 1 hour gap min, 7 days max
   }
 
   // Create/update vessel record

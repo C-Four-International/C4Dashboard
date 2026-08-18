@@ -882,7 +882,9 @@ function detectDisruptions() {
     if (history.length >= 2) {
       const lastSeen = history[history.length - 1];
       const secondLast = history[history.length - 2];
-      if (lastSeen - secondLast > GAP_THRESHOLD && now - lastSeen < 10 * 60 * 1000) {
+      const gapDuration = lastSeen - secondLast;
+      const MAX_GAP_THRESHOLD = 7 * 24 * 60 * 60 * 1000; // 7 days
+      if (gapDuration > GAP_THRESHOLD && gapDuration <= MAX_GAP_THRESHOLD && now - lastSeen < 10 * 60 * 1000) {
         darkShipCount++;
       }
     }
