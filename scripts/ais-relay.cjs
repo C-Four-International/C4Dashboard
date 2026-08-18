@@ -1947,10 +1947,7 @@ function connectUpstream() {
     console.log('[Relay] Connected to aisstream.io');
     socket.send(JSON.stringify({
       APIKey: API_KEY,
-      BoundingBoxes: CHOKEPOINTS.map(cp => [
-        [Math.max(-90, cp.lat - 5), Math.max(-180, cp.lon - 5)],
-        [Math.min(90, cp.lat + 5), Math.min(180, cp.lon + 5)]
-      ]),
+      BoundingBoxes: [[[-90, -180], [90, 180]]],
       FilterMessageTypes: ['PositionReport', 'ShipStaticData'],
     }));
   });
