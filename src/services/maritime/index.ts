@@ -172,6 +172,7 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
   }, emptySnapshotFallback);
 
   let candidateReports: SnapshotCandidateReport[] = [];
+  let relayDensity: AisDensityZone[] = [];
   let status: SnapshotStatus = { connected: true, vessels: 0, messages: 0 };
   let sequence = 0;
 
@@ -182,6 +183,9 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
         const relayData = await relayRes.json() as AisSnapshotResponse;
         if (relayData.candidateReports) {
           candidateReports = relayData.candidateReports;
+        }
+        if (relayData.density) {
+          relayDensity = relayData.density;
         }
         if (relayData.status) {
           status = {
@@ -200,11 +204,16 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
   }
 
   if (response.snapshot) {
+    // The original fork used the live density grid from the relay backend, 
+    // replacing or supplementing the static IMF chokepoint data from the gRPC service.
+    const grpcDensity = response.snapshot.densityZones.map(toDensityZone);
+    const combinedDensity = relayDensity.length > 0 ? relayDensity : grpcDensity;
+
     return {
       sequence,
       status,
       disruptions: response.snapshot.disruptions.map(toDisruptionEvent),
-      density: response.snapshot.densityZones.map(toDensityZone),
+      density: combinedDensity,
       candidateReports,
     };
   }
