@@ -535,7 +535,7 @@ const GAP_THRESHOLD = 60 * 60 * 1000; // 1 hour
 const SNAPSHOT_INTERVAL_MS = Math.max(2000, Number(process.env.AIS_SNAPSHOT_INTERVAL_MS || 5000));
 const CANDIDATE_RETENTION_MS = 6 * 60 * 60 * 1000; // 6 hours
 const MAX_DENSITY_ZONES = 5000;
-const MAX_CANDIDATE_REPORTS = 5000;
+const MAX_CANDIDATE_REPORTS = 25000;
 const VESSEL_META_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_VESSEL_META = 100000;
 
@@ -940,7 +940,7 @@ function detectDisruptions() {
 
 function calculateDensityZones() {
   const zones = [];
-  const allCells = Array.from(densityGrid.values()).filter((c) => c.vessels.size >= 2);
+  const allCells = Array.from(densityGrid.values()).filter((c) => c.vessels.size >= 1);
   if (allCells.length === 0) return zones;
 
   const vesselCounts = allCells.map((c) => c.vessels.size);
@@ -948,7 +948,7 @@ function calculateDensityZones() {
   const minVessels = Math.min(...vesselCounts);
 
   for (const [key, cell] of densityGrid) {
-    if (cell.vessels.size < 2) continue;
+    if (cell.vessels.size < 1) continue;
 
     const logMax = Math.log(maxVessels + 1);
     const logMin = Math.log(minVessels + 1);
@@ -1599,7 +1599,7 @@ const server = http.createServer(async (req, res) => {
       connected: upstreamSocket?.readyState === WebSocket.OPEN,
       upstreamPaused,
       vessels: vessels.size,
-      densityZones: Array.from(densityGrid.values()).filter(c => c.vessels.size >= 2).length,
+      densityZones: Array.from(densityGrid.values()).filter(c => c.vessels.size >= 1).length,
       telegram: {
         enabled: TELEGRAM_ENABLED,
         channels: telegramState.channels?.length || 0,
