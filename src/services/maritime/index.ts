@@ -166,18 +166,46 @@ function parseSnapshot(data: unknown): {
 
 // ---- Hybrid Fetch Strategy ----
 
-async function fetchSnapshotPayload(_includeCandidates: boolean): Promise<unknown> {
+async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown> {
   const response = await snapshotBreaker.execute(async () => {
     return client.getVesselSnapshot({});
   }, emptySnapshotFallback);
 
+  let candidateReports: SnapshotCandidateReport[] = [];
+  let status: SnapshotStatus = { connected: true, vessels: 0, messages: 0 };
+  let sequence = 0;
+
+  if (includeCandidates) {
+    try {
+      const relayRes = await globalThis.fetch('/api/ais-snapshot?cand=1');
+      if (relayRes.ok) {
+        const relayData = await relayRes.json() as AisSnapshotResponse;
+        if (relayData.candidateReports) {
+          candidateReports = relayData.candidateReports;
+        }
+        if (relayData.status) {
+          status = {
+            connected: Boolean(relayData.status.connected),
+            vessels: Number(relayData.status.vessels) || 0,
+            messages: Number(relayData.status.messages) || 0,
+          };
+        }
+        if (relayData.sequence) {
+          sequence = Number(relayData.sequence);
+        }
+      }
+    } catch (e) {
+      console.warn('[AIS Frontend] Failed to fetch relay snapshot for candidates', e);
+    }
+  }
+
   if (response.snapshot) {
     return {
-      sequence: 0, // Proto payload does not include relay sequence.
-      status: { connected: true, vessels: 0, messages: 0 },
+      sequence,
+      status,
       disruptions: response.snapshot.disruptions.map(toDisruptionEvent),
       density: response.snapshot.densityZones.map(toDensityZone),
-      candidateReports: [],
+      candidateReports,
     };
   }
 
