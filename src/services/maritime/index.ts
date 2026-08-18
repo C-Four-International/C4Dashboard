@@ -167,26 +167,21 @@ function parseSnapshot(data: unknown): {
 // ---- Hybrid Fetch Strategy ----
 
 async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown> {
-  const response = await snapshotBreaker.execute(async () => {
-    return client.getVesselSnapshot({});
-  }, emptySnapshotFallback);
-
   let candidateReports: SnapshotCandidateReport[] = [];
-  let relayDensity: AisDensityZone[] = [];
+  let relayDensity: AisDensityZone[] | null = null;
+  let relayDisruptions: AisDisruptionEvent[] | null = null;
   let status: SnapshotStatus = { connected: true, vessels: 0, messages: 0 };
   let sequence = 0;
+  let relaySuccess = false;
 
   if (includeCandidates) {
     try {
       const relayRes = await globalThis.fetch('/api/ais-snapshot?candidates=true');
       if (relayRes.ok) {
         const relayData = await relayRes.json() as AisSnapshotResponse;
-        if (relayData.candidateReports) {
-          candidateReports = relayData.candidateReports;
-        }
-        if (relayData.density) {
-          relayDensity = relayData.density;
-        }
+        if (relayData.candidateReports) candidateReports = relayData.candidateReports;
+        if (relayData.density) relayDensity = relayData.density;
+        if (relayData.disruptions) relayDisruptions = relayData.disruptions;
         if (relayData.status) {
           status = {
             connected: Boolean(relayData.status.connected),
@@ -194,31 +189,52 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
             messages: Number(relayData.status.messages) || 0,
           };
         }
-        if (relayData.sequence) {
-          sequence = Number(relayData.sequence);
-        }
+        if (relayData.sequence) sequence = Number(relayData.sequence);
+        relaySuccess = true;
       }
     } catch (e) {
       console.warn('[AIS Frontend] Failed to fetch relay snapshot for candidates', e);
     }
   }
 
-  if (response.snapshot) {
-    // The original fork used the live density grid from the relay backend, 
-    // replacing or supplementing the static IMF chokepoint data from the gRPC service.
-    const grpcDensity = response.snapshot.densityZones.map(toDensityZone);
-    const combinedDensity = relayDensity.length > 0 ? relayDensity : grpcDensity;
-
+  // If relay provided density and disruptions, we don't need the fallback
+  if (relaySuccess && relayDensity && relayDisruptions) {
     return {
       sequence,
       status,
-      disruptions: response.snapshot.disruptions.map(toDisruptionEvent),
-      density: combinedDensity,
+      disruptions: relayDisruptions,
+      density: relayDensity,
       candidateReports,
     };
   }
 
-  throw new Error('No snapshot data returned from VesselAPI');
+  // Fallback to VesselAPI
+  const response = await snapshotBreaker.execute(async () => {
+    return client.getVesselSnapshot({});
+  }, emptySnapshotFallback);
+
+  if (response.snapshot) {
+    return {
+      sequence,
+      status,
+      disruptions: relayDisruptions || response.snapshot.disruptions.map(toDisruptionEvent),
+      density: relayDensity || response.snapshot.densityZones.map(toDensityZone),
+      candidateReports,
+    };
+  }
+
+  // If VesselAPI failed but we have partial relay data, return what we have
+  if (relaySuccess) {
+    return {
+      sequence,
+      status,
+      disruptions: relayDisruptions || [],
+      density: relayDensity || [],
+      candidateReports,
+    };
+  }
+
+  throw new Error('No snapshot data returned from VesselAPI or relay');
 }
 
 // ---- Callback Emission ----
