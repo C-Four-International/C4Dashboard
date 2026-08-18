@@ -16,7 +16,7 @@ import {
 import { fetchUSNIFleetReport, mergeUSNIWithAIS } from './usni-fleet';
 
 // Cache for API responses
-let vesselCache: { data: MilitaryVessel[]; timestamp: number } | null = null;
+// let vesselCache: { data: MilitaryVessel[]; timestamp: number } | null = null;
 
 // In-memory vessel tracking
 const trackedVessels = new Map<string, MilitaryVessel>();
@@ -409,7 +409,7 @@ function processAisPosition(data: AisPositionData): void {
   // Clear stale caches when first vessels arrive or when we hit significant milestones
   // This ensures cached empty results don't block fresh data
   if (previousSize === 0 || (trackedVessels.size === 10 && previousSize < 10)) {
-    vesselCache = null;
+    // vesselCache = null;
     breaker.clearCache();
     console.log(`[Military Vessels] Cleared caches - first vessels arriving (count: ${trackedVessels.size})`);
   }
@@ -505,7 +505,7 @@ export function initMilitaryVesselStream(): void {
   console.log('[Military Vessels] Initializing tracking via shared AIS stream...');
 
   // Invalidate ALL caches when stream starts - fresh data should be read
-  vesselCache = null;
+  // vesselCache = null;
   breaker.clearCache();  // Clear circuit breaker's 5-minute cache too!
 
   // Register callback with shared AIS stream
@@ -540,7 +540,7 @@ export function getMilitaryVesselStatus(): { connected: boolean; vessels: number
 }
 
 // Cache TTL
-const CACHE_TTL = 30 * 1000; // 30 seconds
+// const CACHE_TTL = 30 * 1000; // 30 seconds
 
 /**
  * Main function to get military vessels
@@ -575,9 +575,9 @@ export async function fetchMilitaryVessels(): Promise<{
       console.log(`[Military Vessels] After cleanup, returning ${vessels.length} vessels (trackedVessels.size: ${trackedVessels.size})`);
 
       // Only cache non-empty results - empty results due to timing shouldn't block future calls
-      if (vessels.length > 0) {
-        vesselCache = { data: vessels, timestamp: Date.now() };
-      }
+      // if (vessels.length > 0) {
+      //   vesselCache = { data: vessels, timestamp: Date.now() };
+      // }
     // }
 
     // Generate AIS-only clusters
