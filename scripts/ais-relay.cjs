@@ -533,9 +533,9 @@ const GRID_SIZE = 2;
 const DENSITY_WINDOW = 30 * 60 * 1000; // 30 minutes
 const GAP_THRESHOLD = 60 * 60 * 1000; // 1 hour
 const SNAPSHOT_INTERVAL_MS = Math.max(2000, Number(process.env.AIS_SNAPSHOT_INTERVAL_MS || 5000));
-const CANDIDATE_RETENTION_MS = 2 * 60 * 60 * 1000; // 2 hours
+const CANDIDATE_RETENTION_MS = 6 * 60 * 60 * 1000; // 6 hours
 const MAX_DENSITY_ZONES = 200;
-const MAX_CANDIDATE_REPORTS = 1500;
+const MAX_CANDIDATE_REPORTS = 5000;
 
 const vessels = new Map();
 const vesselHistory = new Map();
@@ -760,19 +760,17 @@ function processPositionReportForSnapshot(data) {
   // Maintain exact chokepoint membership so moving vessels don't get "stuck" in old buckets.
   updateVesselChokepoints(mmsi, lat, lon);
 
-  if (isLikelyMilitaryCandidate(meta)) {
-    candidateReports.set(mmsi, {
-      mmsi,
-      name: meta.ShipName || '',
-      lat,
-      lon,
-      shipType: meta.ShipType,
-      heading: pos.TrueHeading,
-      speed: pos.Sog,
-      course: pos.Cog,
-      timestamp: now,
-    });
-  }
+  candidateReports.set(mmsi, {
+    mmsi,
+    name: meta.ShipName || '',
+    lat,
+    lon,
+    shipType: meta.ShipType,
+    heading: pos.TrueHeading,
+    speed: pos.Sog,
+    course: pos.Cog,
+    timestamp: now,
+  });
 }
 
 function cleanupAggregates() {
@@ -1917,7 +1915,10 @@ function connectUpstream() {
     console.log('[Relay] Connected to aisstream.io');
     socket.send(JSON.stringify({
       APIKey: API_KEY,
-      BoundingBoxes: [[[-90, -180], [90, 180]]],
+      BoundingBoxes: CHOKEPOINTS.map(cp => [
+        [Math.max(-90, cp.lat - 5), Math.max(-180, cp.lon - 5)],
+        [Math.min(90, cp.lat + 5), Math.min(180, cp.lon + 5)]
+      ]),
       FilterMessageTypes: ['PositionReport'],
     }));
   });
