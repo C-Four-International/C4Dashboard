@@ -266,7 +266,8 @@ interface RegionResult {
 
 async function fetchQueryRegion(region: QueryRegion): Promise<RegionResult> {
   const query = `lamin=${region.lamin}&lamax=${region.lamax}&lomin=${region.lomin}&lomax=${region.lomax}`;
-  const urls = [`${OPENSKY_PROXY_URL}?${query}`];
+  // const urls = [`${OPENSKY_PROXY_URL}?${query}`];
+  const urls: string[] = [];
   if (isLocalhostRuntime && DIRECT_OPENSKY_BASE_URL) {
     urls.push(`${DIRECT_OPENSKY_BASE_URL}?${query}`);
   }
