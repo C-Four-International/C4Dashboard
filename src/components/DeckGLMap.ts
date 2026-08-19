@@ -586,8 +586,8 @@ export class DeckGLMap {
             }
             
             const dummyGibsUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/2026-08-19T00:00:00Z/GoogleMapsCompatible_Level7/{z}/{y}/{x}.jpg`;
-            this.maplibreMap.addSource('gibs-source-a', { type: 'raster', tiles: [dummyGibsUrl], tileSize: 256, bounds: [-156, -81, 6, 81] });
-            this.maplibreMap.addSource('gibs-source-b', { type: 'raster', tiles: [dummyGibsUrl], tileSize: 256, bounds: [-156, -81, 6, 81] });
+            this.maplibreMap.addSource('gibs-source-a', { type: 'raster', tiles: [dummyGibsUrl], tileSize: 256 });
+            this.maplibreMap.addSource('gibs-source-b', { type: 'raster', tiles: [dummyGibsUrl], tileSize: 256 });
             this.maplibreMap.addLayer({ id: 'gibs-layer-a', type: 'raster', source: 'gibs-source-a', paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 1000 } } }, 'maptiler-precipitation');
             this.maplibreMap.addLayer({ id: 'gibs-layer-b', type: 'raster', source: 'gibs-source-b', paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 1000 } } }, 'maptiler-precipitation');
           }
