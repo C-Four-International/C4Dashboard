@@ -501,7 +501,6 @@ export interface MapLayers {
   sanctions: boolean;
   weather: boolean;
   weatherRadar: boolean;
-  gibsCloud?: boolean;
   aqi?: boolean;
   gpsJamming: boolean;
   agriculturalStressDI: boolean;
