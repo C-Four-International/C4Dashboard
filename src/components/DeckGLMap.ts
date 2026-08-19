@@ -503,10 +503,10 @@ export class DeckGLMap {
           this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
 
           if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
-            this.mapTilerPrecipitationLayer.animateByFactor(3600);
+            this.mapTilerPrecipitationLayer.animateByFactor(600);
           }
           if (typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
-            this.mapTilerRadarLayer.animateByFactor(3600);
+            this.mapTilerRadarLayer.animateByFactor(600);
           }
 
           const isWeatherRadarEnabled = this.state.layers.weatherRadar;
@@ -539,7 +539,7 @@ export class DeckGLMap {
           const speedUpBtn = this.weatherTimeBar.querySelector('.weather-speed-up') as HTMLButtonElement;
 
           let isPlaying = true;
-          let speedMultiplier = 3600; // default 1 hour per sec
+          let speedMultiplier = 600; // default 10 minutes per sec
 
           playPauseBtn.addEventListener('click', () => {
             if (!this.mapTilerPrecipitationLayer) return;
