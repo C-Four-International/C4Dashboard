@@ -575,7 +575,7 @@ export class DeckGLMap {
           });
 
           speedDownBtn.addEventListener('click', () => {
-            speedMultiplier = Math.max(speedMultiplier / 2, 60);
+            speedMultiplier = Math.max(speedMultiplier / 2, 600); // min 10 minutes per second
             if (isPlaying && this.mapTilerPrecipitationLayer && typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
               this.mapTilerPrecipitationLayer.animateByFactor(speedMultiplier);
             }
