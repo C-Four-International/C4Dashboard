@@ -13,7 +13,7 @@ import { UPSTREAM_TIMEOUT_MS, GEMINI_API_URL, GEMINI_MODEL, hashString } from '.
 import { CHROME_UA } from '../../../_shared/constants';
 
 // ========================================================================
-// Constants
+// Constant
 // ========================================================================
 
 const CLASSIFY_CACHE_TTL = 86400;
