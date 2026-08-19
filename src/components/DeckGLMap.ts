@@ -510,15 +510,92 @@ export class DeckGLMap {
           }
 
           const isWeatherRadarEnabled = this.state.layers.weatherRadar;
-          if (isWeatherRadarEnabled) {
+          const isGibsCloudEnabled = this.state.layers.gibsCloud;
+          const showWeatherBar = isWeatherRadarEnabled || isGibsCloudEnabled;
+          
+          let activeGibsBuffer: 'a' | 'b' | null = null;
+          let currentGibsTimeStr: string | null = null;
+          const gibsCutoffOffsetMs = 40 * 60000; // 40 minutes delay for GOES real-time availability
+
+          const updateGibsLayer = (currentEngineTimeMs: number) => {
+             if (!this.state.layers.gibsCloud) {
+                if (activeGibsBuffer) {
+                   this.maplibreMap?.setPaintProperty(`gibs-layer-${activeGibsBuffer}`, 'raster-opacity', 0);
+                   activeGibsBuffer = null;
+                   currentGibsTimeStr = null;
+                }
+                return;
+             }
+
+             if (currentEngineTimeMs > Date.now() - gibsCutoffOffsetMs) {
+                if (activeGibsBuffer) {
+                   this.maplibreMap?.setPaintProperty(`gibs-layer-${activeGibsBuffer}`, 'raster-opacity', 0);
+                   activeGibsBuffer = null;
+                   currentGibsTimeStr = null;
+                }
+                return;
+             }
+
+             const d = new Date(currentEngineTimeMs);
+             d.setMinutes(Math.floor(d.getMinutes() / 10) * 10);
+             d.setSeconds(0, 0);
+             const timeStr = d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+             if (timeStr === currentGibsTimeStr) return;
+             currentGibsTimeStr = timeStr;
+
+             const newUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/${timeStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`;
+             const targetBuffer = activeGibsBuffer === 'a' ? 'b' : 'a';
+
+             if (this.maplibreMap?.getLayer(`gibs-layer-${targetBuffer}`)) {
+                this.maplibreMap.removeLayer(`gibs-layer-${targetBuffer}`);
+             }
+             if (this.maplibreMap?.getSource(`gibs-source-${targetBuffer}`)) {
+                this.maplibreMap.removeSource(`gibs-source-${targetBuffer}`);
+             }
+
+             this.maplibreMap?.addSource(`gibs-source-${targetBuffer}`, { type: 'raster', tiles: [newUrl], tileSize: 256 });
+             this.maplibreMap?.addLayer({ 
+                id: `gibs-layer-${targetBuffer}`, 
+                type: 'raster', 
+                source: `gibs-source-${targetBuffer}`, 
+                paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 1000 } } 
+             }, 'maptiler-precipitation');
+
+             const onSourceData = (e: any) => {
+                if (e.sourceId === `gibs-source-${targetBuffer}` && e.isSourceLoaded) {
+                   this.maplibreMap?.off('sourcedata', onSourceData);
+                   this.maplibreMap?.setPaintProperty(`gibs-layer-${targetBuffer}`, 'raster-opacity', 0.8);
+                   if (activeGibsBuffer) {
+                      this.maplibreMap?.setPaintProperty(`gibs-layer-${activeGibsBuffer}`, 'raster-opacity', 0);
+                   }
+                   activeGibsBuffer = targetBuffer;
+                }
+             };
+             this.maplibreMap?.on('sourcedata', onSourceData);
+          };
+
+          if (showWeatherBar) {
             this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
             this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
+            
+            // Hide MapTiler layers if only GIBS is enabled
+            if (!isWeatherRadarEnabled) {
+              this.maplibreMap.setLayoutProperty('maptiler-precipitation', 'visibility', 'none');
+              this.maplibreMap.setLayoutProperty('maptiler-radar', 'visibility', 'none');
+            }
+            
+            const dummyGibsUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/2026-08-19T00:00:00Z/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`;
+            this.maplibreMap.addSource('gibs-source-a', { type: 'raster', tiles: [dummyGibsUrl], tileSize: 256 });
+            this.maplibreMap.addSource('gibs-source-b', { type: 'raster', tiles: [dummyGibsUrl], tileSize: 256 });
+            this.maplibreMap.addLayer({ id: 'gibs-layer-a', type: 'raster', source: 'gibs-source-a', paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 1000 } } }, 'maptiler-precipitation');
+            this.maplibreMap.addLayer({ id: 'gibs-layer-b', type: 'raster', source: 'gibs-source-b', paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 1000 } } }, 'maptiler-precipitation');
           }
 
           // Initialize Weather Time Tracking Bar
           this.weatherTimeBar = document.createElement('div');
           this.weatherTimeBar.className = 'weather-time-bar';
-          this.weatherTimeBar.style.display = isWeatherRadarEnabled ? 'flex' : 'none';
+          this.weatherTimeBar.style.display = showWeatherBar ? 'flex' : 'none';
 
           this.weatherTimeBar.innerHTML = `
             <div class="weather-controls">
@@ -565,7 +642,7 @@ export class DeckGLMap {
           });
 
           speedUpBtn.addEventListener('click', () => {
-            speedMultiplier = Math.min(speedMultiplier * 2, 86400);
+            speedMultiplier = Math.min(speedMultiplier * 2, 10800);
             if (isPlaying && this.mapTilerPrecipitationLayer && typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
               this.mapTilerPrecipitationLayer.animateByFactor(speedMultiplier);
             }
@@ -590,6 +667,8 @@ export class DeckGLMap {
             const date = typeof this.mapTilerPrecipitationLayer.getAnimationTimeDate === 'function'
               ? this.mapTilerPrecipitationLayer.getAnimationTimeDate()
               : new Date();
+
+            updateGibsLayer(date.getTime());
 
             timeText.innerText = new Intl.DateTimeFormat('en-US', {
               month: 'short', day: 'numeric', year: 'numeric',
@@ -3640,6 +3719,7 @@ export class DeckGLMap {
           { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
           { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
           { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
+          { key: 'gibsCloud', label: 'NASA Cloud Cover', icon: '☁️' },
           { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
           { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
           { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
@@ -3655,6 +3735,7 @@ export class DeckGLMap {
             { key: 'renewableInstallations', label: 'Clean Energy', icon: '&#9889;' },
             { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
             { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
+            { key: 'gibsCloud', label: 'NASA Cloud Cover', icon: '☁️' },
             { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
             { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
           ]
@@ -3677,6 +3758,7 @@ export class DeckGLMap {
             { key: 'climate', label: t('components.deckgl.layers.climateAnomalies'), icon: '&#127787;' },
             { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
             { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
+            { key: 'gibsCloud', label: 'NASA Cloud Cover', icon: '☁️' },
             { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
             { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
             { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
@@ -4079,36 +4161,46 @@ export class DeckGLMap {
     if (this.maplibreMap) {
       try {
         const isWeatherRadarEnabled = this.state.layers.weatherRadar;
+        const isGibsCloudEnabled = this.state.layers.gibsCloud;
+        const showWeatherBar = isWeatherRadarEnabled || isGibsCloudEnabled;
 
-        // Handle Precipitation Layer
-        if (isWeatherRadarEnabled) {
+        if (showWeatherBar) {
           if (!this.maplibreMap.getLayer('maptiler-precipitation') && this.mapTilerPrecipitationLayer) {
             this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
           } else if (this.maplibreMap.getLayer('maptiler-precipitation')) {
             this.maplibreMap.moveLayer('maptiler-precipitation');
           }
-        } else {
           if (this.maplibreMap.getLayer('maptiler-precipitation')) {
-            this.maplibreMap.removeLayer('maptiler-precipitation');
+            this.maplibreMap.setLayoutProperty('maptiler-precipitation', 'visibility', isWeatherRadarEnabled ? 'visible' : 'none');
           }
-        }
 
-        // Handle Radar Layer
-        if (isWeatherRadarEnabled) {
           if (!this.maplibreMap.getLayer('maptiler-radar') && this.mapTilerRadarLayer) {
             this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
           } else if (this.maplibreMap.getLayer('maptiler-radar')) {
             this.maplibreMap.moveLayer('maptiler-radar');
           }
+          if (this.maplibreMap.getLayer('maptiler-radar')) {
+             this.maplibreMap.setLayoutProperty('maptiler-radar', 'visibility', isWeatherRadarEnabled ? 'visible' : 'none');
+          }
         } else {
+          if (this.maplibreMap.getLayer('maptiler-precipitation')) {
+            this.maplibreMap.removeLayer('maptiler-precipitation');
+          }
           if (this.maplibreMap.getLayer('maptiler-radar')) {
             this.maplibreMap.removeLayer('maptiler-radar');
           }
         }
+        
+        if (this.maplibreMap.getLayer('gibs-layer-a')) {
+           this.maplibreMap.setLayoutProperty('gibs-layer-a', 'visibility', isGibsCloudEnabled ? 'visible' : 'none');
+        }
+        if (this.maplibreMap.getLayer('gibs-layer-b')) {
+           this.maplibreMap.setLayoutProperty('gibs-layer-b', 'visibility', isGibsCloudEnabled ? 'visible' : 'none');
+        }
 
         // Toggle Time Tracking Bar Visibility
         if (this.weatherTimeBar) {
-          this.weatherTimeBar.style.display = isWeatherRadarEnabled ? 'flex' : 'none';
+          this.weatherTimeBar.style.display = showWeatherBar ? 'flex' : 'none';
         }
       } catch (e) {
         console.warn('[DeckGLMap] Failed to toggle weather layers:', e);
