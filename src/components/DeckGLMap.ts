@@ -544,7 +544,7 @@ export class DeckGLMap {
              if (timeStr === currentGibsTimeStr) return;
              currentGibsTimeStr = timeStr;
 
-             const newUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/${timeStr}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.jpg`;
+             const newUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/${timeStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`;
              const targetBuffer = activeGibsBuffer === 'a' ? 'b' : 'a';
 
              if (this.maplibreMap?.getLayer(`gibs-layer-${targetBuffer}`)) {
@@ -585,7 +585,7 @@ export class DeckGLMap {
               this.maplibreMap.setLayoutProperty('maptiler-radar', 'visibility', 'none');
             }
             
-            const dummyGibsUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/2026-08-19T00:00:00Z/GoogleMapsCompatible_Level7/{z}/{y}/{x}.jpg`;
+            const dummyGibsUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/2026-08-19T00:00:00Z/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`;
             this.maplibreMap.addSource('gibs-source-a', { type: 'raster', tiles: [dummyGibsUrl], tileSize: 256 });
             this.maplibreMap.addSource('gibs-source-b', { type: 'raster', tiles: [dummyGibsUrl], tileSize: 256 });
             this.maplibreMap.addLayer({ id: 'gibs-layer-a', type: 'raster', source: 'gibs-source-a', paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 1000 } } }, 'maptiler-precipitation');
