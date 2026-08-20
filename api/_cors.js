@@ -15,7 +15,7 @@ function isAllowedOrigin(origin) {
 }
 
 export function getCorsHeaders(req, methods = 'GET, OPTIONS') {
-  const origin = req.headers.get('origin') || '';
+  const origin = req.headers.origin || (req.headers.get && req.headers.get('origin')) || '';
   // Vercel serverless functions require explicit origins for authenticated CORS
   const allowOrigin = isAllowedOrigin(origin) ? origin : 'https://worldmonitor.app';
   return {
@@ -28,7 +28,7 @@ export function getCorsHeaders(req, methods = 'GET, OPTIONS') {
 }
 
 export function isDisallowedOrigin(req) {
-  const origin = req.headers.get('origin');
+  const origin = req.headers.origin || (req.headers.get && req.headers.get('origin'));
   if (!origin) return false;
   return !isAllowedOrigin(origin);
 }

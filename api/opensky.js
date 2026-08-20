@@ -54,47 +54,40 @@ async function getOpenSkyToken() {
   return null;
 }
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');
 
+  // Set CORS headers early
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    res.setHeader(key, value);
+  }
+
   if (isDisallowedOrigin(req)) {
-    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
+    return res.status(403).json({ error: 'Origin not allowed' });
   }
 
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return res.status(204).end();
   }
   if (req.method !== 'GET') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const query = url.search;
     const upstreamUrl = `https://opensky-network.org/api/states/all${query}`;
-
-    const headers = {
-      'Accept': 'application/json',
-      'User-Agent': 'WorldMonitor/EdgeProxy',
-    };
+    const headers = { 'Accept': 'application/json' };
 
     if (process.env.OPENSKY_CLIENT_ID && process.env.OPENSKY_CLIENT_SECRET) {
       const token = await getOpenSkyToken();
       
       // Debug route
       if (req.url.includes('debug=true')) {
-        return new Response(JSON.stringify({ 
+        return res.status(200).json({ 
           debug: true, 
           token_success: !!token,
           token_prefix: token ? token.substring(0, 15) : null
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
 
@@ -109,22 +102,18 @@ export default async function handler(req) {
       signal: AbortSignal.timeout(25000) 
     });
 
-    return new Response(response.body, {
-      status: response.status,
-      headers: {
-        'Content-Type': response.headers.get('content-type') || 'application/json',
-        'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
-        ...corsHeaders,
-      },
-    });
+    res.status(response.status);
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
+    res.setHeader('Cache-Control', 'public, max-age=15, s-maxage=60, stale-while-revalidate=300');
+
+    // Pipe response body
+    const data = await response.json();
+    return res.json(data);
   } catch (error) {
     const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
-    return new Response(JSON.stringify({
+    return res.status(isTimeout ? 504 : 502).json({
       error: isTimeout ? 'OpenSky upstream timeout' : 'OpenSky fetch failed',
       details: error?.message || String(error),
-    }), {
-      status: isTimeout ? 504 : 502,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
 }

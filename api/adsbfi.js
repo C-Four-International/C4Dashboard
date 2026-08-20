@@ -2,24 +2,23 @@ import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 
 
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');
 
+  // Set CORS headers early
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    res.setHeader(key, value);
+  }
+
   if (isDisallowedOrigin(req)) {
-    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
+    return res.status(403).json({ error: 'Origin not allowed' });
   }
 
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return res.status(204).end();
   }
   if (req.method !== 'GET') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
@@ -30,26 +29,22 @@ export default async function handler(req) {
         'Accept': 'application/json',
         'User-Agent': 'WorldMonitor/EdgeProxy',
       },
-      // Give ADSB 10 seconds to respond before giving up (less than Vercel timeout)
+      // Give ADSB 10 seconds to respond before giving up
       signal: AbortSignal.timeout(10000) 
     });
 
-    return new Response(response.body, {
-      status: response.status,
-      headers: {
-        'Content-Type': response.headers.get('content-type') || 'application/json',
-        'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
-        ...corsHeaders,
-      },
-    });
+    res.status(response.status);
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
+    res.setHeader('Cache-Control', 'public, max-age=15, s-maxage=60, stale-while-revalidate=300');
+
+    // Pipe response body
+    const data = await response.json();
+    return res.json(data);
   } catch (error) {
     const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
-    return new Response(JSON.stringify({
+    return res.status(isTimeout ? 504 : 502).json({
       error: isTimeout ? 'ADSB.lol upstream timeout' : 'ADSB.lol fetch failed',
       details: error?.message || String(error),
-    }), {
-      status: isTimeout ? 504 : 502,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
 }
