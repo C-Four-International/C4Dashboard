@@ -33,7 +33,7 @@ export default async function handler(req) {
 
     if (process.env.OPENSKY_CLIENT_ID && process.env.OPENSKY_CLIENT_SECRET) {
       const authStr = `${process.env.OPENSKY_CLIENT_ID}:${process.env.OPENSKY_CLIENT_SECRET}`;
-      headers['Authorization'] = 'Basic ' + Buffer.from(authStr).toString('base64');
+      headers['Authorization'] = 'Basic ' + btoa(authStr);
     }
 
     const response = await fetch(upstreamUrl, {
