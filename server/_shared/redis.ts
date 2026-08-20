@@ -18,30 +18,65 @@ function prefixKey(key: string): string {
   return `${cachedPrefix}${key}`;
 }
 
+const L1_CACHE_TTL_MS = 15_000;
+const l1Cache = new Map<string, { value: unknown; expiresAt: number }>();
+
+function l1Get(key: string): unknown | null {
+  const entry = l1Cache.get(key);
+  if (entry) {
+    if (entry.expiresAt > Date.now()) return entry.value;
+    l1Cache.delete(key);
+  }
+  return null;
+}
+
+function l1Set(key: string, value: unknown, ttlMs: number = L1_CACHE_TTL_MS): void {
+  if (l1Cache.size > 1000) {
+    const now = Date.now();
+    for (const [k, v] of l1Cache.entries()) {
+      if (v.expiresAt <= now) l1Cache.delete(k);
+    }
+    if (l1Cache.size > 1000) l1Cache.clear();
+  }
+  l1Cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
 export async function getCachedJson(key: string): Promise<unknown | null> {
+  const prefixed = prefixKey(key);
+  const l1Value = l1Get(prefixed);
+  if (l1Value !== null) return l1Value;
+
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return null;
   try {
-    const resp = await fetch(`${url}/get/${encodeURIComponent(prefixKey(key))}`, {
+    const resp = await fetch(`${url}/get/${encodeURIComponent(prefixed)}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(3_000),
     });
     if (!resp.ok) return null;
     const data = (await resp.json()) as { result?: string };
-    return data.result ? JSON.parse(data.result) : null;
+    if (data.result) {
+      const parsed = JSON.parse(data.result);
+      l1Set(prefixed, parsed);
+      return parsed;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 export async function setCachedJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+  const prefixed = prefixKey(key);
+  l1Set(prefixed, value, Math.min(L1_CACHE_TTL_MS, ttlSeconds * 1000));
+
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return;
   try {
     // Atomic SET with EX — single call avoids race between SET and EXPIRE (C-3 fix)
-    await fetch(`${url}/set/${encodeURIComponent(prefixKey(key))}/${encodeURIComponent(JSON.stringify(value))}/EX/${ttlSeconds}`, {
+    await fetch(`${url}/set/${encodeURIComponent(prefixed)}/${encodeURIComponent(JSON.stringify(value))}/EX/${ttlSeconds}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(3_000),
@@ -57,12 +92,24 @@ export async function getCachedJsonBatch(keys: string[]): Promise<Map<string, un
   const result = new Map<string, unknown>();
   if (keys.length === 0) return result;
 
+  const missingKeys: string[] = [];
+  for (const k of keys) {
+    const l1Value = l1Get(prefixKey(k));
+    if (l1Value !== null) {
+      result.set(k, l1Value);
+    } else {
+      missingKeys.push(k);
+    }
+  }
+
+  if (missingKeys.length === 0) return result;
+
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return result;
 
   try {
-    const pipeline = keys.map((k) => ['GET', prefixKey(k)]);
+    const pipeline = missingKeys.map((k) => ['GET', prefixKey(k)]);
     const resp = await fetch(`${url}/pipeline`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -72,10 +119,14 @@ export async function getCachedJsonBatch(keys: string[]): Promise<Map<string, un
     if (!resp.ok) return result;
 
     const data = (await resp.json()) as Array<{ result?: string }>;
-    for (let i = 0; i < keys.length; i++) {
+    for (let i = 0; i < missingKeys.length; i++) {
       const raw = data[i]?.result;
       if (raw) {
-        try { result.set(keys[i]!, JSON.parse(raw)); } catch { /* skip malformed */ }
+        try { 
+          const parsed = JSON.parse(raw);
+          result.set(missingKeys[i]!, parsed);
+          l1Set(prefixKey(missingKeys[i]!), parsed);
+        } catch { /* skip malformed */ }
       }
     }
   } catch { /* best-effort */ }
