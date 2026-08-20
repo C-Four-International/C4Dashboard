@@ -24,9 +24,7 @@ const DIRECT_OPENSKY_BASE_URL = wsRelayUrl
   : '';
 const isLocalhostRuntime = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
-// Cache configuration
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutes - balance freshness and API limits
-let flightCache: { data: MilitaryFlight[]; timestamp: number } | null = null;
+let flightCache: { data: MilitaryFlight[]; expiresAt: number } | null = null;
 
 // Track flight history for trails
 const flightHistory = new Map<string, { positions: [number, number][]; lastUpdate: number }>();
@@ -38,7 +36,7 @@ const breaker = createCircuitBreaker<{ flights: MilitaryFlight[]; clusters: Mili
   name: 'Military Flight Tracking',
   maxFailures: 3,
   cooldownMs: 2 * 60 * 1000, // 2 minute cooldown
-  cacheTtlMs: 2 * 60 * 1000, // 2 minute cache
+  cacheTtlMs: 0, // handle cache manually to allow jitter
 });
 
 // OpenSky API returns arrays in this order:
@@ -433,12 +431,44 @@ async function fetchFromTar1090(url: string, sourceName: string): Promise<Milita
 }
 
 /**
- * Fetch from both ADSB.lol and Airplanes.live, combining and deduplicating results.
+ * Fetch from OpenSky /api/states/all endpoint proxy as a fallback.
+ * It filters down to our regions natively and reuses parseOpenSkyResponse.
+ */
+async function fetchFromOpenSkyFallback(): Promise<MilitaryFlight[]> {
+  const response = await fetch('/api/opensky', { headers: { 'Accept': 'application/json', 'User-Agent': 'WorldMonitor' } });
+  
+  if (!response.ok) {
+    throw new Error(`OpenSky fallback returned ${response.status}`);
+  }
+
+  const data = await response.json() as OpenSkyResponse;
+  const allFlights = parseOpenSkyResponse(data);
+  
+  // Filter explicitly since parseOpenSkyResponse does not restrict to bounding boxes
+  const flights: MilitaryFlight[] = [];
+  for (const flight of allFlights) {
+    const inRegion = MILITARY_QUERY_REGIONS.some(r => 
+      flight.lat >= r.lamin && flight.lat <= r.lamax && 
+      flight.lon >= r.lomin && flight.lon <= r.lomax
+    );
+    if (inRegion) {
+      // Differentiate the ID slightly from primary OpenSky
+      flight.id = `opensky-fb-${flight.hexCode.toLowerCase()}`;
+      flights.push(flight);
+    }
+  }
+
+  console.log(`[Military Flights] Fallback: OpenSky returned ${allFlights.length} total, kept ${flights.length} in regions`);
+  return flights;
+}
+
+/**
+ * Fetch from both ADSB.lol and OpenSky, combining and deduplicating results.
  */
 async function fetchFromFallbackSources(): Promise<MilitaryFlight[]> {
-  const [adsbFiResult, airplanesLiveResult] = await Promise.allSettled([
+  const [adsbFiResult, openskyResult] = await Promise.allSettled([
     fetchFromTar1090('/api/adsbfi', 'ADSB.lol'),
-    fetchFromTar1090('/api/airplanes-live', 'Airplanes.live')
+    fetchFromOpenSkyFallback()
   ]);
 
   const allFlights: MilitaryFlight[] = [];
@@ -455,18 +485,18 @@ async function fetchFromFallbackSources(): Promise<MilitaryFlight[]> {
     console.warn(`[Military Flights] ADSB.lol fallback failed:`, adsbFiResult.reason);
   }
 
-  if (airplanesLiveResult.status === 'fulfilled') {
-    for (const flight of airplanesLiveResult.value) {
+  if (openskyResult.status === 'fulfilled') {
+    for (const flight of openskyResult.value) {
       if (!seenHexCodes.has(flight.hexCode)) {
         seenHexCodes.add(flight.hexCode);
         allFlights.push(flight);
       }
     }
   } else {
-    console.warn(`[Military Flights] Airplanes.live fallback failed:`, airplanesLiveResult.reason);
+    console.warn(`[Military Flights] OpenSky fallback failed:`, openskyResult.reason);
   }
 
-  if (allFlights.length === 0 && adsbFiResult.status === 'rejected' && airplanesLiveResult.status === 'rejected') {
+  if (allFlights.length === 0 && adsbFiResult.status === 'rejected' && openskyResult.status === 'rejected') {
     throw new Error('All fallback sources failed');
   }
 
@@ -656,7 +686,7 @@ export async function fetchMilitaryFlights(): Promise<{
 
   return breaker.execute(async () => {
     // Check cache
-    if (flightCache && Date.now() - flightCache.timestamp < CACHE_TTL) {
+    if (flightCache && Date.now() < flightCache.expiresAt) {
       const clusters = clusterFlights(flightCache.data);
       return { flights: flightCache.data, clusters };
     }
@@ -677,8 +707,10 @@ export async function fetchMilitaryFlights(): Promise<{
     // Enrich with Wingbits aircraft details (owner, operator, type)
     flights = await enrichFlightsWithWingbits(flights);
 
-    // Update cache
-    flightCache = { data: flights, timestamp: Date.now() };
+    // Update cache (4 minutes base TTL + up to 2 minutes jitter to avoid rate limits)
+    const jitter = Math.floor(Math.random() * 2 * 60 * 1000);
+    const cacheTtl = (4 * 60 * 1000) + jitter;
+    flightCache = { data: flights, expiresAt: Date.now() + cacheTtl };
 
     // Generate clusters
     const clusters = clusterFlights(flights);
