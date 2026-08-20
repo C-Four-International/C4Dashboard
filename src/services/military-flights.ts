@@ -647,13 +647,13 @@ export async function fetchMilitaryFlights(): Promise<{
       return { flights: flightCache.data, clusters };
     }
 
-    // Fetch from OpenSky (regional queries for efficiency), fallback to ADSB.lol
+    // Fetch from ADSB.lol first (more reliable, no IP blocking), fallback to OpenSky
     let flights: MilitaryFlight[] = [];
     try {
-      flights = await fetchFromOpenSky();
-    } catch (error) {
-      console.warn(`[Military Flights] OpenSky error: ${error instanceof Error ? error.message : String(error)}. Falling back to fallback sources`);
       flights = await fetchFromFallbackSources();
+    } catch (error) {
+      console.warn(`[Military Flights] ADSB.lol error: ${error instanceof Error ? error.message : String(error)}. Falling back to OpenSky`);
+      flights = await fetchFromOpenSky();
     }
 
     if (flights.length === 0) {

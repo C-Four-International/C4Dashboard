@@ -26,11 +26,18 @@ export default async function handler(req) {
     const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
     const upstreamUrl = `https://opensky-network.org/api/states/all${query}`;
 
+    const headers = {
+      'Accept': 'application/json',
+      'User-Agent': 'WorldMonitor/EdgeProxy',
+    };
+
+    if (process.env.OPENSKY_CLIENT_ID && process.env.OPENSKY_CLIENT_SECRET) {
+      const authStr = `${process.env.OPENSKY_CLIENT_ID}:${process.env.OPENSKY_CLIENT_SECRET}`;
+      headers['Authorization'] = 'Basic ' + Buffer.from(authStr).toString('base64');
+    }
+
     const response = await fetch(upstreamUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'WorldMonitor/EdgeProxy',
-      },
+      headers,
       // Give OpenSky 25 seconds to respond before giving up to avoid 504s on large payloads
       signal: AbortSignal.timeout(25000) 
     });
