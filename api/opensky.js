@@ -85,6 +85,19 @@ export default async function handler(req) {
 
     if (process.env.OPENSKY_CLIENT_ID && process.env.OPENSKY_CLIENT_SECRET) {
       const token = await getOpenSkyToken();
+      
+      // Debug route
+      if (req.url.includes('debug=true')) {
+        return new Response(JSON.stringify({ 
+          debug: true, 
+          token_success: !!token,
+          token_prefix: token ? token.substring(0, 15) : null
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
