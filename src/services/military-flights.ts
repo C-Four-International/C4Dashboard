@@ -442,6 +442,7 @@ async function fetchFromFallbackSources(): Promise<MilitaryFlight[]> {
   const seenHexCodes = new Set<string>();
 
   if (adsbFiResult.status === 'fulfilled') {
+    console.log(`[Military Flights] ADSB.lol fallback succeeded, returned ${adsbFiResult.value.length} flights`);
     for (const flight of adsbFiResult.value) {
       if (!seenHexCodes.has(flight.hexCode)) {
         seenHexCodes.add(flight.hexCode);
@@ -449,7 +450,7 @@ async function fetchFromFallbackSources(): Promise<MilitaryFlight[]> {
       }
     }
   } else {
-    console.warn(`[Military Flights] ADSB.lol fallback failed:`, adsbFiResult.reason);
+    console.error(`[Military Flights] ADSB.lol fallback completely failed:`, adsbFiResult.reason);
   }
 
   if (allFlights.length === 0 && adsbFiResult.status === 'rejected') {
@@ -650,9 +651,11 @@ export async function fetchMilitaryFlights(): Promise<{
     // Fetch from ADSB.lol first (more reliable, no IP blocking), fallback to OpenSky
     let flights: MilitaryFlight[] = [];
     try {
+      console.log('[Military Flights] Attempting to fetch from ADSB.lol (primary)...');
       flights = await fetchFromFallbackSources();
+      console.log(`[Military Flights] ADSB.lol fetch completed with ${flights.length} flights.`);
     } catch (error) {
-      console.warn(`[Military Flights] ADSB.lol error: ${error instanceof Error ? error.message : String(error)}. Falling back to OpenSky`);
+      console.error(`[Military Flights] ADSB.lol threw an error: ${error instanceof Error ? error.message : String(error)}. Falling back to OpenSky...`);
       flights = await fetchFromOpenSky();
     }
 
