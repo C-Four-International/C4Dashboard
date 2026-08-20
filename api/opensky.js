@@ -29,7 +29,6 @@ export default async function handler(req) {
     const response = await fetch(upstreamUrl, {
       headers: {
         'Accept': 'application/json',
-        'Accept-Encoding': 'gzip, br',
         'User-Agent': 'WorldMonitor/EdgeProxy',
       },
       // Give OpenSky 25 seconds to respond before giving up to avoid 504s on large payloads
