@@ -115,7 +115,7 @@ export default async function handler(req) {
     const body = await response.text();
     const finalHeaders = {
       'Content-Type': response.headers.get('content-type') || 'application/json',
-      'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=15',
+      'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
       ...corsHeaders,
     };
     if (token) {

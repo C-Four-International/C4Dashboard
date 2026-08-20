@@ -60,7 +60,7 @@ export default async function handler(req) {
       headers: {
         'Content-Type': res.headers.get('content-type') || 'application/json',
         // Short cache. Telegram is near-real-time.
-        'Cache-Control': 'public, max-age=10',
+        'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
         ...cors,
       },
     });
