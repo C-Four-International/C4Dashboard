@@ -23,8 +23,8 @@ export default async function handler(req) {
   }
 
   try {
-    const url = new URL(req.url);
-    const upstreamUrl = `https://opensky-network.org/api/states/all${url.search}`;
+    const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+    const upstreamUrl = `https://opensky-network.org/api/states/all${query}`;
 
     const response = await fetch(upstreamUrl, {
       headers: {
@@ -35,9 +35,7 @@ export default async function handler(req) {
       signal: AbortSignal.timeout(25000) 
     });
 
-    const body = await response.text();
-    
-    return new Response(body, {
+    return new Response(response.body, {
       status: response.status,
       headers: {
         'Content-Type': response.headers.get('content-type') || 'application/json',

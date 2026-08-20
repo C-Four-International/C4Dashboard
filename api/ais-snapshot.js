@@ -75,14 +75,12 @@ export default async function handler(req) {
       }),
     }, 12000);
 
-    const body = await response.text();
     const headers = {
       'Content-Type': response.headers.get('content-type') || 'application/json',
       'Cache-Control': response.headers.get('cache-control') || 'no-cache',
       ...corsHeaders,
     };
-
-    return new Response(body, {
+    return new Response(response.body, {
       status: response.status,
       headers,
     });

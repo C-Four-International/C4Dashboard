@@ -34,9 +34,7 @@ export default async function handler(req) {
       signal: AbortSignal.timeout(10000) 
     });
 
-    const body = await response.text();
-    
-    return new Response(body, {
+    return new Response(response.body, {
       status: response.status,
       headers: {
         'Content-Type': response.headers.get('content-type') || 'application/json',
