@@ -17,7 +17,7 @@ import {
 import { isFeatureAvailable } from './runtime-config';
 
 // OpenSky API path — route through Vercel so Railway secret never reaches the browser.
-const OPENSKY_PROXY_URL = '/api/opensky';
+// const OPENSKY_PROXY_URL = '/api/opensky';
 const wsRelayUrl = import.meta.env.VITE_WS_RELAY_URL || '';
 const DIRECT_OPENSKY_BASE_URL = wsRelayUrl
   ? wsRelayUrl.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/$/, '') + '/opensky'
@@ -25,7 +25,7 @@ const DIRECT_OPENSKY_BASE_URL = wsRelayUrl
 const isLocalhostRuntime = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
 // Cache configuration
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes - reduce upstream API pressure
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes - balance freshness and API limits
 let flightCache: { data: MilitaryFlight[]; timestamp: number } | null = null;
 
 // Track flight history for trails
@@ -37,8 +37,8 @@ const HISTORY_CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const breaker = createCircuitBreaker<{ flights: MilitaryFlight[]; clusters: MilitaryFlightCluster[] }>({
   name: 'Military Flight Tracking',
   maxFailures: 3,
-  cooldownMs: 5 * 60 * 1000, // 5 minute cooldown
-  cacheTtlMs: 10 * 60 * 1000, // 10 minute cache
+  cooldownMs: 2 * 60 * 1000, // 2 minute cooldown
+  cacheTtlMs: 2 * 60 * 1000, // 2 minute cache
 });
 
 // OpenSky API returns arrays in this order:
@@ -266,7 +266,8 @@ interface RegionResult {
 
 async function fetchQueryRegion(region: QueryRegion): Promise<RegionResult> {
   const query = `lamin=${region.lamin}&lamax=${region.lamax}&lomin=${region.lomin}&lomax=${region.lomax}`;
-  const urls = [`${OPENSKY_PROXY_URL}?${query}`];
+  // const urls = [`${OPENSKY_PROXY_URL}?${query}`];
+  const urls: string[] = [];
   if (isLocalhostRuntime && DIRECT_OPENSKY_BASE_URL) {
     urls.push(`${DIRECT_OPENSKY_BASE_URL}?${query}`);
   }
@@ -350,15 +351,13 @@ interface AdsbFiResponse {
 }
 
 /**
- * Fallback to ADSB.lol global military endpoint when OpenSky fails.
- * Retains region filtering so we don't overwhelm the map.
+ * Generic fetcher for tar1090 v2/mil format endpoints (ADSB.lol, Airplanes.live)
  */
-async function fetchFromAdsbFi(): Promise<MilitaryFlight[]> {
-  const url = '/api/adsbfi';
+async function fetchFromTar1090(url: string, sourceName: string): Promise<MilitaryFlight[]> {
   const response = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': 'WorldMonitor' } });
   
   if (!response.ok) {
-    throw new Error(`ADSB.lol returned ${response.status}`);
+    throw new Error(`${sourceName} returned ${response.status}`);
   }
 
   const data = await response.json() as AdsbFiResponse;
@@ -366,7 +365,6 @@ async function fetchFromAdsbFi(): Promise<MilitaryFlight[]> {
 
   const flights: MilitaryFlight[] = [];
   const now = new Date();
-  const seenHexCodes = new Set<string>();
   
   for (const plane of data.ac) {
     if (!plane.lat || !plane.lon) continue;
@@ -380,9 +378,6 @@ async function fetchFromAdsbFi(): Promise<MilitaryFlight[]> {
 
     const callsign = (plane.flight || '').trim();
     const icao24 = plane.hex.toLowerCase();
-    
-    if (seenHexCodes.has(icao24)) continue;
-    seenHexCodes.add(icao24);
     
     const info = determineAircraftInfo(callsign, icao24);
     
@@ -409,7 +404,7 @@ async function fetchFromAdsbFi(): Promise<MilitaryFlight[]> {
       info.type === 'awacs';
       
     const flight: MilitaryFlight = {
-      id: `adsbfi-${icao24}`,
+      id: `${sourceName.toLowerCase().replace('.', '')}-${icao24}`,
       callsign: callsign || `UNKN-${icao24.substring(0, 4).toUpperCase()}`,
       hexCode: icao24.toUpperCase(),
       aircraftType: info.type,
@@ -433,8 +428,49 @@ async function fetchFromAdsbFi(): Promise<MilitaryFlight[]> {
     flights.push(flight);
   }
   
-  console.log(`[Military Flights] Fallback: ADSB.lol returned ${data.ac.length} total, kept ${flights.length} in regions`);
+  console.log(`[Military Flights] Fallback: ${sourceName} returned ${data.ac.length} total, kept ${flights.length} in regions`);
   return flights;
+}
+
+/**
+ * Fetch from both ADSB.lol and Airplanes.live, combining and deduplicating results.
+ */
+async function fetchFromFallbackSources(): Promise<MilitaryFlight[]> {
+  const [adsbFiResult, airplanesLiveResult] = await Promise.allSettled([
+    fetchFromTar1090('/api/adsbfi', 'ADSB.lol'),
+    fetchFromTar1090('/api/airplanes-live', 'Airplanes.live')
+  ]);
+
+  const allFlights: MilitaryFlight[] = [];
+  const seenHexCodes = new Set<string>();
+
+  if (adsbFiResult.status === 'fulfilled') {
+    for (const flight of adsbFiResult.value) {
+      if (!seenHexCodes.has(flight.hexCode)) {
+        seenHexCodes.add(flight.hexCode);
+        allFlights.push(flight);
+      }
+    }
+  } else {
+    console.warn(`[Military Flights] ADSB.lol fallback failed:`, adsbFiResult.reason);
+  }
+
+  if (airplanesLiveResult.status === 'fulfilled') {
+    for (const flight of airplanesLiveResult.value) {
+      if (!seenHexCodes.has(flight.hexCode)) {
+        seenHexCodes.add(flight.hexCode);
+        allFlights.push(flight);
+      }
+    }
+  } else {
+    console.warn(`[Military Flights] Airplanes.live fallback failed:`, airplanesLiveResult.reason);
+  }
+
+  if (allFlights.length === 0 && adsbFiResult.status === 'rejected' && airplanesLiveResult.status === 'rejected') {
+    throw new Error('All fallback sources failed');
+  }
+
+  return allFlights;
 }
 
 
@@ -630,8 +666,8 @@ export async function fetchMilitaryFlights(): Promise<{
     try {
       flights = await fetchFromOpenSky();
     } catch (error) {
-      console.warn(`[Military Flights] OpenSky error: ${error instanceof Error ? error.message : String(error)}. Falling back to ADSB.lol`);
-      flights = await fetchFromAdsbFi();
+      console.warn(`[Military Flights] OpenSky error: ${error instanceof Error ? error.message : String(error)}. Falling back to fallback sources`);
+      flights = await fetchFromFallbackSources();
     }
 
     if (flights.length === 0) {
