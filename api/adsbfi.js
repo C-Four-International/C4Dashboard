@@ -1,6 +1,6 @@
 import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 
-export const config = { runtime: 'edge' };
+
 
 export default async function handler(req) {
   const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');

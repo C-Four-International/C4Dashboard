@@ -1,6 +1,6 @@
 import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 
-export const config = { runtime: 'edge' };
+
 
 // In-memory token cache for warm edge functions
 let cachedToken = null;
