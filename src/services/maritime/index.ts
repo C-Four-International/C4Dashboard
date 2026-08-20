@@ -81,6 +81,7 @@ export interface AisPositionData {
 
 interface SnapshotStatus {
   connected: boolean;
+  isStarved: boolean;
   vessels: number;
   messages: number;
 }
@@ -94,6 +95,7 @@ interface AisSnapshotResponse {
   timestamp?: string;
   status?: {
     connected?: boolean;
+    isStarved?: boolean;
     vessels?: number;
     messages?: number;
   };
@@ -120,6 +122,7 @@ let latestDisruptions: AisDisruptionEvent[] = [];
 let latestDensity: AisDensityZone[] = [];
 let latestStatus: SnapshotStatus = {
   connected: false,
+  isStarved: false,
   vessels: 0,
   messages: 0,
 };
@@ -155,6 +158,7 @@ function parseSnapshot(data: unknown): {
     sequence: Number.isFinite(raw.sequence as number) ? Number(raw.sequence) : 0,
     status: {
       connected: Boolean(status.connected),
+      isStarved: Boolean(status.isStarved),
       vessels: Number.isFinite(status.vessels as number) ? Number(status.vessels) : 0,
       messages: Number.isFinite(status.messages as number) ? Number(status.messages) : 0,
     },
@@ -170,7 +174,7 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
   let candidateReports: SnapshotCandidateReport[] = [];
   let relayDensity: AisDensityZone[] | null = null;
   let relayDisruptions: AisDisruptionEvent[] | null = null;
-  let status: SnapshotStatus = { connected: true, vessels: 0, messages: 0 };
+  let status: SnapshotStatus = { connected: true, isStarved: false, vessels: 0, messages: 0 };
   let sequence = 0;
   let relaySuccess = false;
 
@@ -185,6 +189,7 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
         if (relayData.status) {
           status = {
             connected: Boolean(relayData.status.connected),
+            isStarved: Boolean(relayData.status.isStarved),
             vessels: Number(relayData.status.vessels) || 0,
             messages: Number(relayData.status.messages) || 0,
           };
@@ -412,10 +417,11 @@ export function disconnectAisStream(): void {
   latestStatus.connected = false;
 }
 
-export function getAisStatus(): { connected: boolean; vessels: number; messages: number } {
+export function getAisStatus(): { connected: boolean; isStarved: boolean; vessels: number; messages: number } {
   const isFresh = Date.now() - lastPollAt <= SNAPSHOT_STALE_MS;
   return {
     connected: latestStatus.connected && isFresh,
+    isStarved: latestStatus.isStarved,
     vessels: latestStatus.vessels,
     messages: latestStatus.messages,
   };

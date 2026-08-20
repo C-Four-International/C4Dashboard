@@ -74,6 +74,7 @@ let upstreamDrainScheduled = false;
 let clients = new Set();
 let messageCount = 0;
 let droppedMessages = 0;
+let lastUpstreamMessageAt = Date.now();
 const requestRateBuckets = new Map(); // key: route:ip -> { count, resetAt }
 const logThrottleState = new Map(); // key: event key -> timestamp
 
@@ -798,12 +799,19 @@ function processPositionReportForSnapshot(data) {
 
 function cleanupAggregates() {
   const now = Date.now();
+  
+  // Fallback measure: if we are starved of upstream messages (>60s), suspend time-based eviction.
+  // This caches the last available AIS fetch and keeps it displayed (even if stale) until another fetch goes through.
+  const isStarved = (now - lastUpstreamMessageAt) > 60000;
+  
   const cutoff = now - DENSITY_WINDOW;
 
-  for (const [mmsi, vessel] of vessels) {
-    if (vessel.timestamp < cutoff) {
-      vessels.delete(mmsi);
-      removeVesselFromChokepoints(mmsi);
+  if (!isStarved) {
+    for (const [mmsi, vessel] of vessels) {
+      if (vessel.timestamp < cutoff) {
+        vessels.delete(mmsi);
+        removeVesselFromChokepoints(mmsi);
+      }
     }
   }
   // Hard cap: if still over limit, evict oldest
@@ -817,18 +825,20 @@ function cleanupAggregates() {
   }
 
   for (const [mmsi, history] of vesselHistory) {
-    const filtered = history.filter((ts) => ts >= cutoff);
-    if (filtered.length === 0) {
-      vesselHistory.delete(mmsi);
-    } else {
-      vesselHistory.set(mmsi, filtered);
+    if (!isStarved) {
+      const filtered = history.filter((ts) => ts >= cutoff);
+      if (filtered.length === 0) {
+        vesselHistory.delete(mmsi);
+      } else {
+        vesselHistory.set(mmsi, filtered);
+      }
     }
   }
   // Hard cap: keep the most recent vessel histories.
   evictMapByTimestamp(vesselHistory, MAX_VESSEL_HISTORY, (history) => history[history.length - 1] || 0);
 
   for (const [mmsi, entry] of vesselMeta) {
-    if (entry.lastSeen < now - VESSEL_META_TTL_MS) {
+    if (!isStarved && entry.lastSeen < now - VESSEL_META_TTL_MS) {
       vesselMeta.delete(mmsi);
     }
   }
@@ -837,22 +847,24 @@ function cleanupAggregates() {
   for (const [key, cell] of densityGrid) {
     cell.previousCount = cell.vessels.size;
 
-    for (const mmsi of cell.vessels) {
-      const vessel = vessels.get(mmsi);
-      if (!vessel || vessel.timestamp < cutoff) {
-        cell.vessels.delete(mmsi);
+    if (!isStarved) {
+      for (const mmsi of cell.vessels) {
+        const vessel = vessels.get(mmsi);
+        if (!vessel || vessel.timestamp < cutoff) {
+          cell.vessels.delete(mmsi);
+        }
       }
-    }
 
-    if (cell.vessels.size === 0 && now - cell.lastUpdate > DENSITY_WINDOW * 2) {
-      densityGrid.delete(key);
+      if (cell.vessels.size === 0 && now - cell.lastUpdate > DENSITY_WINDOW * 2) {
+        densityGrid.delete(key);
+      }
     }
   }
   // Hard cap: keep the most recently updated cells.
   evictMapByTimestamp(densityGrid, MAX_DENSITY_CELLS, (cell) => cell.lastUpdate || 0);
 
   for (const [mmsi, report] of candidateReports) {
-    if (report.timestamp < now - CANDIDATE_RETENTION_MS) {
+    if (!isStarved && report.timestamp < now - CANDIDATE_RETENTION_MS) {
       candidateReports.delete(mmsi);
     }
   }
@@ -860,17 +872,19 @@ function cleanupAggregates() {
   evictMapByTimestamp(candidateReports, MAX_CANDIDATE_REPORTS, (report) => report.timestamp || 0);
 
   // Clean chokepoint buckets: remove stale vessels
-  for (const [cpName, bucket] of chokepointBuckets) {
-    for (const mmsi of bucket) {
-      if (vessels.has(mmsi)) continue;
-      bucket.delete(mmsi);
-      const memberships = vesselChokepoints.get(mmsi);
-      if (memberships) {
-        memberships.delete(cpName);
-        if (memberships.size === 0) vesselChokepoints.delete(mmsi);
+  if (!isStarved) {
+    for (const [cpName, bucket] of chokepointBuckets) {
+      for (const mmsi of bucket) {
+        if (vessels.has(mmsi)) continue;
+        bucket.delete(mmsi);
+        const memberships = vesselChokepoints.get(mmsi);
+        if (memberships) {
+          memberships.delete(cpName);
+          if (memberships.size === 0) vesselChokepoints.delete(mmsi);
+        }
       }
+      if (bucket.size === 0) chokepointBuckets.delete(cpName);
     }
-    if (bucket.size === 0) chokepointBuckets.delete(cpName);
   }
 }
 
@@ -999,6 +1013,7 @@ function buildSnapshot() {
     timestamp: new Date(now).toISOString(),
     status: {
       connected: upstreamSocket?.readyState === WebSocket.OPEN,
+      isStarved: (now - lastUpstreamMessageAt) > 60000,
       vessels: vessels.size,
       messages: messageCount,
       clients: clients.size,
@@ -1954,6 +1969,7 @@ function connectUpstream() {
 
   socket.on('message', (data) => {
     if (upstreamSocket !== socket) return;
+    lastUpstreamMessageAt = Date.now();
 
     const raw = data instanceof Buffer ? data : Buffer.from(data);
     if (getUpstreamQueueSize() >= UPSTREAM_QUEUE_HARD_CAP) {

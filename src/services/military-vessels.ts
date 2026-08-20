@@ -11,6 +11,7 @@ import {
   unregisterAisCallback,
   isAisConfigured,
   initAisStream,
+  getAisStatus,
   type AisPositionData,
 } from './maritime';
 import { fetchUSNIFleetReport, mergeUSNIWithAIS } from './usni-fleet';
@@ -424,6 +425,10 @@ function processAisPosition(data: AisPositionData): void {
  * Clean up stale vessels and old history
  */
 function cleanup(): void {
+  // Fallback: Suspend time-based eviction while AIS stream is starved.
+  // This compensates for unreliability by keeping the last available fetch displayed.
+  if (getAisStatus().isStarved) return;
+
   const now = Date.now();
   const staleCutoff = now - VESSEL_STALE_TIME;
 
