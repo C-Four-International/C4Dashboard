@@ -23,15 +23,17 @@ export default async function handler(req) {
   }
 
   try {
-    const upstreamUrl = 'https://opensky-network.org/api/states/all';
+    const url = new URL(req.url);
+    const upstreamUrl = `https://opensky-network.org/api/states/all${url.search}`;
 
     const response = await fetch(upstreamUrl, {
       headers: {
         'Accept': 'application/json',
+        'Accept-Encoding': 'gzip, br',
         'User-Agent': 'WorldMonitor/EdgeProxy',
       },
-      // Give OpenSky 10 seconds to respond before giving up
-      signal: AbortSignal.timeout(10000) 
+      // Give OpenSky 25 seconds to respond before giving up to avoid 504s on large payloads
+      signal: AbortSignal.timeout(25000) 
     });
 
     const body = await response.text();
