@@ -335,9 +335,9 @@ function processAisPosition(data: AisPositionData): void {
   const knownVessel = matchKnownVessel(name);
   const aisType = data.shipType ? getVesselTypeFromAis(data.shipType) : undefined;
 
-  // We are now displaying all wider vessel positions on the map
-  // const isMilitary = knownVessel || mmsiAnalysis.isPotentialMilitary || aisType;
-  // if (!isMilitary) return;
+  // Filter to only display military vessel positions on the map
+  const isMilitary = knownVessel || mmsiAnalysis.isPotentialMilitary || aisType;
+  if (!isMilitary) return;
 
   messageCount++;
 
