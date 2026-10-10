@@ -177,6 +177,28 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
   let status: SnapshotStatus = { connected: true, isStarved: false, vessels: 0, messages: 0 };
   let sequence = 0;
   let relaySuccess = false;
+  let chokepointDisruptions: AisDisruptionEvent[] = [];
+
+  try {
+    const [globalRes, hormuzRes] = await Promise.allSettled([
+      globalThis.fetch('https://eagleintelmari.com/api/chokepoints/global'),
+      globalThis.fetch('https://eagleintelmari.com/api/chokepoints/hormuz')
+    ]);
+    
+    if (globalRes.status === 'fulfilled' && globalRes.value.ok) {
+      const data = await globalRes.value.json();
+      if (Array.isArray(data)) chokepointDisruptions.push(...data);
+      else if (data.disruptions && Array.isArray(data.disruptions)) chokepointDisruptions.push(...data.disruptions);
+    }
+    
+    if (hormuzRes.status === 'fulfilled' && hormuzRes.value.ok) {
+      const data = await hormuzRes.value.json();
+      if (Array.isArray(data)) chokepointDisruptions.push(...data);
+      else if (data.disruptions && Array.isArray(data.disruptions)) chokepointDisruptions.push(...data.disruptions);
+    }
+  } catch (e) {
+    console.warn('[AIS Frontend] Failed to fetch chokepoint APIs', e);
+  }
 
   if (includeCandidates) {
     try {
@@ -207,7 +229,7 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
     return {
       sequence,
       status,
-      disruptions: relayDisruptions,
+      disruptions: [...relayDisruptions, ...chokepointDisruptions],
       density: relayDensity,
       candidateReports,
     };
@@ -222,7 +244,7 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
     return {
       sequence,
       status,
-      disruptions: relayDisruptions || response.snapshot.disruptions.map(toDisruptionEvent),
+      disruptions: [...(relayDisruptions || response.snapshot.disruptions.map(toDisruptionEvent)), ...chokepointDisruptions],
       density: relayDensity || response.snapshot.densityZones.map(toDensityZone),
       candidateReports,
     };
@@ -233,8 +255,19 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
     return {
       sequence,
       status,
-      disruptions: relayDisruptions || [],
+      disruptions: [...(relayDisruptions || []), ...chokepointDisruptions],
       density: relayDensity || [],
+      candidateReports,
+    };
+  }
+
+  // Even if everything else failed, if we have chokepoint data, return that
+  if (chokepointDisruptions.length > 0) {
+    return {
+      sequence,
+      status,
+      disruptions: chokepointDisruptions,
+      density: [],
       candidateReports,
     };
   }

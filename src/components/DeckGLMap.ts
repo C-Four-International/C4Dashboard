@@ -516,9 +516,9 @@ export class DeckGLMap {
 
           const isWeatherRadarEnabled = this.state.layers.weatherRadar;
           if (isWeatherRadarEnabled) {
+            this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
             this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
             this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
-            this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
           }
 
           // Initialize Weather Time Tracking Bar
@@ -4098,6 +4098,19 @@ export class DeckGLMap {
       try {
         const isWeatherRadarEnabled = this.state.layers.weatherRadar;
 
+        // Handle Pressure Layer
+        if (isWeatherRadarEnabled) {
+          if (!this.maplibreMap.getLayer('maptiler-pressure') && this.mapTilerPressureLayer) {
+            this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
+          } else if (this.maplibreMap.getLayer('maptiler-pressure')) {
+            this.maplibreMap.moveLayer('maptiler-pressure');
+          }
+        } else {
+          if (this.maplibreMap.getLayer('maptiler-pressure')) {
+            this.maplibreMap.removeLayer('maptiler-pressure');
+          }
+        }
+
         // Handle Precipitation Layer
         if (isWeatherRadarEnabled) {
           if (!this.maplibreMap.getLayer('maptiler-precipitation') && this.mapTilerPrecipitationLayer) {
@@ -4121,19 +4134,6 @@ export class DeckGLMap {
         } else {
           if (this.maplibreMap.getLayer('maptiler-radar')) {
             this.maplibreMap.removeLayer('maptiler-radar');
-          }
-        }
-
-        // Handle Pressure Layer
-        if (isWeatherRadarEnabled) {
-          if (!this.maplibreMap.getLayer('maptiler-pressure') && this.mapTilerPressureLayer) {
-            this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
-          } else if (this.maplibreMap.getLayer('maptiler-pressure')) {
-            this.maplibreMap.moveLayer('maptiler-pressure');
-          }
-        } else {
-          if (this.maplibreMap.getLayer('maptiler-pressure')) {
-            this.maplibreMap.removeLayer('maptiler-pressure');
           }
         }
 
