@@ -502,7 +502,7 @@ export class DeckGLMap {
         try {
           this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
           this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
-          this.mapTilerPressureLayer = new maptilerWeather.PressureLayer({ id: 'maptiler-pressure', opacity: 0.1, bounds: [-180, -90, 180, 90] } as any);
+          this.mapTilerPressureLayer = new maptilerWeather.PressureLayer({ id: 'maptiler-pressure', opacity: 0.3, bounds: [-180, -90, 180, 90] } as any);
 
           if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
             this.mapTilerPrecipitationLayer.animateByFactor(600);
