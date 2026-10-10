@@ -269,6 +269,7 @@ export class DeckGLMap {
   private outages: InternetOutage[] = [];
   private mapTilerPrecipitationLayer: any = null;
   private mapTilerRadarLayer: any = null;
+  private mapTilerPressureLayer: any = null;
   private cyberThreats: CyberThreat[] = [];
   private aisDisruptions: AisDisruptionEvent[] = [];
   private aisDensity: AisDensityZone[] = [];
@@ -501,6 +502,7 @@ export class DeckGLMap {
         try {
           this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
           this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
+          this.mapTilerPressureLayer = new maptilerWeather.PressureLayer({ id: 'maptiler-pressure', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
 
           if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
             this.mapTilerPrecipitationLayer.animateByFactor(600);
@@ -508,11 +510,15 @@ export class DeckGLMap {
           if (typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
             this.mapTilerRadarLayer.animateByFactor(600);
           }
+          if (typeof this.mapTilerPressureLayer.animateByFactor === 'function') {
+            this.mapTilerPressureLayer.animateByFactor(600);
+          }
 
           const isWeatherRadarEnabled = this.state.layers.weatherRadar;
           if (isWeatherRadarEnabled) {
             this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
             this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
+            this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
           }
 
           // Initialize Weather Time Tracking Bar
@@ -550,6 +556,9 @@ export class DeckGLMap {
               if (this.mapTilerRadarLayer && typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
                 this.mapTilerRadarLayer.animateByFactor(0);
               }
+              if (this.mapTilerPressureLayer && typeof this.mapTilerPressureLayer.animateByFactor === 'function') {
+                this.mapTilerPressureLayer.animateByFactor(0);
+              }
               playPauseBtn.innerHTML = '&#9658;'; // Play icon
               isPlaying = false;
             } else {
@@ -558,6 +567,9 @@ export class DeckGLMap {
               }
               if (this.mapTilerRadarLayer && typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
                 this.mapTilerRadarLayer.animateByFactor(speedMultiplier);
+              }
+              if (this.mapTilerPressureLayer && typeof this.mapTilerPressureLayer.animateByFactor === 'function') {
+                this.mapTilerPressureLayer.animateByFactor(speedMultiplier);
               }
               playPauseBtn.innerHTML = '&#10074;&#10074;'; // Pause icon
               isPlaying = true;
@@ -572,6 +584,9 @@ export class DeckGLMap {
             if (isPlaying && this.mapTilerRadarLayer && typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
               this.mapTilerRadarLayer.animateByFactor(speedMultiplier);
             }
+            if (isPlaying && this.mapTilerPressureLayer && typeof this.mapTilerPressureLayer.animateByFactor === 'function') {
+              this.mapTilerPressureLayer.animateByFactor(speedMultiplier);
+            }
           });
 
           speedDownBtn.addEventListener('click', () => {
@@ -581,6 +596,9 @@ export class DeckGLMap {
             }
             if (isPlaying && this.mapTilerRadarLayer && typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
               this.mapTilerRadarLayer.animateByFactor(speedMultiplier);
+            }
+            if (isPlaying && this.mapTilerPressureLayer && typeof this.mapTilerPressureLayer.animateByFactor === 'function') {
+              this.mapTilerPressureLayer.animateByFactor(speedMultiplier);
             }
           });
 
@@ -4103,6 +4121,19 @@ export class DeckGLMap {
         } else {
           if (this.maplibreMap.getLayer('maptiler-radar')) {
             this.maplibreMap.removeLayer('maptiler-radar');
+          }
+        }
+
+        // Handle Pressure Layer
+        if (isWeatherRadarEnabled) {
+          if (!this.maplibreMap.getLayer('maptiler-pressure') && this.mapTilerPressureLayer) {
+            this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
+          } else if (this.maplibreMap.getLayer('maptiler-pressure')) {
+            this.maplibreMap.moveLayer('maptiler-pressure');
+          }
+        } else {
+          if (this.maplibreMap.getLayer('maptiler-pressure')) {
+            this.maplibreMap.removeLayer('maptiler-pressure');
           }
         }
 
