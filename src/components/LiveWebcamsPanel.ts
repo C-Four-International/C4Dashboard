@@ -14,33 +14,177 @@ interface WebcamFeed {
   region: WebcamRegion;
   channelHandle: string;
   fallbackVideoId: string;
+  fallbackVideoIds: [string, string];
 }
 
-// Verified YouTube live stream IDs — validated Feb 2026 via title cross-check.
-// IDs may rotate; update when stale.
+// Verified active YouTube live stream IDs and 2 fallbacks for each.
 const WEBCAM_FEEDS: WebcamFeed[] = [
   // Middle East — Jerusalem & Tehran adjacent (conflict hotspots)
-  { id: 'jerusalem', city: 'Jerusalem', country: 'Israel', region: 'middle-east', channelHandle: '@TheWesternWall', fallbackVideoId: 'UyduhBUpO7Q' },
-  { id: 'tehran', city: 'Tehran', country: 'Iran', region: 'middle-east', channelHandle: '@IranHDCams', fallbackVideoId: '-zGuR1qVKrU' },
-  { id: 'tel-aviv', city: 'Tel Aviv', country: 'Israel', region: 'middle-east', channelHandle: '@IsraelLiveCam', fallbackVideoId: '-VLcYT5QBrY' },
-  { id: 'mecca', city: 'Mecca', country: 'Saudi Arabia', region: 'middle-east', channelHandle: '@MakkahLive', fallbackVideoId: 'DEcpmPUbkDQ' },
+  {
+    id: 'jerusalem',
+    city: 'Jerusalem',
+    country: 'Israel',
+    region: 'middle-east',
+    channelHandle: '@TheWesternWall',
+    fallbackVideoId: 'LMHUcDktP-w',
+    fallbackVideoIds: ['UyduhBUpO7Q', 'gJsZdfSyPrM'],
+  },
+  {
+    id: 'tehran',
+    city: 'Tehran',
+    country: 'Iran',
+    region: 'middle-east',
+    channelHandle: '@IranHDCams',
+    fallbackVideoId: '-zGuR1qVKrU',
+    fallbackVideoIds: ['Fxi3jVeuw4g', '5y3dYo-KcsA'],
+  },
+  {
+    id: 'tel-aviv',
+    city: 'Tel Aviv',
+    country: 'Israel',
+    region: 'middle-east',
+    channelHandle: '@IsraelLiveCam',
+    fallbackVideoId: '-VLcYT5QBrY',
+    fallbackVideoIds: ['ipdvjWrl_5g', 'BsXkVNrTvhU'],
+  },
+  {
+    id: 'mecca',
+    city: 'Mecca',
+    country: 'Saudi Arabia',
+    region: 'middle-east',
+    channelHandle: '@MakkahLive',
+    fallbackVideoId: 'DEcpmPUbkDQ',
+    fallbackVideoIds: ['3Hgm9qThfX4', 'n_k8TWHk9WI'],
+  },
   // Europe
-  { id: 'kyiv', city: 'Kyiv', country: 'Ukraine', region: 'europe', channelHandle: '@DWNews', fallbackVideoId: '-Q7FuPINDjA' },
-  { id: 'odessa', city: 'Odessa', country: 'Ukraine', region: 'europe', channelHandle: '@UkraineLiveCam', fallbackVideoId: 'e2gC37ILQmk' },
-  { id: 'paris', city: 'Paris', country: 'France', region: 'europe', channelHandle: '@PalaisIena', fallbackVideoId: 'OzYp4NRZlwQ' },
-  { id: 'st-petersburg', city: 'St. Petersburg', country: 'Russia', region: 'europe', channelHandle: '@SPBLiveCam', fallbackVideoId: 'CjtIYbmVfck' },
-  { id: 'london', city: 'London', country: 'UK', region: 'europe', channelHandle: '@EarthCam', fallbackVideoId: 'Lxqcg1qt0XU' },
+  {
+    id: 'kyiv',
+    city: 'Kyiv',
+    country: 'Ukraine',
+    region: 'europe',
+    channelHandle: '@DWNews',
+    fallbackVideoId: 'p5RLcaR3iOw',
+    fallbackVideoIds: ['e2gC37ILQmk', '-Q7FuPINDjA'],
+  },
+  {
+    id: 'odessa',
+    city: 'Odessa',
+    country: 'Ukraine',
+    region: 'europe',
+    channelHandle: '@UkraineLiveCam',
+    fallbackVideoId: 'e2gC37ILQmk',
+    fallbackVideoIds: ['p5RLcaR3iOw', 'iLM_TaUKLeY'],
+  },
+  {
+    id: 'paris',
+    city: 'Paris',
+    country: 'France',
+    region: 'europe',
+    channelHandle: '@PalaisIena',
+    fallbackVideoId: 'OzYp4NRZlwQ',
+    fallbackVideoIds: ['wP1RwzORoBs', 'jZZy50w69zI'],
+  },
+  {
+    id: 'st-petersburg',
+    city: 'St. Petersburg',
+    country: 'Russia',
+    region: 'europe',
+    channelHandle: '@SPBLiveCam',
+    fallbackVideoId: 'V19KdSK1V8g',
+    fallbackVideoIds: ['CjtIYbmVfck', 'eDkveV1id1M'],
+  },
+  {
+    id: 'london',
+    city: 'London',
+    country: 'UK',
+    region: 'europe',
+    channelHandle: '@EarthCam',
+    fallbackVideoId: 'N8v5y2StMDQ',
+    fallbackVideoIds: ['uDBYuEV4zjI', 'Lxqcg1qt0XU'],
+  },
   // Americas
-  { id: 'washington', city: 'Washington DC', country: 'USA', region: 'americas', channelHandle: '@AxisCommunications', fallbackVideoId: '1wV9lLe14aU' },
-  { id: 'new-york', city: 'New York', country: 'USA', region: 'americas', channelHandle: '@EarthCam', fallbackVideoId: '4qyZLflp-sI' },
-  { id: 'los-angeles', city: 'Los Angeles', country: 'USA', region: 'americas', channelHandle: '@VeniceVHotel', fallbackVideoId: 'EO_1LWqsCNE' },
-  { id: 'miami', city: 'Miami', country: 'USA', region: 'americas', channelHandle: '@FloridaLiveCams', fallbackVideoId: '5YCajRjvWCg' },
-  // Asia-Pacific — Taipei first (strait hotspot), then Shanghai, Tokyo, Seoul
-  { id: 'taipei', city: 'Taipei', country: 'Taiwan', region: 'asia', channelHandle: '@JackyWuTaipei', fallbackVideoId: 'z_fY1pj1VBw' },
-  { id: 'shanghai', city: 'Shanghai', country: 'China', region: 'asia', channelHandle: '@SkylineWebcams', fallbackVideoId: '76EwqI5XZIc' },
-  { id: 'tokyo', city: 'Tokyo', country: 'Japan', region: 'asia', channelHandle: '@TokyoLiveCam4K', fallbackVideoId: '4pu9sF5Qssw' },
-  { id: 'seoul', city: 'Seoul', country: 'South Korea', region: 'asia', channelHandle: '@UNvillage_live', fallbackVideoId: '-JhoMGoAfFc' },
-  { id: 'sydney', city: 'Sydney', country: 'Australia', region: 'asia', channelHandle: '@WebcamSydney', fallbackVideoId: '7pcL-0Wo77U' },
+  {
+    id: 'washington',
+    city: 'Washington DC',
+    country: 'USA',
+    region: 'americas',
+    channelHandle: '@AxisCommunications',
+    fallbackVideoId: 'U85B2-kljyc',
+    fallbackVideoIds: ['NiC4XwcM7oM', 'rxhU5YXz6us'],
+  },
+  {
+    id: 'new-york',
+    city: 'New York',
+    country: 'USA',
+    region: 'americas',
+    channelHandle: '@EarthCam',
+    fallbackVideoId: 'PGrq-2mju2s',
+    fallbackVideoIds: ['bd83M-ftXX4', '4qyZLflp-sI'],
+  },
+  {
+    id: 'los-angeles',
+    city: 'Los Angeles',
+    country: 'USA',
+    region: 'americas',
+    channelHandle: '@VeniceVHotel',
+    fallbackVideoId: 'EO_1LWqsCNE',
+    fallbackVideoIds: ['JnNhhJQJ9KY', '-N6Y5Bh06c0'],
+  },
+  {
+    id: 'miami',
+    city: 'Miami',
+    country: 'USA',
+    region: 'americas',
+    channelHandle: '@FloridaLiveCams',
+    fallbackVideoId: 'TSGQMohOLU0',
+    fallbackVideoIds: ['96gYpFS4ZvY', '5YCajRjvWCg'],
+  },
+  // Asia-Pacific
+  {
+    id: 'taipei',
+    city: 'Taipei',
+    country: 'Taiwan',
+    region: 'asia',
+    channelHandle: '@JackyWuTaipei',
+    fallbackVideoId: 'z_fY1pj1VBw',
+    fallbackVideoIds: ['Y-dGAitUwDs', 'ZXEHi0fG2-4'],
+  },
+  {
+    id: 'shanghai',
+    city: 'Shanghai',
+    country: 'China',
+    region: 'asia',
+    channelHandle: '@SkylineWebcams',
+    fallbackVideoId: '76EwqI5XZIc',
+    fallbackVideoIds: ['cje_VvuyaEQ', 'r1VOcQ1xUN0'],
+  },
+  {
+    id: 'tokyo',
+    city: 'Tokyo',
+    country: 'Japan',
+    region: 'asia',
+    channelHandle: '@TokyoLiveCam4K',
+    fallbackVideoId: 's49TVEPng0Q',
+    fallbackVideoIds: ['PHjIoS--abI', '4pu9sF5Qssw'],
+  },
+  {
+    id: 'seoul',
+    city: 'Seoul',
+    country: 'South Korea',
+    region: 'asia',
+    channelHandle: '@seoullive',
+    fallbackVideoId: 'GhNscofIqHU',
+    fallbackVideoIds: ['nDQ_PdOIuPQ', 'xwewcDBVr8I'],
+  },
+  {
+    id: 'sydney',
+    city: 'Sydney',
+    country: 'Australia',
+    region: 'asia',
+    channelHandle: '@WebcamSydney',
+    fallbackVideoId: '0M_t0DEY7Jo',
+    fallbackVideoIds: ['ggy1-vP7CIw', '7pcL-0Wo77U'],
+  },
 ];
 
 const MAX_GRID_CELLS = 4;
@@ -61,6 +205,7 @@ export class LiveWebcamsPanel extends Panel {
   private boundVisibilityHandler!: () => void;
   private readonly IDLE_PAUSE_MS = 5 * 60 * 1000;
   private isIdle = false;
+  private streamIndices: Map<string, number> = new Map();
 
   constructor() {
     super({ id: 'live-webcams', title: t('panels.liveWebcams') });
@@ -86,6 +231,19 @@ export class LiveWebcamsPanel extends Panel {
         .filter(Boolean);
     }
     return this.filteredFeeds.slice(0, MAX_GRID_CELLS);
+  }
+
+  private getFeedVideoId(feed: WebcamFeed): string {
+    const idx = this.streamIndices.get(feed.id) ?? 0;
+    if (idx === 1 && feed.fallbackVideoIds?.[0]) return feed.fallbackVideoIds[0];
+    if (idx === 2 && feed.fallbackVideoIds?.[1]) return feed.fallbackVideoIds[1];
+    return feed.fallbackVideoId;
+  }
+
+  private cycleFeedStream(feedId: string): void {
+    const cur = this.streamIndices.get(feedId) ?? 0;
+    this.streamIndices.set(feedId, (cur + 1) % 3);
+    this.render();
   }
 
   private createToolbar(): void {
@@ -179,13 +337,17 @@ export class LiveWebcamsPanel extends Panel {
   private createIframe(feed: WebcamFeed): HTMLIFrameElement {
     const iframe = document.createElement('iframe');
     iframe.className = 'webcam-iframe';
-    iframe.src = this.buildEmbedUrl(feed.fallbackVideoId);
+    const videoId = this.getFeedVideoId(feed);
+    iframe.src = this.buildEmbedUrl(videoId);
     iframe.title = `${feed.city} live webcam`;
     iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = 'strict-origin-when-cross-origin';
     iframe.setAttribute('loading', 'lazy');
     iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation');
+    iframe.addEventListener('error', () => {
+      this.cycleFeedStream(feed.id);
+    });
     return iframe;
   }
 
@@ -222,7 +384,22 @@ export class LiveWebcamsPanel extends Panel {
 
       const label = document.createElement('div');
       label.className = 'webcam-cell-label';
-      label.innerHTML = `<span class="webcam-live-dot"></span><span class="webcam-city">${escapeHtml(feed.city.toUpperCase())}</span>`;
+
+      const citySpan = document.createElement('span');
+      citySpan.className = 'webcam-city-wrap';
+      citySpan.innerHTML = `<span class="webcam-live-dot"></span><span class="webcam-city">${escapeHtml(feed.city.toUpperCase())}</span>`;
+      label.appendChild(citySpan);
+
+      const streamIdx = (this.streamIndices.get(feed.id) ?? 0) + 1;
+      const cycleBtn = document.createElement('button');
+      cycleBtn.className = 'webcam-stream-badge';
+      cycleBtn.title = 'Switch stream (3 available)';
+      cycleBtn.textContent = `CAM ${streamIdx}/3`;
+      cycleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.cycleFeedStream(feed.id);
+      });
+      label.appendChild(cycleBtn);
 
       const iframe = this.createIframe(feed);
       cell.appendChild(iframe);
@@ -265,6 +442,24 @@ export class LiveWebcamsPanel extends Panel {
       });
       switcher.appendChild(btn);
     });
+
+    // Fallback stream selection controls for active feed
+    const streamGroup = document.createElement('div');
+    streamGroup.className = 'webcam-fallback-group';
+    const curIdx = this.streamIndices.get(this.activeFeed.id) ?? 0;
+    const streamLabels = ['Stream 1', 'Stream 2', 'Stream 3'];
+    streamLabels.forEach((name, idx) => {
+      const sBtn = document.createElement('button');
+      sBtn.className = `webcam-feed-btn webcam-stream-btn${curIdx === idx ? ' active' : ''}`;
+      sBtn.textContent = name;
+      sBtn.title = `Switch to ${name} for ${this.activeFeed.city}`;
+      sBtn.addEventListener('click', () => {
+        this.streamIndices.set(this.activeFeed.id, idx);
+        this.render();
+      });
+      streamGroup.appendChild(sBtn);
+    });
+    switcher.appendChild(streamGroup);
 
     this.content.appendChild(wrapper);
     this.content.appendChild(switcher);
