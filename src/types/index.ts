@@ -180,6 +180,12 @@ export interface AisDisruptionEvent {
   vesselCount?: number;
   region?: string;
   description: string;
+  source?: string;
+  sourceUrl?: string;
+  pageUrl?: string;
+  attribution?: string;
+  license?: string;
+  licenseUrl?: string;
 }
 
 export interface AisDensityZone {

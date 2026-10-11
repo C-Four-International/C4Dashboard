@@ -168,6 +168,152 @@ function parseSnapshot(data: unknown): {
   };
 }
 
+// ---- Eagle Intelligence Chokepoint Types & Mapping ----
+
+export interface EagleChokepointItem {
+  chokepoint: string;
+  name: string;
+  status: string;
+  signalsLast24h: number;
+  highAlertsLast24h: number;
+  signalsLast7d: number;
+  latestHighHeadline: string | null;
+  lastUpdated: string;
+  pageUrl: string;
+  crisisDay?: number;
+  situationUrl?: string;
+}
+
+export interface EagleChokepointResponse {
+  source?: string;
+  url?: string;
+  docs?: string;
+  count?: number;
+  chokepoints?: EagleChokepointItem[];
+}
+
+export interface EagleHormuzResponse {
+  situation?: string;
+  name?: string;
+  status?: string;
+  statusNote?: string;
+  crisisDay?: number;
+  signalsLast24h?: number;
+  highAlertsLast24h?: number;
+  signalsLast7d?: number;
+  latestHighHeadline?: string | null;
+  lastUpdated?: string;
+  situationUrl?: string;
+  attribution?: string;
+  embedBadge?: string;
+}
+
+const EAGLE_CHOKEPOINT_COORDS: Record<string, { lat: number; lon: number; region: string }> = {
+  'strait-of-hormuz': { lat: 26.5, lon: 56.5, region: 'Middle East (Strait of Hormuz)' },
+  'suez-canal': { lat: 30.5, lon: 32.3, region: 'Middle East / Red Sea (Suez Canal)' },
+  'bab-el-mandeb': { lat: 12.5, lon: 43.3, region: 'Red Sea / Gulf of Aden (Bab el-Mandeb)' },
+  'panama-canal': { lat: 9.1, lon: -79.7, region: 'Americas (Panama Canal)' },
+  'strait-of-malacca': { lat: 2.5, lon: 101.5, region: 'Southeast Asia (Strait of Malacca)' },
+  'bosphorus': { lat: 41.1, lon: 29.0, region: 'Black Sea / Turkish Straits (Bosphorus)' },
+};
+
+function parseEagleSeverity(status: string): 'low' | 'elevated' | 'high' {
+  const s = (status || '').toUpperCase();
+  if (s === 'SEVERE' || s === 'HIGH' || s === 'CRITICAL') return 'high';
+  if (s === 'ELEVATED' || s === 'WARNING') return 'elevated';
+  return 'low';
+}
+
+function formatEagleDescription(cp: EagleChokepointItem, hormuzNote?: string): string {
+  const parts: string[] = [`Status: ${cp.status}`];
+  if (cp.crisisDay) {
+    parts.push(`Crisis Day ${cp.crisisDay}`);
+  }
+  if (hormuzNote) {
+    parts.push(hormuzNote);
+  }
+  if (cp.latestHighHeadline) {
+    parts.push(`Alert: "${cp.latestHighHeadline}"`);
+  }
+  parts.push(`Activity: ${cp.signalsLast24h} signals in 24h (${cp.signalsLast7d} in 7d, ${cp.highAlertsLast24h} HIGH alerts)`);
+  parts.push('Source: Eagle Intelligence (eagleintelmari.com)');
+  return parts.join(' | ');
+}
+
+export async function fetchEagleChokepointStatus(): Promise<AisDisruptionEvent[]> {
+  const chokepointDisruptions: AisDisruptionEvent[] = [];
+  try {
+    const [chokepointRes, hormuzRes] = await Promise.allSettled([
+      globalThis.fetch('https://eagleintelmari.com/api/chokepoint-status', { signal: AbortSignal.timeout(8000) }),
+      globalThis.fetch('https://eagleintelmari.com/api/hormuz-status', { signal: AbortSignal.timeout(8000) }),
+    ]);
+
+    let hormuzNote: string | undefined;
+    let hormuzData: EagleHormuzResponse | null = null;
+    if (hormuzRes.status === 'fulfilled' && hormuzRes.value.ok) {
+      try {
+        hormuzData = await hormuzRes.value.json() as EagleHormuzResponse;
+        if (hormuzData?.statusNote) {
+          hormuzNote = hormuzData.statusNote;
+        }
+      } catch { /* ignore */ }
+    }
+
+    if (chokepointRes.status === 'fulfilled' && chokepointRes.value.ok) {
+      const data = await chokepointRes.value.json() as EagleChokepointResponse;
+      if (data && Array.isArray(data.chokepoints)) {
+        for (const cp of data.chokepoints) {
+          const note = (cp.chokepoint === 'strait-of-hormuz') ? hormuzNote : undefined;
+          const meta = EAGLE_CHOKEPOINT_COORDS[cp.chokepoint] || { lat: 0, lon: 0, region: 'Global' };
+          chokepointDisruptions.push({
+            id: `eagle-${cp.chokepoint}`,
+            name: cp.name,
+            type: 'chokepoint_congestion',
+            lat: meta.lat,
+            lon: meta.lon,
+            severity: parseEagleSeverity(cp.status),
+            changePct: cp.status === 'SEVERE' ? 50 : (cp.highAlertsLast24h > 0 ? cp.highAlertsLast24h * 15 : 0),
+            windowHours: 24,
+            vesselCount: cp.signalsLast24h,
+            region: meta.region,
+            description: formatEagleDescription(cp, note),
+            source: 'EAGLE Intelligence',
+            sourceUrl: 'https://eagleintelmari.com',
+            pageUrl: cp.situationUrl || cp.pageUrl || 'https://eagleintelmari.com',
+            attribution: 'Data provided by EAGLE Intelligence (eagleintelmari.com) under CC BY 4.0',
+            license: 'CC BY 4.0',
+            licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+          });
+        }
+      }
+    } else if (hormuzData) {
+      const meta = EAGLE_CHOKEPOINT_COORDS['strait-of-hormuz'] ?? { lat: 26.5, lon: 56.5, region: 'Middle East (Strait of Hormuz)' };
+      chokepointDisruptions.push({
+        id: 'eagle-strait-of-hormuz',
+        name: hormuzData.name || 'Strait of Hormuz',
+        type: 'chokepoint_congestion',
+        lat: meta.lat,
+        lon: meta.lon,
+        severity: parseEagleSeverity(hormuzData.status || 'SEVERE'),
+        changePct: 50,
+        windowHours: 24,
+        vesselCount: hormuzData.signalsLast24h ?? 0,
+        region: meta.region,
+        description: `Status: ${hormuzData.status || 'SEVERE'} | ${hormuzData.statusNote || ''} | Latest Alert: "${hormuzData.latestHighHeadline || ''}" | Source: Eagle Intelligence (eagleintelmari.com)`,
+        source: 'EAGLE Intelligence',
+        sourceUrl: 'https://eagleintelmari.com',
+        pageUrl: hormuzData.situationUrl || 'https://eagleintelmari.com/situation/strait-of-hormuz',
+        attribution: hormuzData.attribution || 'Data provided by EAGLE Intelligence (eagleintelmari.com) under CC BY 4.0',
+        license: 'CC BY 4.0',
+        licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+      });
+    }
+  } catch (e) {
+    console.warn('[AIS Frontend] Failed to fetch eagleintelmari chokepoint APIs', e);
+  }
+  return chokepointDisruptions;
+}
+
 // ---- Hybrid Fetch Strategy ----
 
 async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown> {
@@ -177,28 +323,8 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
   let status: SnapshotStatus = { connected: true, isStarved: false, vessels: 0, messages: 0 };
   let sequence = 0;
   let relaySuccess = false;
-  let chokepointDisruptions: AisDisruptionEvent[] = [];
 
-  try {
-    const [globalRes, hormuzRes] = await Promise.allSettled([
-      globalThis.fetch('https://eagleintelmari.com/api/chokepoints/global'),
-      globalThis.fetch('https://eagleintelmari.com/api/chokepoints/hormuz')
-    ]);
-    
-    if (globalRes.status === 'fulfilled' && globalRes.value.ok) {
-      const data = await globalRes.value.json();
-      if (Array.isArray(data)) chokepointDisruptions.push(...data);
-      else if (data.disruptions && Array.isArray(data.disruptions)) chokepointDisruptions.push(...data.disruptions);
-    }
-    
-    if (hormuzRes.status === 'fulfilled' && hormuzRes.value.ok) {
-      const data = await hormuzRes.value.json();
-      if (Array.isArray(data)) chokepointDisruptions.push(...data);
-      else if (data.disruptions && Array.isArray(data.disruptions)) chokepointDisruptions.push(...data.disruptions);
-    }
-  } catch (e) {
-    console.warn('[AIS Frontend] Failed to fetch chokepoint APIs', e);
-  }
+  const chokepointDisruptions: AisDisruptionEvent[] = await fetchEagleChokepointStatus();
 
   if (includeCandidates) {
     try {

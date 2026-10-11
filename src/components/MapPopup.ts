@@ -870,6 +870,24 @@ export class MapPopup {
     const countLabel = event.type === 'gap_spike' ? t('popups.affectedShips') : t('popups.vesselCount');
     const countValue = event.vesselCount?.toString() || '—';
 
+    const isEagle = Boolean(
+      event.source?.toLowerCase().includes('eagle') ||
+      event.id?.startsWith('eagle-') ||
+      event.description?.includes('eagleintelmari.com') ||
+      event.description?.includes('Eagle Intelligence')
+    );
+
+    const sourceName = event.source || (isEagle ? 'EAGLE Intelligence' : '');
+    const sourceUrl = event.pageUrl || event.sourceUrl || (isEagle ? 'https://eagleintelmari.com' : '');
+    const licenseName = event.license || (isEagle ? 'CC BY 4.0' : '');
+    const licenseUrl = event.licenseUrl || (isEagle ? 'https://creativecommons.org/licenses/by/4.0/' : '');
+
+    // Strip redundant trailing source disclaimer from description if we are showing the dedicated source & CC attribution
+    let displayDesc = event.description || '';
+    if (isEagle) {
+      displayDesc = displayDesc.replace(/\s*\|\s*Source:\s*Eagle Intelligence\s*\(eagleintelmari\.com\)/gi, '').trim();
+    }
+
     return `
       <div class="popup-header ais">
         <span class="popup-title">${escapeHtml(event.name.toUpperCase())}</span>
@@ -895,8 +913,23 @@ export class MapPopup {
             <span class="stat-label">${t('popups.region')}</span>
             <span class="stat-value">${escapeHtml(event.region || `${event.lat.toFixed(2)}°, ${event.lon.toFixed(2)}°`)}</span>
           </div>
+          ${sourceName ? `
+          <div class="popup-stat">
+            <span class="stat-label">${t('popups.source')}</span>
+            <span class="stat-value">
+              ${sourceUrl ? `<a href="${sanitizeUrl(sourceUrl)}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;">${escapeHtml(sourceName)}</a>` : escapeHtml(sourceName)}
+            </span>
+          </div>` : ''}
         </div>
-        <p class="popup-description">${escapeHtml(event.description)}</p>
+        ${displayDesc ? `<p class="popup-description">${escapeHtml(displayDesc)}</p>` : ''}
+        ${sourceUrl ? `
+        <a href="${sanitizeUrl(sourceUrl)}" target="_blank" rel="noopener noreferrer" class="popup-link">
+          View situation report on eagleintelmari.com →
+        </a>` : ''}
+        ${isEagle ? `
+        <div class="popup-attribution">
+          Data provided by <a href="${sanitizeUrl('https://eagleintelmari.com')}" target="_blank" rel="noopener noreferrer">EAGLE Intelligence</a> under <a href="${sanitizeUrl(licenseUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(licenseName)}</a>
+        </div>` : ''}
       </div>
     `;
   }
