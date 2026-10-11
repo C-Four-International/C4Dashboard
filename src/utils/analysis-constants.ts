@@ -46,7 +46,7 @@ export const SUPPRESSED_TRENDING_TERMS = new Set<string>([
   // Meta / media terms
   'ai', 'app', 'api', 'new', 'top', 'big', 'ceo', 'cto',
   'update', 'report', 'latest', 'breaking', 'analysis',
-  'reuters', 'exclusive', 'opinion', 'editorial', 'watch',
+  'reuters', 'fox', 'exclusive', 'opinion', 'editorial', 'watch',
   'live', 'video', 'photo', 'photos', 'read', 'full',
   'source', 'sources', 'according', 'ahead', 'english',
   'times', 'post', 'news', 'press', 'media', 'journal',

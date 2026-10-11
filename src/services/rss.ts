@@ -195,6 +195,7 @@ function extractImageUrl(item: Element): string | undefined {
 }
 
 export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
+  if (/fox\s*(news|business)/i.test(feed.name)) return [];
   if (feedCache.size > MAX_CACHE_ENTRIES / 2) cleanupCaches();
   const currentLang = getCurrentLanguage();
   const feedScope = getFeedScope(feed.name, currentLang);
@@ -227,6 +228,7 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
     }
 
     if (!url) throw new Error(`No URL found for feed ${feed.name}`);
+    if (/foxnews\.com|foxbusiness\.com/i.test(url)) return [];
 
     const response = await fetchWithProxy(url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -246,7 +248,28 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
     const isAtom = items.length === 0;
     if (isAtom) items = doc.querySelectorAll('entry');
 
+    const isFoxNewsItem = (itemEl: Element, itemTitle: string, itemLink: string): boolean => {
+      if (/fox\s*(news|business)/i.test(itemTitle)) return true;
+      if (/foxnews\.com|foxbusiness\.com/i.test(itemLink)) return true;
+      const sourceEl = itemEl.querySelector('source');
+      if (sourceEl && /fox\s*(news|business)/i.test(sourceEl.textContent || '')) return true;
+      const sourceUrl = sourceEl?.getAttribute('url') || '';
+      if (/foxnews\.com|foxbusiness\.com/i.test(sourceUrl)) return true;
+      return false;
+    };
+
     const parsed = Array.from(items)
+      .filter((item) => {
+        const title = item.querySelector('title')?.textContent || '';
+        let link = '';
+        if (isAtom) {
+          const linkEl = item.querySelector('link[href]');
+          link = linkEl?.getAttribute('href') || '';
+        } else {
+          link = item.querySelector('link')?.textContent || '';
+        }
+        return !isFoxNewsItem(item, title, link);
+      })
       .slice(0, 5)
       .map((item) => {
         const title = item.querySelector('title')?.textContent || '';

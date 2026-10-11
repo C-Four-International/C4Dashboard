@@ -25,7 +25,6 @@ export function getCredibility(source: string): number {
   // Major Networks / Secondary Sources (0.8)
   if (
     lower.includes('cnn') ||
-    lower.includes('fox') ||
     lower.includes('msnbc') ||
     lower.includes('al jazeera') ||
     lower.includes('guardian') ||

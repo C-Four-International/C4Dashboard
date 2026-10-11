@@ -154,14 +154,22 @@ export const BUILTIN_IDS = new Set([
 ]);
 
 export function loadChannelsFromStorage(): LiveChannel[] {
+  const isFoxChannel = (c: { id?: string; name?: string; handle?: string }) =>
+    c.id === 'fox-news' ||
+    c.id === 'livenow-fox' ||
+    /@?(foxnews|livenowfromfox)\b/i.test(c.handle ?? '') ||
+    /fox\s*news|livenow.*fox/i.test(c.name ?? '');
+
   const stored = loadFromStorage<StoredLiveChannels>(STORAGE_KEYS.liveChannels, DEFAULT_STORED);
-  const order = stored.order?.length ? stored.order : DEFAULT_STORED.order;
+  const order = (stored.order?.length ? stored.order : DEFAULT_STORED.order).filter(
+    (id) => id !== 'fox-news' && id !== 'livenow-fox'
+  );
   const channelMap = new Map<string, LiveChannel>();
   for (const c of FULL_LIVE_CHANNELS) channelMap.set(c.id, { ...c });
   for (const c of TECH_LIVE_CHANNELS) channelMap.set(c.id, { ...c });
   for (const c of OPTIONAL_LIVE_CHANNELS) channelMap.set(c.id, { ...c });
   for (const c of stored.custom ?? []) {
-    if (c.id && c.handle) channelMap.set(c.id, { ...c });
+    if (c.id && c.handle && !isFoxChannel(c)) channelMap.set(c.id, { ...c });
   }
   const overrides = stored.displayNameOverrides ?? {};
   for (const [id, name] of Object.entries(overrides)) {
@@ -171,14 +179,21 @@ export function loadChannelsFromStorage(): LiveChannel[] {
   const result: LiveChannel[] = [];
   for (const id of order) {
     const ch = channelMap.get(id);
-    if (ch) result.push(ch);
+    if (ch && !isFoxChannel(ch)) result.push(ch);
   }
   return result;
 }
 
 export function saveChannelsToStorage(channels: LiveChannel[]): void {
-  const order = channels.map((c) => c.id);
-  const custom = channels.filter((c) => !BUILTIN_IDS.has(c.id));
+  const filtered = channels.filter(
+    (c) =>
+      c.id !== 'fox-news' &&
+      c.id !== 'livenow-fox' &&
+      !/@?(foxnews|livenowfromfox)\b/i.test(c.handle ?? '') &&
+      !/fox\s*news|livenow.*fox/i.test(c.name ?? '')
+  );
+  const order = filtered.map((c) => c.id);
+  const custom = filtered.filter((c) => !BUILTIN_IDS.has(c.id));
   const builtinNames = new Map<string, string>();
   for (const c of [...FULL_LIVE_CHANNELS, ...TECH_LIVE_CHANNELS, ...OPTIONAL_LIVE_CHANNELS]) builtinNames.set(c.id, c.name);
   const displayNameOverrides: Record<string, string> = {};

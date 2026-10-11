@@ -46,6 +46,9 @@ async function fetchAndParseRss(
   variant: string,
   signal: AbortSignal,
 ): Promise<ParsedItem[]> {
+  if (/fox\s*(news|business)/i.test(feed.name) || /foxnews\.com|foxbusiness\.com/i.test(feed.url)) {
+    return [];
+  }
   const cacheKey = `rss:feed:v1:${feed.url}`;
 
   try {
@@ -91,7 +94,8 @@ function parseRssXml(xml: string, feed: ServerFeed, variant: string): ParsedItem
   const isAtom = matches.length === 0;
   if (isAtom) matches = [...xml.matchAll(entryRegex)];
 
-  for (const match of matches.slice(0, ITEMS_PER_FEED)) {
+  for (const match of matches) {
+    if (items.length >= ITEMS_PER_FEED) break;
     const block = match[1]!;
 
     const title = extractTag(block, 'title');
@@ -103,6 +107,16 @@ function parseRssXml(xml: string, feed: ServerFeed, variant: string): ParsedItem
       link = hrefMatch?.[1] ?? '';
     } else {
       link = extractTag(block, 'link');
+    }
+
+    const sourceTag = extractTag(block, 'source');
+    if (
+      /fox\s*(news|business)/i.test(title) ||
+      /foxnews\.com|foxbusiness\.com/i.test(link) ||
+      /fox\s*(news|business)/i.test(sourceTag) ||
+      /fox\s*(news|business)/i.test(feed.name)
+    ) {
+      continue;
     }
 
     const pubDateStr = isAtom
