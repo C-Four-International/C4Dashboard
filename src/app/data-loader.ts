@@ -921,6 +921,18 @@ export class DataLoaderManager implements AppModule {
       }
     })());
 
+    tasks.push((async () => {
+      try {
+        if (this.ctx.mapLayers.bgpAnomalies) {
+          const { fetchBgpAnomalies } = await import('@/services/bgp-anomalies');
+          const anomalies = await fetchBgpAnomalies();
+          this.ctx.map?.setBgpAnomalies(anomalies);
+        }
+      } catch (error) {
+        console.error('[Intelligence] BGP anomalies fetch failed:', error);
+      }
+    })());
+
     const protestsTask = (async (): Promise<SocialUnrestEvent[]> => {
       try {
         const protestData = await fetchProtestEvents();

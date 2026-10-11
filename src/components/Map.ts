@@ -336,7 +336,7 @@ export class MapComponent {
       // General Intel
       'alertStatus', 'hotspots', 'threatScore',
       // Infrastructure
-      'pipelines', 'cables', 'datacenters', 'outages',
+      'pipelines', 'cables', 'datacenters', 'outages', 'bgpAnomalies',
       // Military
       'military', 'conflicts', 'bases', 'nuclear', 'irradiators',
       // Shipping & Air Traffic
@@ -347,7 +347,7 @@ export class MapComponent {
       'sanctions', 'protests', 'economic',
     ];
     const techLayers: (keyof MapLayers)[] = [
-      'cables', 'datacenters', 'outages', 'gpsJamming',  // tech infrastructure
+      'cables', 'datacenters', 'outages', 'bgpAnomalies', 'gpsJamming',  // tech infrastructure
       'startupHubs', 'cloudRegions', 'accelerators', 'techHQs', 'techEvents', // tech ecosystem
       'natural', 'weather', 'weatherRadar', 'fires', 'aqi',                   // natural events
       'economic',                                         // economic/geographic
@@ -375,6 +375,7 @@ export class MapComponent {
       cables: 'components.deckgl.layers.underseaCables',
       pipelines: 'components.deckgl.layers.pipelines',
       outages: 'components.deckgl.layers.internetOutages',
+      bgpAnomalies: 'components.deckgl.layers.bgpAnomalies',
       datacenters: 'components.deckgl.layers.aiDataCenters',
       ais: 'components.deckgl.layers.shipTraffic',
       flights: 'components.deckgl.layers.flightDelays',
@@ -533,6 +534,7 @@ export class MapComponent {
       helpItem(label('pipelines'), 'infraPipelinesFull'),
       helpItem(label('internetOutages'), 'infraOutages'),
       helpItem(label('aiDataCenters'), 'infraDatacentersFull'),
+      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc'),
       helpItem(label('gpsJamming'), 'gpsJammingDesc'),
     ])}
         ${helpSection('transport', [
@@ -3523,6 +3525,10 @@ export class MapComponent {
   }
 
   public setCyberThreats(_threats: CyberThreat[]): void {
+    // SVG/mobile fallback intentionally does not render this layer to stay lightweight.
+  }
+
+  public setBgpAnomalies(_anomalies: import('@/types').BgpAnomaly[]): void {
     // SVG/mobile fallback intentionally does not render this layer to stay lightweight.
   }
 

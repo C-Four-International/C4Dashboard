@@ -330,6 +330,14 @@ export class MapContainer {
     }
   }
 
+  public setBgpAnomalies(anomalies: import('@/types').BgpAnomaly[]): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.setBgpAnomalies(anomalies);
+    } else {
+      this.svgMap?.setBgpAnomalies(anomalies);
+    }
+  }
+
   public setNewsLocations(data: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date; items?: import('@/types').NewsItem[] }>): void {
     if (this.useDeckGL) {
       this.deckGLMap?.setNewsLocations(data);

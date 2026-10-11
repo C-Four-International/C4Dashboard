@@ -608,6 +608,42 @@ function youtubeLivePlugin(): Plugin {
   };
 }
 
+function radarBgpPlugin(): Plugin {
+  return {
+    name: 'radar-bgp',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith('/api/bgp-anomalies')) {
+          return next();
+        }
+
+        try {
+          const mod = await import('./api/bgp-anomalies.js');
+          const port = server.config.server.port || 3000;
+          const url = new URL(req.url, `http://localhost:${port}`);
+          const webReq = new Request(url.href, {
+            method: req.method,
+            headers: req.headers as any,
+          });
+
+          const webRes = await mod.default(webReq);
+          res.statusCode = webRes.status;
+          webRes.headers.forEach((val: string, key: string) => {
+            res.setHeader(key, val);
+          });
+          const text = await webRes.text();
+          res.end(text);
+        } catch (error: any) {
+          console.error('[Radar BGP Dev]', error);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Failed in dev handler', details: error.message }));
+        }
+      });
+    },
+  };
+}
+
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
@@ -616,6 +652,7 @@ export default defineConfig({
     htmlVariantPlugin(),
     rssProxyPlugin(),
     youtubeLivePlugin(),
+    radarBgpPlugin(),
     sebufApiPlugin(),
     brotliPrecompressPlugin(),
     VitePWA({

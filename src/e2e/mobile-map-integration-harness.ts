@@ -103,6 +103,7 @@ const layers = {
   waterways: false,
   outages: false,
   cyberThreats: false,
+  bgpAnomalies: false,
   datacenters: false,
   protests: false,
   flights: false,

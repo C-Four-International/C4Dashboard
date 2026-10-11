@@ -221,6 +221,37 @@ export interface CyberThreat {
   lastSeen?: string;
 }
 
+export type BgpAnomalyType = 'hijack' | 'leak';
+export type BgpAnomalySeverity = 'low' | 'medium' | 'high' | 'critical';
+
+export interface BgpAnomaly {
+  id: string;
+  type: BgpAnomalyType;
+  detectedTime: string;
+  startTime?: string;
+  endTime?: string;
+  duration?: number;
+  confidence: number;
+  severity: BgpAnomalySeverity;
+  originAsn: number;
+  originOrg?: string;
+  originCountry?: string;
+  targetAsns?: number[];
+  targetOrgs?: string[];
+  targetCountries?: string[];
+  prefixes: string[];
+  prefixCount: number;
+  peerCount?: number;
+  messageCount?: number;
+  tags?: string[];
+  description?: string;
+  countryCode?: string;
+  lat: number;
+  lon: number;
+  targetLat?: number;
+  targetLon?: number;
+}
+
 export interface ConflictZone {
   id: string;
   name: string;
@@ -516,6 +547,7 @@ export interface MapLayers {
   waterways: boolean;
   outages: boolean;
   cyberThreats: boolean;
+  bgpAnomalies: boolean;
   datacenters: boolean;
   protests: boolean;
   flights: boolean;

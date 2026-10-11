@@ -1,4 +1,4 @@
-import type { ConflictZone, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, NuclearFacility, EconomicCenter, GammaIrradiator, Pipeline, UnderseaCable, CableAdvisory, RepairShip, InternetOutage, AIDataCenter, AisDisruptionEvent, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, Port, Spaceport, CriticalMineralProject, CyberThreat } from '@/types';
+import type { ConflictZone, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, NuclearFacility, EconomicCenter, GammaIrradiator, Pipeline, UnderseaCable, CableAdvisory, RepairShip, InternetOutage, AIDataCenter, AisDisruptionEvent, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, Port, Spaceport, CriticalMineralProject, CyberThreat, BgpAnomaly } from '@/types';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { Earthquake } from '@/services/earthquakes';
 import type { WeatherAlert } from '@/services/weather';
@@ -14,7 +14,7 @@ import { getNaturalEventIcon } from '@/services/eonet';
 import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot-escalation';
 import { getCableHealthRecord } from '@/services/cable-health';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub';
+export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub';
 
 interface TechEventPopupData {
   id: string;
@@ -120,7 +120,7 @@ interface DatacenterClusterData {
 
 interface PopupData {
   type: PopupType;
-  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | CyberThreat | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData;
+  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | CyberThreat | BgpAnomaly | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData;
   relatedNews?: NewsItem[];
   x: number;
   y: number;
@@ -361,6 +361,8 @@ export class MapPopup {
 
       case 'cyberThreat':
         return this.renderCyberThreatPopup(data.data as CyberThreat);
+      case 'bgpAnomaly':
+        return this.renderBgpAnomalyPopup(data.data as BgpAnomaly);
       case 'nuclear':
         return this.renderNuclearPopup(data.data as NuclearFacility);
       case 'economic':
@@ -1147,6 +1149,79 @@ export class MapPopup {
         <div class="popup-tags">
           ${tags.map((tag) => `<span class="popup-tag">${escapeHtml(tag)}</span>`).join('')}
         </div>` : ''}
+      </div>
+    `;
+  }
+
+  private renderBgpAnomalyPopup(anomaly: BgpAnomaly): string {
+    const isHijack = anomaly.type === 'hijack';
+    const typeTitle = isHijack ? 'BGP Origin Hijack' : 'BGP Route Leak';
+    const severityBadgeClass = anomaly.severity === 'critical' ? 'critical' : anomaly.severity === 'high' ? 'high' : anomaly.severity === 'medium' ? 'elevated' : 'low';
+    const timeAgo = this.getTimeAgo(new Date(anomaly.detectedTime));
+    const prefixes = (anomaly.prefixes || []).slice(0, 5);
+    const remainingPrefixCount = (anomaly.prefixes || []).length - prefixes.length;
+
+    return `
+      <div class="popup-header apt ${severityBadgeClass}">
+        <span class="popup-title">🔀 ${escapeHtml(typeTitle)}</span>
+        <span class="popup-badge ${severityBadgeClass}">${escapeHtml(anomaly.severity.toUpperCase())}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-subtitle">${escapeHtml(anomaly.originOrg || `AS${anomaly.originAsn}`)} ${anomaly.originCountry ? `(${escapeHtml(anomaly.originCountry)})` : ''}</div>
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">Origin ASN</span>
+            <span class="stat-value">AS${escapeHtml(String(anomaly.originAsn))}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Confidence</span>
+            <span class="stat-value">${anomaly.confidence}/10</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Affected Prefixes</span>
+            <span class="stat-value">${anomaly.prefixCount}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Detected</span>
+            <span class="stat-value">${timeAgo}</span>
+          </div>
+          ${anomaly.peerCount ? `
+          <div class="popup-stat">
+            <span class="stat-label">Peer Monitors</span>
+            <span class="stat-value">${anomaly.peerCount}</span>
+          </div>` : ''}
+          ${anomaly.targetCountries && anomaly.targetCountries.length > 0 ? `
+          <div class="popup-stat">
+            <span class="stat-label">Target Region</span>
+            <span class="stat-value">${escapeHtml(anomaly.targetCountries.join(', '))}</span>
+          </div>` : ''}
+        </div>
+
+        ${prefixes.length > 0 ? `
+        <div class="popup-section">
+          <span class="section-label">Target / Affected Prefixes</span>
+          <div class="popup-tags">
+            ${prefixes.map((p) => `<span class="popup-tag">${escapeHtml(p)}</span>`).join('')}
+            ${remainingPrefixCount > 0 ? `<span class="popup-tag">+${remainingPrefixCount} more</span>` : ''}
+          </div>
+        </div>` : ''}
+
+        ${anomaly.targetOrgs && anomaly.targetOrgs.length > 0 ? `
+        <div class="popup-section">
+          <span class="section-label">Victim / Affected Entities</span>
+          <p class="popup-description">${escapeHtml(anomaly.targetOrgs.slice(0, 3).join(', '))}${anomaly.targetOrgs.length > 3 ? ` (+${anomaly.targetOrgs.length - 3} more)` : ''}</p>
+        </div>` : ''}
+
+        ${anomaly.tags && anomaly.tags.length > 0 ? `
+        <div class="popup-section">
+          <span class="section-label">Routing Evidence</span>
+          <div class="popup-tags">
+            ${anomaly.tags.slice(0, 4).map((tag) => `<span class="popup-tag">${escapeHtml(tag)}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <div class="popup-attribution">Source: Cloudflare Radar BGP Routing Anomalies</div>
       </div>
     `;
   }

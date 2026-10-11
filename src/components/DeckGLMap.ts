@@ -35,6 +35,7 @@ import type {
   MapTechEventCluster,
   MapDatacenterCluster,
   CyberThreat,
+  BgpAnomaly,
   CableHealthRecord,
   RegionalThreat,
 } from '@/types';
@@ -176,6 +177,10 @@ const LAYER_ZOOM_THRESHOLDS: Partial<Record<keyof MapLayers, { minZoom: number; 
 // Export for external use
 export { LAYER_ZOOM_THRESHOLDS };
 
+// FAO ASIS layer opacities (lowered to maintain basemap readability and multi-layer stacking)
+const AGRICULTURAL_LAYER_OPACITY = 0.3;
+const VEGETATION_LAYER_OPACITY = 0.3;
+
 // Theme-aware overlay color function
 function getOverlayColors() {
   const isLight = getCurrentTheme() === 'light';
@@ -271,6 +276,8 @@ export class DeckGLMap {
   private mapTilerRadarLayer: any = null;
   private mapTilerPressureLayer: any = null;
   private cyberThreats: CyberThreat[] = [];
+  private bgpAnomalies: BgpAnomaly[] = [];
+  private bgpAnomaliesFetchPending: boolean = false;
   private aisDisruptions: AisDisruptionEvent[] = [];
   private aisDensity: AisDensityZone[] = [];
   private cableAdvisories: CableAdvisory[] = [];
@@ -413,6 +420,9 @@ export class DeckGLMap {
       }
       if (this.state.layers.gpsJamming) {
         this.fetchGpsJammingData();
+      }
+      if (this.state.layers.bgpAnomalies) {
+        this.fetchBgpAnomaliesData();
       }
       this.render();
     });
@@ -1269,13 +1279,13 @@ export class DeckGLMap {
     }
 
     if (mapLayers.agriculturalStressDI) {
-      layers.push(this.createAgriculturalStressLayer('DI_A', 'di'));
+      layers.push(this.createAgriculturalStressLayer('DI_A', 'di', AGRICULTURAL_LAYER_OPACITY));
     }
     if (mapLayers.agriculturalStressASI) {
-      layers.push(this.createAgriculturalStressLayer('ASI_A', 'asi'));
+      layers.push(this.createAgriculturalStressLayer('ASI_A', 'asi', AGRICULTURAL_LAYER_OPACITY));
     }
     if (mapLayers.agriculturalStressVCI) {
-      layers.push(this.createAgriculturalStressLayer('VCI_M', 'vci'));
+      layers.push(this.createAgriculturalStressLayer('VCI_M', 'vci', VEGETATION_LAYER_OPACITY));
     }
 
     // Undersea cables layer
@@ -1365,6 +1375,11 @@ export class DeckGLMap {
     if (mapLayers.cyberThreats && filteredCyberThreats.length > 0) {
       layers.push(this.createCyberThreatsLayer(filteredCyberThreats));
       layers.push(this.createGhostLayer('cyber-threats-layer', filteredCyberThreats, d => [d.lon, d.lat], { radiusMinPixels: 12 }));
+    }
+
+    // BGP Anomalies layer (Cloudflare Radar)
+    if (mapLayers.bgpAnomalies && this.bgpAnomalies.length > 0) {
+      layers.push(...this.createBgpAnomaliesLayers());
     }
 
     // AIS density layer
@@ -1610,6 +1625,20 @@ export class DeckGLMap {
     }
   }
 
+  private async fetchBgpAnomaliesData(): Promise<void> {
+    if (this.bgpAnomaliesFetchPending) return;
+    this.bgpAnomaliesFetchPending = true;
+    try {
+      const { fetchBgpAnomalies } = await import('@/services/bgp-anomalies');
+      this.bgpAnomalies = await fetchBgpAnomalies();
+      this.render();
+    } catch (e) {
+      console.warn('[DeckGLMap] Failed to fetch BGP anomalies:', e);
+    } finally {
+      this.bgpAnomaliesFetchPending = false;
+    }
+  }
+
   private createAqiLayers(aqiData: import('@/types').AQIStation[]): Layer[] {
     const getAqiColor = (aqiStr: string): [number, number, number, number] => {
       const aqi = parseInt(aqiStr, 10);
@@ -1649,13 +1678,13 @@ export class DeckGLMap {
     return [scatterLayer, textLayer];
   }
 
-  private createAgriculturalStressLayer(service: string, id: string): TileLayer {
+  private createAgriculturalStressLayer(service: string, id: string, opacity: number = AGRICULTURAL_LAYER_OPACITY): TileLayer {
     return new TileLayer({
       id: `agricultural-stress-${id}-layer`,
       minZoom: 0,
       maxZoom: 8,
       tileSize: 256,
-      opacity: 0.5, // Exactly balanced between 0.4 and 0.6
+      opacity,
       getTileData: async (props: any) => {
         const { bbox } = props;
         if (!bbox) return null;
@@ -2253,6 +2282,68 @@ export class DeckGLMap {
       getLineColor: [255, 255, 255, 160] as [number, number, number, number],
       lineWidthMinPixels: 1,
     });
+  }
+
+  private createBgpAnomaliesLayers(): Layer[] {
+    const layers: Layer[] = [];
+
+    // Draw connection arcs from victim country to hijacker country if known and cross-border
+    const crossBorderEvents = this.bgpAnomalies.filter(
+      d => d.targetLon != null && d.targetLat != null && (Math.abs(d.lon - d.targetLon) > 0.5 || Math.abs(d.lat - d.targetLat) > 0.5)
+    );
+
+    if (crossBorderEvents.length > 0) {
+      layers.push(new ArcLayer<BgpAnomaly>({
+        id: 'bgp-anomalies-arcs-layer',
+        data: crossBorderEvents,
+        getSourcePosition: d => [d.targetLon!, d.targetLat!],
+        getTargetPosition: d => [d.lon, d.lat],
+        getSourceColor: [255, 171, 0, 180],
+        getTargetColor: d => d.type === 'hijack' ? [255, 45, 85, 220] : [171, 71, 188, 220],
+        getWidth: 2,
+        pickable: false,
+      }));
+    }
+
+    const scatterLayer = new ScatterplotLayer<BgpAnomaly>({
+      id: 'bgp-anomalies-layer',
+      data: this.bgpAnomalies,
+      getPosition: d => [d.lon, d.lat],
+      getRadius: d => {
+        switch (d.severity) {
+          case 'critical': return 32000;
+          case 'high': return 24000;
+          case 'medium': return 16000;
+          default: return 10000;
+        }
+      },
+      getFillColor: d => {
+        if (d.type === 'hijack') {
+          return d.severity === 'critical' || d.severity === 'high'
+            ? [255, 45, 85, 230]
+            : [255, 112, 67, 190];
+        }
+        return d.severity === 'critical' || d.severity === 'high'
+          ? [171, 71, 188, 230]
+          : [186, 104, 200, 190];
+      },
+      radiusMinPixels: 6,
+      radiusMaxPixels: 22,
+      stroked: true,
+      getLineColor: [255, 255, 255, 180] as [number, number, number, number],
+      lineWidthMinPixels: 1.5,
+      pickable: true,
+    });
+
+    const ghostLayer = this.createGhostLayer(
+      'bgp-anomalies-layer',
+      this.bgpAnomalies,
+      d => [d.lon, d.lat],
+      { radiusMinPixels: 14 }
+    );
+
+    layers.push(scatterLayer, ghostLayer);
+    return layers;
   }
 
   private createAisDensityLayer(): ScatterplotLayer {
@@ -3299,6 +3390,18 @@ export class DeckGLMap {
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.asn || t('components.deckgl.tooltip.internetOutage'))}</strong><br/>${text(obj.country)}</div>` };
       case 'cyber-threats-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${t('popups.cyberThreat.title')}</strong><br/>${text(obj.severity || t('components.deckgl.tooltip.medium'))} · ${text(obj.country || t('popups.unknown'))}</div>` };
+      case 'bgp-anomalies-layer': {
+        const typeStr = obj.type === 'hijack' ? 'BGP Hijack' : 'BGP Route Leak';
+        const asnStr = obj.originOrg || (obj.originAsn ? `AS${obj.originAsn}` : '');
+        const regionStr = obj.countryCode || obj.originCountry || '';
+        return {
+          html: `<div class="deckgl-tooltip">
+            <strong>🔀 ${text(typeStr)}</strong><br/>
+            ${asnStr ? `${text(asnStr)}<br/>` : ''}
+            <span style="opacity:.85">${text(obj.severity?.toUpperCase())} · Confidence: ${obj.confidence}/10${regionStr ? ` · ${text(regionStr)}` : ''}</span>
+          </div>`
+        };
+      }
       case 'news-locations-layer':
         return { html: `<div class="deckgl-tooltip"><strong>📰 ${t('components.deckgl.tooltip.news')}</strong><br/>${text(obj.title?.slice(0, 80) || '')}</div>` };
       case 'positive-events-layer': {
@@ -3484,6 +3587,7 @@ export class DeckGLMap {
       'weather-layer': 'weather',
       'outages-layer': 'outage',
       'cyber-threats-layer': 'cyberThreat',
+      'bgp-anomalies-layer': 'bgpAnomaly',
       'protests-layer': 'protest',
       'military-flights-layer': 'militaryFlight',
       'military-vessels-layer': 'militaryVessel',
@@ -3664,6 +3768,7 @@ export class DeckGLMap {
           layers: [
             { key: 'datacenters', label: t('components.deckgl.layers.aiDataCenters'), icon: '&#128421;' },
             { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
+            { key: 'bgpAnomalies', label: t('components.deckgl.layers.bgpAnomalies'), icon: '&#128256;' },
           ],
         },
         {
@@ -3707,6 +3812,7 @@ export class DeckGLMap {
               { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
               { key: 'pipelines', label: t('components.deckgl.layers.pipelines'), icon: '&#128738;' },
               { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '&#128225;' },
+              { key: 'bgpAnomalies', label: t('components.deckgl.layers.bgpAnomalies'), icon: '&#128256;' },
               { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
             ],
           },
@@ -3775,6 +3881,7 @@ export class DeckGLMap {
                 { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
                 { key: 'nuclear', label: t('components.deckgl.layers.nuclearSites'), icon: '&#9762;' },
                 { key: 'agriculturalStressASI', label: 'Agricultural Index', icon: '&#127806;' },
+                { key: 'bgpAnomalies', label: t('components.deckgl.layers.bgpAnomalies'), icon: '&#128256;' },
               ],
             },
             {
@@ -3991,6 +4098,7 @@ export class DeckGLMap {
       helpItem(label('underseaCables'), 'infraCables'),
       helpItem(label('aiDataCenters'), 'infraDatacenters'),
       helpItem(label('internetOutages'), 'infraOutages'),
+      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc'),
       helpItem(label('gpsJamming'), 'gpsJammingDesc'),
     ])}
         ${helpSection('naturalEconomic', [
@@ -4018,6 +4126,7 @@ export class DeckGLMap {
       helpItem(label('underseaCables'), 'financeCables'),
       helpItem(label('pipelines'), 'financePipelines'),
       helpItem(label('internetOutages'), 'financeOutages'),
+      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc'),
       helpItem(label('gpsJamming'), 'gpsJammingDesc'),
       helpItem(label('tradeRoutes'), 'tradeRoutes'),
     ])}
@@ -4055,6 +4164,7 @@ export class DeckGLMap {
       helpItem(label('underseaCables'), 'infraCablesFull'),
       helpItem(label('pipelines'), 'infraPipelinesFull'),
       helpItem(label('aiDataCenters'), 'infraDatacentersFull'),
+      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc'),
       helpItem(label('gpsJamming'), 'gpsJammingDesc'),
       helpItem('AGRICULTURAL STRESS (FAO ASIS)', 'agriculturalStressGroupDesc'),
     ])}
@@ -4279,6 +4389,9 @@ export class DeckGLMap {
     if (layers.gpsJamming) {
       this.fetchGpsJammingData();
     }
+    if (layers.bgpAnomalies) {
+      this.fetchBgpAnomaliesData();
+    }
     if (layers.aqi) {
       this.fetchAQIData();
     }
@@ -4483,6 +4596,11 @@ export class DeckGLMap {
 
   public setCyberThreats(threats: CyberThreat[]): void {
     this.cyberThreats = threats;
+    this.render();
+  }
+
+  public setBgpAnomalies(anomalies: BgpAnomaly[]): void {
+    this.bgpAnomalies = anomalies;
     this.render();
   }
 
