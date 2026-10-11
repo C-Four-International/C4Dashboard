@@ -40,9 +40,7 @@ export class CountryIntelModal {
   private contentEl: HTMLElement;
   private headerEl: HTMLElement;
   private onCloseCallback?: () => void;
-  private onShareStory?: (code: string, name: string) => void;
   private currentCode: string | null = null;
-  private currentName: string | null = null;
 
   constructor() {
     this.overlay = document.createElement('div');
@@ -129,7 +127,6 @@ export class CountryIntelModal {
 
   public show(country: string, code: string, _score: any | null, signals?: ActiveSignals): void {
     this.currentCode = code;
-    this.currentName = country;
     const flag = this.countryFlag(code);
     const flagSpan = code === 'XC' ? '' : `<span class="country-flag">${flag}</span>`;
     let html = '';
@@ -138,8 +135,6 @@ export class CountryIntelModal {
     this.headerEl.innerHTML = `
       ${flagSpan}
       <span class="country-name">${escapeHtml(country)}</span>
-      
-      <button class="country-intel-share-btn" title="${t('modals.story.shareTitle')}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
     `;
 
       // No CII UI displayed
@@ -172,13 +167,7 @@ export class CountryIntelModal {
 
     this.contentEl.innerHTML = html;
 
-    const shareBtn = this.headerEl.querySelector('.country-intel-share-btn');
-    shareBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (this.currentCode && this.currentName && this.onShareStory) {
-        this.onShareStory(this.currentCode, this.currentName);
-      }
-    });
+
   }
 
   public updateBrief(data: CountryIntelData & { skipped?: boolean; reason?: string; fallback?: boolean }): void {

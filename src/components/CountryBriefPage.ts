@@ -10,8 +10,7 @@ import type { StockIndexData } from '@/components/CountryIntelModal';
 import { getNearbyInfrastructure, haversineDistanceKm } from '@/services/related-assets';
 import { PORTS } from '@/config/ports';
 import type { Port } from '@/config/ports';
-import { exportCountryBriefJSON, exportCountryBriefCSV } from '@/utils/export';
-import type { CountryBriefExport } from '@/utils/export';
+
 
 type BriefAssetType = AssetType | 'port';
 
@@ -67,14 +66,8 @@ export class CountryBriefPage {
   private currentCode: string | null = null;
   private currentName: string | null = null;
   private currentHeadlineCount = 0;
-  private currentScore: any | null = null;
-  private currentSignals: CountryBriefSignals | null = null;
-  private currentBrief: string | null = null;
-  private currentHeadlines: NewsItem[] = [];
   private onCloseCallback?: () => void;
-  private onShareStory?: (code: string, name: string) => void;
-  private onExportImage?: (code: string, name: string) => void;
-  private boundExportMenuClose: (() => void) | null = null;
+
   private boundCitationClick: ((e: Event) => void) | null = null;
   private abortController: AbortController = new AbortController();
 
@@ -189,13 +182,9 @@ export class CountryBriefPage {
     return chips.join('');
   }
 
-  public setShareStoryHandler(handler: (code: string, name: string) => void): void {
-    this.onShareStory = handler;
-  }
+  public setShareStoryHandler(_handler: (code: string, name: string) => void): void {}
 
-  public setExportImageHandler(handler: (code: string, name: string) => void): void {
-    this.onExportImage = handler;
-  }
+  public setExportImageHandler(_handler: (code: string, name: string) => void): void {}
 
   public showLoading(): void {
     this.currentCode = '__loading__';
@@ -226,15 +215,11 @@ export class CountryBriefPage {
     return this.abortController.signal;
   }
 
-  public show(country: string, code: string, score: any | null, signals: CountryBriefSignals): void {
+  public show(country: string, code: string, _score: any | null, signals: CountryBriefSignals): void {
     this.abortController.abort();
     this.abortController = new AbortController();
     this.currentCode = code;
     this.currentName = country;
-    this.currentScore = score;
-    this.currentSignals = signals;
-    this.currentBrief = null;
-    this.currentHeadlines = [];
     this.currentHeadlineCount = 0;
     const flag = this.countryFlag(code);
     const flagSpan = code === 'XC' ? '' : `<span class="cb-flag">${flag}</span>`;
@@ -254,23 +239,9 @@ export class CountryBriefPage {
             ${tierBadge}
           </div>
           <div class="cb-header-right">
-            <button class="cb-share-btn" title="${t('components.countryBrief.shareStory')}">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-            </button>
             <button class="cb-print-btn" title="${t('components.countryBrief.printPdf')}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             </button>
-            <div style="position:relative;display:inline-block">
-              <button class="cb-export-btn" title="${t('components.countryBrief.exportData')}">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              </button>
-              <div class="cb-export-menu hidden">
-                <button class="cb-export-option" data-format="image">${t('common.exportImage')}</button>
-                <button class="cb-export-option" data-format="pdf">${t('common.exportPdf')}</button>
-                <button class="cb-export-option" data-format="json">${t('common.exportJson')}</button>
-                <button class="cb-export-option" data-format="csv">${t('common.exportCsv')}</button>
-              </div>
-            </div>
             <button class="cb-close" aria-label="${t('components.newsPanel.close')}">×</button>
           </div>
         </div>
@@ -324,42 +295,12 @@ export class CountryBriefPage {
       </div>`;
 
     this.overlay.querySelector('.cb-close')?.addEventListener('click', () => this.hide());
-    this.overlay.querySelector('.cb-share-btn')?.addEventListener('click', () => {
-      if (this.onShareStory && this.currentCode && this.currentName) {
-        this.onShareStory(this.currentCode, this.currentName);
-      }
-    });
     this.overlay.querySelector('.cb-print-btn')?.addEventListener('click', () => {
       window.print();
     });
 
-    const exportBtn = this.overlay.querySelector('.cb-export-btn');
-    const exportMenu = this.overlay.querySelector('.cb-export-menu');
-    exportBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      exportMenu?.classList.toggle('hidden');
-    });
-    this.overlay.querySelectorAll('.cb-export-option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        const format = (opt as HTMLElement).dataset.format;
-        if (format === 'image') {
-          if (this.onExportImage && this.currentCode && this.currentName) {
-            this.onExportImage(this.currentCode, this.currentName);
-          }
-        } else if (format === 'pdf') {
-          this.exportPdf();
-        } else {
-          this.exportBrief(format as 'json' | 'csv');
-        }
-        exportMenu?.classList.add('hidden');
-      });
-    });
     // Remove previous overlay-level listeners to prevent accumulation
-    if (this.boundExportMenuClose) this.overlay.removeEventListener('click', this.boundExportMenuClose);
     if (this.boundCitationClick) this.overlay.removeEventListener('click', this.boundCitationClick);
-
-    this.boundExportMenuClose = () => exportMenu?.classList.add('hidden');
-    this.overlay.addEventListener('click', this.boundExportMenuClose);
 
     this.boundCitationClick = (e: Event) => {
       const target = e.target as HTMLElement;
@@ -390,7 +331,6 @@ export class CountryBriefPage {
       return;
     }
 
-    this.currentBrief = data.brief;
     const formatted = this.formatBrief(data.brief, this.currentHeadlineCount);
     section.innerHTML = `
       <div class="cb-brief-text">${formatted}</div>
@@ -452,7 +392,6 @@ export class CountryBriefPage {
 
     const items = headlines.slice(0, 8);
     this.currentHeadlineCount = items.length;
-    this.currentHeadlines = items;
     section.style.display = '';
 
     content.innerHTML = items.map((item, i) => {
@@ -564,76 +503,7 @@ export class CountryBriefPage {
     return html;
   }
 
-  private exportBrief(format: 'json' | 'csv'): void {
-    if (!this.currentCode || !this.currentName) return;
-    const data: CountryBriefExport = {
-      country: this.currentName,
-      code: this.currentCode,
-      generatedAt: new Date().toISOString(),
-    };
-    if (this.currentScore) {
-      // Disabled score exports
-    }
-    if (this.currentSignals) {
-      data.signals = {
-        protests: this.currentSignals.protests,
-        militaryFlights: this.currentSignals.militaryFlights,
-        militaryVessels: this.currentSignals.militaryVessels,
-        outages: this.currentSignals.outages,
-        earthquakes: this.currentSignals.earthquakes,
-        displacementOutflow: this.currentSignals.displacementOutflow,
-        climateStress: this.currentSignals.climateStress,
-        conflictEvents: this.currentSignals.conflictEvents,
-      };
-    }
-    if (this.currentBrief) data.brief = this.currentBrief;
-    if (this.currentHeadlines.length > 0) {
-      data.headlines = this.currentHeadlines.map(h => ({
-        title: h.title,
-        source: h.source,
-        link: h.link,
-        pubDate: h.pubDate ? new Date(h.pubDate).toISOString() : undefined,
-      }));
-    }
-    if (format === 'json') exportCountryBriefJSON(data);
-    else exportCountryBriefCSV(data);
-  }
 
-  private exportPdf(): void {
-    const content = this.overlay.querySelector('.cb-body');
-    const header = this.overlay.querySelector('.cb-header');
-    if (!content) return;
-
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;left:-9999px;width:0;height:0;border:none';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!doc) { document.body.removeChild(iframe); return; }
-
-    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
-      .map(el => el.outerHTML).join('\n');
-
-    doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8">${styles}
-      <style>
-        @media print { body { margin: 0; padding: 16px; background: #fff; color: #111; }
-          .cb-grid { display: block !important; }
-          .cb-grid > * { break-inside: avoid; margin-bottom: 16px; }
-          .cb-badge, .cb-trend { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-          canvas { max-width: 100% !important; }
-        }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        .country-brief-overlay { position: static !important; background: none !important; }
-      </style>
-    </head><body>${header ? header.outerHTML : ''}${content.outerHTML}</body></html>`);
-    doc.close();
-
-    iframe.contentWindow!.onafterprint = () => document.body.removeChild(iframe);
-    setTimeout(() => {
-      iframe.contentWindow!.print();
-      setTimeout(() => { if (iframe.parentNode) document.body.removeChild(iframe); }, 5000);
-    }, 300);
-  }
 
   public hide(): void {
     this.abortController.abort();
