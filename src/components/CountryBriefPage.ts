@@ -409,15 +409,13 @@ export class CountryBriefPage {
       return;
     }
 
-    section.innerHTML = markets.slice(0, 3).map(m => {
+    const items = markets.slice(0, 3).map(m => {
       const pct = Math.round(m.yesPrice);
       const noPct = 100 - pct;
       const vol = m.volume ? `$${(m.volume / 1000).toFixed(0)}k vol` : '';
-      const safeUrl = sanitizeUrl(m.url || '');
-      const link = safeUrl ? ` <a href="${safeUrl}" target="_blank" rel="noopener" class="cb-market-link">↗</a>` : '';
       return `
         <div class="cb-market-item">
-          <div class="cb-market-title">${escapeHtml(m.title.slice(0, 100))}${link}</div>
+          <div class="cb-market-title">${escapeHtml(m.title.slice(0, 100))}</div>
           <div class="market-bar">
             <div class="market-yes" style="width:${pct}%">${pct}%</div>
             <div class="market-no" style="width:${noPct}%">${noPct > 15 ? noPct + '%' : ''}</div>
@@ -425,6 +423,9 @@ export class CountryBriefPage {
           ${vol ? `<div class="market-vol">${vol}</div>` : ''}
         </div>`;
     }).join('');
+
+    const disclaimer = `<div class="cb-markets-disclaimer">${escapeHtml(t('modals.countryBrief.marketDisclaimer'))}</div>`;
+    section.innerHTML = `${items}${disclaimer}`;
   }
 
   public updateStock(data: StockIndexData): void {

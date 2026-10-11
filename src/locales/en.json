@@ -416,6 +416,7 @@
       "fresh": "Fresh",
       "noMarkets": "No prediction markets found",
       "predictionMarkets": "Prediction Markets",
+      "marketDisclaimer": "Disclaimer: Prediction market data reflects aggregate trading sentiment, not guaranteed outcomes. This information is for reference purposes only.",
       "unavailable": "AI brief unavailable — configure GEMINI_API_KEY in Settings."
     },
     "countryBrief": {
@@ -431,6 +432,7 @@
       "timeline": "7-Day Timeline",
       "predictionMarkets": "Prediction Markets",
       "loadingMarkets": "Loading prediction markets...",
+      "marketDisclaimer": "Disclaimer: Prediction market data reflects aggregate trading sentiment, not guaranteed outcomes. This information is for reference purposes only.",
       "infrastructure": "Infrastructure Exposure",
       "briefUnavailable": "AI brief unavailable — configure GEMINI_API_KEY in Settings.",
       "cached": "Cached",

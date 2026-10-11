@@ -3,7 +3,6 @@
  */
 import { escapeHtml } from '@/utils/sanitize';
 import { t } from '@/services/i18n';
-import { sanitizeUrl } from '@/utils/sanitize';
 // import { getCSSColor } from '@/utils';
 // import type { CountryScore } from '@/services/country-instability';
 import type { PredictionMarket } from '@/services/prediction';
@@ -220,18 +219,19 @@ export class CountryIntelModal {
     }
 
     const items = markets.map(market => {
-      const href = sanitizeUrl(market.url || '#') || '#';
       return `
       <div class="market-item">
-        <a href="${href}" target="_blank" rel="noopener noreferrer" class="prediction-market-card">
-        <div class="market-provider">Polymarket</div>
-        <div class="market-question">${escapeHtml(market.title)}</div>
-        <div class="market-prob">${market.yesPrice.toFixed(1)}%</div>
-      </a>
+        <div class="prediction-market-card">
+          <div class="market-provider">Polymarket</div>
+          <div class="market-question">${escapeHtml(market.title)}</div>
+          <div class="market-prob">${market.yesPrice.toFixed(1)}%</div>
+        </div>
+      </div>
     `;
     }).join('');
 
-    section.innerHTML = `<div class="markets-label">📊 ${t('modals.countryIntel.predictionMarkets')}</div>${items}`;
+    const disclaimer = `<div class="country-markets-disclaimer">${escapeHtml(t('modals.countryIntel.marketDisclaimer'))}</div>`;
+    section.innerHTML = `<div class="markets-label">📊 ${t('modals.countryIntel.predictionMarkets')}</div>${items}${disclaimer}`;
   }
 
   public updateStock(data: StockIndexData): void {
