@@ -929,7 +929,17 @@ export class DataLoaderManager implements AppModule {
           this.ctx.map?.setBgpAnomalies(anomalies);
         }
       } catch (error) {
-        console.error('[Intelligence] BGP anomalies fetch failed:', error);
+        console.error(
+          '%c[Intelligence:BGP]%c Background BGP anomalies task failed:',
+          'color: #ef4444; font-weight: bold;',
+          'color: inherit;',
+          {
+            error,
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            timestamp: new Date().toISOString(),
+          }
+        );
       }
     })());
 

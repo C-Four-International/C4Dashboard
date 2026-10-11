@@ -1154,76 +1154,98 @@ export class MapPopup {
   }
 
   private renderBgpAnomalyPopup(anomaly: BgpAnomaly): string {
-    const isHijack = anomaly.type === 'hijack';
-    const typeTitle = isHijack ? 'BGP Origin Hijack' : 'BGP Route Leak';
-    const severityBadgeClass = anomaly.severity === 'critical' ? 'critical' : anomaly.severity === 'high' ? 'high' : anomaly.severity === 'medium' ? 'elevated' : 'low';
-    const timeAgo = this.getTimeAgo(new Date(anomaly.detectedTime));
-    const prefixes = (anomaly.prefixes || []).slice(0, 5);
-    const remainingPrefixCount = (anomaly.prefixes || []).length - prefixes.length;
+    try {
+      const isHijack = anomaly.type === 'hijack';
+      const typeTitle = isHijack ? 'BGP Origin Hijack' : 'BGP Route Leak';
+      const severityBadgeClass = anomaly.severity === 'critical' ? 'critical' : anomaly.severity === 'high' ? 'high' : anomaly.severity === 'medium' ? 'elevated' : 'low';
+      const timeAgo = this.getTimeAgo(new Date(anomaly.detectedTime));
+      const prefixes = (anomaly.prefixes || []).slice(0, 5);
+      const remainingPrefixCount = (anomaly.prefixes || []).length - prefixes.length;
 
-    return `
-      <div class="popup-header apt ${severityBadgeClass}">
-        <span class="popup-title">🔀 ${escapeHtml(typeTitle)}</span>
-        <span class="popup-badge ${severityBadgeClass}">${escapeHtml(anomaly.severity.toUpperCase())}</span>
-        <button class="popup-close">×</button>
-      </div>
-      <div class="popup-body">
-        <div class="popup-subtitle">${escapeHtml(anomaly.originOrg || `AS${anomaly.originAsn}`)} ${anomaly.originCountry ? `(${escapeHtml(anomaly.originCountry)})` : ''}</div>
-        <div class="popup-stats">
-          <div class="popup-stat">
-            <span class="stat-label">Origin ASN</span>
-            <span class="stat-value">AS${escapeHtml(String(anomaly.originAsn))}</span>
-          </div>
-          <div class="popup-stat">
-            <span class="stat-label">Confidence</span>
-            <span class="stat-value">${anomaly.confidence}/10</span>
-          </div>
-          <div class="popup-stat">
-            <span class="stat-label">Affected Prefixes</span>
-            <span class="stat-value">${anomaly.prefixCount}</span>
-          </div>
-          <div class="popup-stat">
-            <span class="stat-label">Detected</span>
-            <span class="stat-value">${timeAgo}</span>
-          </div>
-          ${anomaly.peerCount ? `
-          <div class="popup-stat">
-            <span class="stat-label">Peer Monitors</span>
-            <span class="stat-value">${anomaly.peerCount}</span>
-          </div>` : ''}
-          ${anomaly.targetCountries && anomaly.targetCountries.length > 0 ? `
-          <div class="popup-stat">
-            <span class="stat-label">Target Region</span>
-            <span class="stat-value">${escapeHtml(anomaly.targetCountries.join(', '))}</span>
-          </div>` : ''}
+      return `
+        <div class="popup-header apt ${severityBadgeClass}">
+          <span class="popup-title">🔀 ${escapeHtml(typeTitle)}</span>
+          <span class="popup-badge ${severityBadgeClass}">${escapeHtml(anomaly.severity.toUpperCase())}</span>
+          <button class="popup-close">×</button>
         </div>
-
-        ${prefixes.length > 0 ? `
-        <div class="popup-section">
-          <span class="section-label">Target / Affected Prefixes</span>
-          <div class="popup-tags">
-            ${prefixes.map((p) => `<span class="popup-tag">${escapeHtml(p)}</span>`).join('')}
-            ${remainingPrefixCount > 0 ? `<span class="popup-tag">+${remainingPrefixCount} more</span>` : ''}
+        <div class="popup-body">
+          <div class="popup-subtitle">${escapeHtml(anomaly.originOrg || `AS${anomaly.originAsn}`)} ${anomaly.originCountry ? `(${escapeHtml(anomaly.originCountry)})` : ''}</div>
+          <div class="popup-stats">
+            <div class="popup-stat">
+              <span class="stat-label">Origin ASN</span>
+              <span class="stat-value">AS${escapeHtml(String(anomaly.originAsn))}</span>
+            </div>
+            <div class="popup-stat">
+              <span class="stat-label">Confidence</span>
+              <span class="stat-value">${anomaly.confidence}/10</span>
+            </div>
+            <div class="popup-stat">
+              <span class="stat-label">Affected Prefixes</span>
+              <span class="stat-value">${anomaly.prefixCount}</span>
+            </div>
+            <div class="popup-stat">
+              <span class="stat-label">Detected</span>
+              <span class="stat-value">${timeAgo}</span>
+            </div>
+            ${anomaly.peerCount ? `
+            <div class="popup-stat">
+              <span class="stat-label">Peer Monitors</span>
+              <span class="stat-value">${anomaly.peerCount}</span>
+            </div>` : ''}
+            ${anomaly.targetCountries && anomaly.targetCountries.length > 0 ? `
+            <div class="popup-stat">
+              <span class="stat-label">Target Region</span>
+              <span class="stat-value">${escapeHtml(anomaly.targetCountries.join(', '))}</span>
+            </div>` : ''}
           </div>
-        </div>` : ''}
 
-        ${anomaly.targetOrgs && anomaly.targetOrgs.length > 0 ? `
-        <div class="popup-section">
-          <span class="section-label">Victim / Affected Entities</span>
-          <p class="popup-description">${escapeHtml(anomaly.targetOrgs.slice(0, 3).join(', '))}${anomaly.targetOrgs.length > 3 ? ` (+${anomaly.targetOrgs.length - 3} more)` : ''}</p>
-        </div>` : ''}
+          ${prefixes.length > 0 ? `
+          <div class="popup-section">
+            <span class="section-label">Target / Affected Prefixes</span>
+            <div class="popup-tags">
+              ${prefixes.map((p) => `<span class="popup-tag">${escapeHtml(p)}</span>`).join('')}
+              ${remainingPrefixCount > 0 ? `<span class="popup-tag">+${remainingPrefixCount} more</span>` : ''}
+            </div>
+          </div>` : ''}
 
-        ${anomaly.tags && anomaly.tags.length > 0 ? `
-        <div class="popup-section">
-          <span class="section-label">Routing Evidence</span>
-          <div class="popup-tags">
-            ${anomaly.tags.slice(0, 4).map((tag) => `<span class="popup-tag">${escapeHtml(tag)}</span>`).join('')}
-          </div>
-        </div>` : ''}
+          ${anomaly.targetOrgs && anomaly.targetOrgs.length > 0 ? `
+          <div class="popup-section">
+            <span class="section-label">Victim / Affected Entities</span>
+            <p class="popup-description">${escapeHtml(anomaly.targetOrgs.slice(0, 3).join(', '))}${anomaly.targetOrgs.length > 3 ? ` (+${anomaly.targetOrgs.length - 3} more)` : ''}</p>
+          </div>` : ''}
 
-        <div class="popup-attribution">Source: Cloudflare Radar BGP Routing Anomalies</div>
-      </div>
-    `;
+          ${anomaly.tags && anomaly.tags.length > 0 ? `
+          <div class="popup-section">
+            <span class="section-label">Routing Evidence</span>
+            <div class="popup-tags">
+              ${anomaly.tags.slice(0, 4).map((tag) => `<span class="popup-tag">${escapeHtml(tag)}</span>`).join('')}
+            </div>
+          </div>` : ''}
+
+          <div class="popup-attribution">Source: Cloudflare Radar BGP Routing Anomalies</div>
+        </div>
+      `;
+    } catch (renderErr) {
+      console.error(
+        '%c[MapPopup:BGP]%c Failed to render BGP anomaly popup:',
+        'color: #ef4444; font-weight: bold;',
+        'color: inherit;',
+        {
+          error: renderErr,
+          anomaly,
+          timestamp: new Date().toISOString(),
+        }
+      );
+      return `
+        <div class="popup-header apt low">
+          <span class="popup-title">🔀 BGP Anomaly</span>
+          <button class="popup-close">×</button>
+        </div>
+        <div class="popup-body">
+          <div class="popup-subtitle">Error rendering event details. Check console for diagnostics.</div>
+        </div>
+      `;
+    }
   }
 
   private renderNuclearPopup(facility: NuclearFacility): string {

@@ -111,25 +111,87 @@ const breaker = createCircuitBreaker<BgpAnomaly[]>({
 
 export async function fetchBgpAnomalies(dateRange: string = '7d'): Promise<BgpAnomaly[]> {
   return breaker.execute(async () => {
+    const fetchStart = performance.now();
     try {
+      console.debug(`[BGP Anomalies] Fetching routing anomalies from /api/bgp-anomalies (dateRange=${dateRange})...`);
       const response = await fetch(`/api/bgp-anomalies?dateRange=${encodeURIComponent(dateRange)}`);
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        let errorDetails = '';
+        try {
+          errorDetails = await response.text();
+        } catch { /* ignore */ }
+
+        console.error(
+          '%c[BGP Anomalies:ERROR]%c API request failed with HTTP error:',
+          'color: #ef4444; font-weight: bold;',
+          'color: inherit;',
+          {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+            responseBody: errorDetails,
+            timestamp: new Date().toISOString(),
+          }
+        );
+        throw new Error(`HTTP ${response.status}: ${response.statusText} (${errorDetails})`);
       }
 
-      const data = await response.json();
+      let data: any;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        console.error(
+          '%c[BGP Anomalies:ERROR]%c Failed to parse API JSON response:',
+          'color: #ef4444; font-weight: bold;',
+          'color: inherit;',
+          jsonErr
+        );
+        throw jsonErr;
+      }
 
       if (data.configured === false) {
         anomaliesConfigured = false;
+        console.warn(
+          '%c[BGP Anomalies:CONFIG]%c Cloudflare Radar API token is not configured on the server.\n' +
+          'To activate live BGP hijack and route leak telemetry, add CLOUDFLARE_RADAR_API_TOKEN to your Vercel project environment variables.\n' +
+          `Server status: ${data.message || 'Token absent'}`,
+          'color: #f59e0b; font-weight: bold;',
+          'color: inherit;'
+        );
         return [];
       }
 
       anomaliesConfigured = true;
+
+      if (Array.isArray(data.upstreamErrors) && data.upstreamErrors.length > 0) {
+        console.error(
+          '%c[BGP Anomalies:UPSTREAM]%c Cloudflare Radar API reported errors during data fetch:',
+          'color: #ef4444; font-weight: bold;',
+          'color: inherit;',
+          data.upstreamErrors
+        );
+      }
+
       const rawAnomalies = Array.isArray(data.anomalies) ? data.anomalies : [];
+      const fetchDuration = Math.round(performance.now() - fetchStart);
+
+      if (rawAnomalies.length === 0) {
+        console.info(
+          `[BGP Anomalies] Received 0 anomalies from Cloudflare Radar for ${dateRange} window (${fetchDuration}ms).`
+        );
+        return [];
+      }
+
+      let unmappedCountriesCount = 0;
 
       // Resolve coordinates and geographical attributes
-      return rawAnomalies.map((anomaly: BgpAnomaly): BgpAnomaly => {
-        const [lon, lat] = getCoordinatesForCountry(anomaly.countryCode || anomaly.originCountry, anomaly.id);
+      const resolved: BgpAnomaly[] = rawAnomalies.map((anomaly: BgpAnomaly): BgpAnomaly => {
+        const country = anomaly.countryCode || anomaly.originCountry;
+        if (!country) {
+          unmappedCountriesCount++;
+        }
+        const [lon, lat] = getCoordinatesForCountry(country, anomaly.id);
         
         let targetLat: number | undefined;
         let targetLon: number | undefined;
@@ -149,8 +211,35 @@ export async function fetchBgpAnomalies(dateRange: string = '7d'): Promise<BgpAn
           targetLat,
         };
       });
+
+      if (unmappedCountriesCount > 0) {
+        console.warn(
+          `[BGP Anomalies] ${unmappedCountriesCount} anomalies had no ASN country code; assigned default fallback coordinates.`
+        );
+      }
+
+      const hijacksCount = resolved.filter((a: BgpAnomaly) => a.type === 'hijack').length;
+      const leaksCount = resolved.filter((a: BgpAnomaly) => a.type === 'leak').length;
+      console.info(
+        `%c[BGP Anomalies]%c Successfully loaded ${resolved.length} events (${hijacksCount} hijacks, ${leaksCount} route leaks) in ${fetchDuration}ms.`,
+        'color: #10b981; font-weight: bold;',
+        'color: inherit;'
+      );
+
+      return resolved;
     } catch (err) {
-      console.warn('[BGP Anomalies] Failed to fetch data:', err);
+      console.error(
+        '%c[BGP Anomalies:ERROR]%c Exception during BGP anomaly retrieval:',
+        'color: #ef4444; font-weight: bold;',
+        'color: inherit;',
+        {
+          error: err,
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+          breakerStatus: breaker.getStatus(),
+          timestamp: new Date().toISOString(),
+        }
+      );
       throw err;
     }
   }, []);

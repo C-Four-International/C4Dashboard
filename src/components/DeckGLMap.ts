@@ -1626,14 +1626,45 @@ export class DeckGLMap {
   }
 
   private async fetchBgpAnomaliesData(): Promise<void> {
-    if (this.bgpAnomaliesFetchPending) return;
+    if (this.bgpAnomaliesFetchPending) {
+      console.debug('[DeckGLMap:BGP] Fetch already in progress, ignoring duplicate call.');
+      return;
+    }
     this.bgpAnomaliesFetchPending = true;
     try {
-      const { fetchBgpAnomalies } = await import('@/services/bgp-anomalies');
+      console.debug('[DeckGLMap:BGP] Loading BGP routing anomalies module & initiating fetch...');
+      const { fetchBgpAnomalies, isBgpAnomaliesConfigured } = await import('@/services/bgp-anomalies');
       this.bgpAnomalies = await fetchBgpAnomalies();
+
+      if (this.bgpAnomalies.length === 0) {
+        if (isBgpAnomaliesConfigured() === false) {
+          console.warn(
+            '%c[DeckGLMap:BGP]%c Layer is active, but Cloudflare Radar API token is not configured on the server. ' +
+            'Provide CLOUDFLARE_RADAR_API_TOKEN in your Vercel environment variables to see active BGP hijacks/leaks.',
+            'color: #f59e0b; font-weight: bold;',
+            'color: inherit;'
+          );
+        } else {
+          console.info('[DeckGLMap:BGP] Layer is active: 0 active routing anomalies reported for current time window.');
+        }
+      } else {
+        console.debug(`[DeckGLMap:BGP] Fetched ${this.bgpAnomalies.length} anomaly items; triggering Deck.gl redraw.`);
+      }
+
       this.render();
     } catch (e) {
-      console.warn('[DeckGLMap] Failed to fetch BGP anomalies:', e);
+      console.error(
+        '%c[DeckGLMap:BGP]%c Failed to fetch or apply BGP anomalies:',
+        'color: #ef4444; font-weight: bold;',
+        'color: inherit;',
+        {
+          error: e,
+          message: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+          isLayerVisible: Boolean(this.state.layers.bgpAnomalies),
+          timestamp: new Date().toISOString(),
+        }
+      );
     } finally {
       this.bgpAnomaliesFetchPending = false;
     }
@@ -2285,65 +2316,95 @@ export class DeckGLMap {
   }
 
   private createBgpAnomaliesLayers(): Layer[] {
-    const layers: Layer[] = [];
+    try {
+      const layers: Layer[] = [];
 
-    // Draw connection arcs from victim country to hijacker country if known and cross-border
-    const crossBorderEvents = this.bgpAnomalies.filter(
-      d => d.targetLon != null && d.targetLat != null && (Math.abs(d.lon - d.targetLon) > 0.5 || Math.abs(d.lat - d.targetLat) > 0.5)
-    );
-
-    if (crossBorderEvents.length > 0) {
-      layers.push(new ArcLayer<BgpAnomaly>({
-        id: 'bgp-anomalies-arcs-layer',
-        data: crossBorderEvents,
-        getSourcePosition: d => [d.targetLon!, d.targetLat!],
-        getTargetPosition: d => [d.lon, d.lat],
-        getSourceColor: [255, 171, 0, 180],
-        getTargetColor: d => d.type === 'hijack' ? [255, 45, 85, 220] : [171, 71, 188, 220],
-        getWidth: 2,
-        pickable: false,
-      }));
-    }
-
-    const scatterLayer = new ScatterplotLayer<BgpAnomaly>({
-      id: 'bgp-anomalies-layer',
-      data: this.bgpAnomalies,
-      getPosition: d => [d.lon, d.lat],
-      getRadius: d => {
-        switch (d.severity) {
-          case 'critical': return 32000;
-          case 'high': return 24000;
-          case 'medium': return 16000;
-          default: return 10000;
+      const validAnomalies = this.bgpAnomalies.filter(d => {
+        const valid = d && Number.isFinite(d.lon) && Number.isFinite(d.lat);
+        if (!valid) {
+          console.warn('[DeckGLMap:BGP] Dropped malformed anomaly item with invalid coordinates:', d);
         }
-      },
-      getFillColor: d => {
-        if (d.type === 'hijack') {
+        return valid;
+      });
+
+      if (validAnomalies.length === 0) {
+        return layers;
+      }
+
+      // Draw connection arcs from victim country to hijacker country if known and cross-border
+      const crossBorderEvents = validAnomalies.filter(
+        d => d.targetLon != null && d.targetLat != null &&
+             Number.isFinite(d.targetLon) && Number.isFinite(d.targetLat) &&
+             (Math.abs(d.lon - d.targetLon) > 0.5 || Math.abs(d.lat - d.targetLat) > 0.5)
+      );
+
+      if (crossBorderEvents.length > 0) {
+        layers.push(new ArcLayer<BgpAnomaly>({
+          id: 'bgp-anomalies-arcs-layer',
+          data: crossBorderEvents,
+          getSourcePosition: d => [d.targetLon!, d.targetLat!],
+          getTargetPosition: d => [d.lon, d.lat],
+          getSourceColor: [255, 171, 0, 180],
+          getTargetColor: d => d.type === 'hijack' ? [255, 45, 85, 220] : [171, 71, 188, 220],
+          getWidth: 2,
+          pickable: false,
+        }));
+      }
+
+      const scatterLayer = new ScatterplotLayer<BgpAnomaly>({
+        id: 'bgp-anomalies-layer',
+        data: validAnomalies,
+        getPosition: d => [d.lon, d.lat],
+        getRadius: d => {
+          switch (d.severity) {
+            case 'critical': return 32000;
+            case 'high': return 24000;
+            case 'medium': return 16000;
+            default: return 10000;
+          }
+        },
+        getFillColor: d => {
+          if (d.type === 'hijack') {
+            return d.severity === 'critical' || d.severity === 'high'
+              ? [255, 45, 85, 230]
+              : [255, 112, 67, 190];
+          }
           return d.severity === 'critical' || d.severity === 'high'
-            ? [255, 45, 85, 230]
-            : [255, 112, 67, 190];
+            ? [171, 71, 188, 230]
+            : [186, 104, 200, 190];
+        },
+        radiusMinPixels: 6,
+        radiusMaxPixels: 22,
+        stroked: true,
+        getLineColor: [255, 255, 255, 180] as [number, number, number, number],
+        lineWidthMinPixels: 1.5,
+        pickable: true,
+      });
+
+      const ghostLayer = this.createGhostLayer(
+        'bgp-anomalies-layer',
+        validAnomalies,
+        d => [d.lon, d.lat],
+        { radiusMinPixels: 14 }
+      );
+
+      layers.push(scatterLayer, ghostLayer);
+      return layers;
+    } catch (layerErr) {
+      console.error(
+        '%c[DeckGLMap:BGP]%c Failed to construct Deck.gl layers for BGP anomalies:',
+        'color: #ef4444; font-weight: bold;',
+        'color: inherit;',
+        {
+          error: layerErr,
+          message: layerErr instanceof Error ? layerErr.message : String(layerErr),
+          stack: layerErr instanceof Error ? layerErr.stack : undefined,
+          anomalyCount: this.bgpAnomalies.length,
+          sample: this.bgpAnomalies[0],
         }
-        return d.severity === 'critical' || d.severity === 'high'
-          ? [171, 71, 188, 230]
-          : [186, 104, 200, 190];
-      },
-      radiusMinPixels: 6,
-      radiusMaxPixels: 22,
-      stroked: true,
-      getLineColor: [255, 255, 255, 180] as [number, number, number, number],
-      lineWidthMinPixels: 1.5,
-      pickable: true,
-    });
-
-    const ghostLayer = this.createGhostLayer(
-      'bgp-anomalies-layer',
-      this.bgpAnomalies,
-      d => [d.lon, d.lat],
-      { radiusMinPixels: 14 }
-    );
-
-    layers.push(scatterLayer, ghostLayer);
-    return layers;
+      );
+      return [];
+    }
   }
 
   private createAisDensityLayer(): ScatterplotLayer {

@@ -65,6 +65,7 @@ export default async function handler(req) {
     ]);
 
     const anomalies = [];
+    const upstreamErrors = [];
 
     // Helper to build ASN lookup table from asn_info array
     const buildAsnMap = (asnInfo) => {
@@ -84,10 +85,22 @@ export default async function handler(req) {
     };
 
     // 1. Process BGP Hijacks
-    if (hijacksResult.status === 'fulfilled' && hijacksResult.value.ok) {
+    if (hijacksResult.status === 'rejected') {
+      const errMsg = hijacksResult.reason?.message || String(hijacksResult.reason);
+      console.error('[BGP Anomalies API] Cloudflare Radar hijacks network request failed:', errMsg);
+      upstreamErrors.push({ endpoint: 'hijacks', type: 'network_failure', message: errMsg });
+    } else if (!hijacksResult.value.ok) {
+      const status = hijacksResult.value.status;
+      const body = await hijacksResult.value.text().catch(() => '');
+      console.error(`[BGP Anomalies API] Cloudflare Radar hijacks HTTP ${status}:`, body);
+      upstreamErrors.push({ endpoint: 'hijacks', type: 'http_error', status, details: body });
+    } else {
       try {
         const json = await hijacksResult.value.json();
-        if (json?.success && json?.result) {
+        if (!json?.success) {
+          console.error('[BGP Anomalies API] Cloudflare Radar hijacks returned success:false:', json?.errors);
+          upstreamErrors.push({ endpoint: 'hijacks', type: 'api_error', errors: json?.errors || [] });
+        } else if (json?.result) {
           const asnMap = buildAsnMap(json.result.asn_info);
           const events = Array.isArray(json.result.events) ? json.result.events : [];
 
@@ -133,15 +146,28 @@ export default async function handler(req) {
           }
         }
       } catch (err) {
-        console.warn('[BGP Anomalies] Failed to parse hijacks payload:', err);
+        console.error('[BGP Anomalies API] Failed to parse hijacks payload JSON:', err);
+        upstreamErrors.push({ endpoint: 'hijacks', type: 'parse_error', message: err.message });
       }
     }
 
     // 2. Process BGP Route Leaks
-    if (leaksResult.status === 'fulfilled' && leaksResult.value.ok) {
+    if (leaksResult.status === 'rejected') {
+      const errMsg = leaksResult.reason?.message || String(leaksResult.reason);
+      console.error('[BGP Anomalies API] Cloudflare Radar leaks network request failed:', errMsg);
+      upstreamErrors.push({ endpoint: 'leaks', type: 'network_failure', message: errMsg });
+    } else if (!leaksResult.value.ok) {
+      const status = leaksResult.value.status;
+      const body = await leaksResult.value.text().catch(() => '');
+      console.error(`[BGP Anomalies API] Cloudflare Radar leaks HTTP ${status}:`, body);
+      upstreamErrors.push({ endpoint: 'leaks', type: 'http_error', status, details: body });
+    } else {
       try {
         const json = await leaksResult.value.json();
-        if (json?.success && json?.result) {
+        if (!json?.success) {
+          console.error('[BGP Anomalies API] Cloudflare Radar leaks returned success:false:', json?.errors);
+          upstreamErrors.push({ endpoint: 'leaks', type: 'api_error', errors: json?.errors || [] });
+        } else if (json?.result) {
           const asnMap = buildAsnMap(json.result.asn_info);
           const events = Array.isArray(json.result.events) ? json.result.events : [];
 
@@ -184,7 +210,8 @@ export default async function handler(req) {
           }
         }
       } catch (err) {
-        console.warn('[BGP Anomalies] Failed to parse leaks payload:', err);
+        console.error('[BGP Anomalies API] Failed to parse leaks payload JSON:', err);
+        upstreamErrors.push({ endpoint: 'leaks', type: 'parse_error', message: err.message });
       }
     }
 
@@ -192,6 +219,7 @@ export default async function handler(req) {
       configured: true,
       anomalies,
       total: anomalies.length,
+      upstreamErrors: upstreamErrors.length > 0 ? upstreamErrors : undefined,
       updatedAt: new Date().toISOString(),
     }), {
       status: 200,
@@ -202,11 +230,12 @@ export default async function handler(req) {
       },
     });
   } catch (err) {
-    console.error('[BGP Anomalies] Proxy fetch error:', err);
+    console.error('[BGP Anomalies API] Proxy handler unhandled exception:', err);
     return new Response(JSON.stringify({
       configured: true,
       anomalies: [],
       error: 'Failed to retrieve Cloudflare Radar BGP anomalies',
+      details: err?.message || String(err),
     }), {
       status: 500,
       headers: {
