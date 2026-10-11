@@ -456,6 +456,8 @@ const RSS_PROXY_ALLOWED_DOMAINS = new Set([
   'www.brookings.edu', 'layoffs.fyi', 'www.defensenews.com', 'www.militarytimes.com',
   'taskandpurpose.com', 'news.usni.org', 'www.oryxspioenkop.com', 'www.gov.uk',
   'www.foreignaffairs.com', 'www.atlanticcouncil.org',
+  // Canada
+  'www.cbc.ca', 'cbc.ca', 'www.gazette.gc.ca', 'gazette.gc.ca',
   // Regional & international
   'english.alarabiya.net', 'www.arabnews.com', 'www.timesofisrael.com', 'www.haaretz.com',
   'www.scmp.com', 'kyivindependent.com', 'www.themoscowtimes.com', 'feeds.24.com',

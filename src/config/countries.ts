@@ -14,6 +14,13 @@ export const CURATED_COUNTRIES: Record<string, CuratedCountryConfig> = {
     baselineRisk: 5,
     eventMultiplier: 0.3,
   },
+  CA: {
+    name: 'Canada',
+    scoringKeywords: ['canada', 'canadian', 'ottawa', 'trudeau', 'carney', 'poilievre', 'cbc', 'canada gazette', 'ca'],
+    searchAliases: ['canada', 'canadian', 'ottawa', 'trudeau', 'carney', 'poilievre', 'cbc', 'canada gazette', 'canadian gazette', 'ca'],
+    baselineRisk: 5,
+    eventMultiplier: 0.5,
+  },
   RU: {
     name: 'Russia',
     scoringKeywords: ['russia', 'moscow', 'kremlin', 'putin', 'ru'],
@@ -228,6 +235,7 @@ export const CURATED_COUNTRIES: Record<string, CuratedCountryConfig> = {
 
 export const TIER1_COUNTRIES: Record<string, string> = {
   US: 'United States',
+  CA: 'Canada',
   RU: 'Russia',
   CN: 'China',
   UA: 'Ukraine',
@@ -310,7 +318,7 @@ export const HOTSPOT_COUNTRY_MAP: Record<string, string | string[]> = {
   brussels: 'BE', baghdad: 'IQ', beirut: 'LB', doha: 'QA', abudhabi: 'AE',
   mexico: 'MX', nuuk: 'GL', sahel: ['ML', 'NE', 'BF'], haiti: 'HT',
   horn_africa: ['ET', 'SO', 'SD'], silicon_valley: 'US', wall_street: 'US',
-  houston: 'US', cairo: 'EG',
+  houston: 'US', cairo: 'EG', ottawa: 'CA',
 };
 
 export function getHotspotCountries(hotspotId: string): string[] {

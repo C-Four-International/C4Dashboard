@@ -61,6 +61,11 @@ export const SOURCE_TIERS: Record<string, number> = {
   'OpenAI News': 3,
   // Portuguese
   'Brasil Paralelo': 2,
+  // Canadian Sources
+  'CBC News': 2,
+  'CBC Canada': 2,
+  'Canada Gazette': 1,
+  'Canadian Gazette': 1,
 
   // Tier 1 - Official Government & International Orgs
   'State Dept': 1,
@@ -302,6 +307,7 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   'Treasury': 'gov', 'DOJ': 'gov', 'DHS': 'gov', 'CDC': 'gov',
   'FEMA': 'gov', 'Federal Reserve': 'gov', 'SEC': 'gov',
   'UN News': 'gov', 'CISA': 'gov',
+  'Canada Gazette': 'gov', 'Canadian Gazette': 'gov',
 
   // Intel/Defense specialty
   'Defense One': 'intel', 'Breaking Defense': 'intel', 'The War Zone': 'intel',
@@ -330,6 +336,8 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   'SVT Nyheter': 'mainstream', 'Dagens Nyheter': 'mainstream', 'Svenska Dagbladet': 'mainstream',
   // Brazilian Addition
   'Brasil Paralelo': 'mainstream',
+  // Canadian Addition
+  'CBC News': 'mainstream', 'CBC Canada': 'mainstream',
 
   // Market/Finance
   'CNBC': 'market', 'MarketWatch': 'market', 'Yahoo Finance': 'market',
@@ -421,6 +429,10 @@ export const SOURCE_PROPAGANDA_RISK: Record<string, SourceRiskProfile> = {
   'Financial Times': { risk: 'low', note: 'Business focus, Nikkei-owned' },
   'Bellingcat': { risk: 'low', note: 'Open-source investigations, methodology transparent' },
   'Brasil Paralelo': { risk: 'low', note: 'Independent media company: no political ties, no public funding, 100% subscriber-funded.' },
+  'CBC News': { risk: 'low', note: 'Canadian public broadcaster, editorially independent' },
+  'CBC Canada': { risk: 'low', note: 'Canadian public broadcaster, editorially independent' },
+  'Canada Gazette': { risk: 'low', note: 'Official government newspaper of Canada' },
+  'Canadian Gazette': { risk: 'low', note: 'Official government newspaper of Canada' },
 };
 
 export function getSourcePropagandaRisk(sourceName: string): SourceRiskProfile {
@@ -443,6 +455,8 @@ const FULL_FEEDS: Record<string, Feed[]> = {
   us: [
     { name: 'NPR News', url: rss('https://feeds.npr.org/1001/rss.xml') },
     { name: 'Politico', url: rss('https://news.google.com/rss/search?q=site:politico.com+when:1d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'CBC News', url: rss('https://www.cbc.ca/cmlink/rss-topstories') },
+    { name: 'Canada Gazette', url: rss('https://www.gazette.gc.ca/rss/p1-eng.xml') },
   ],
   europe: [
     {
@@ -1036,6 +1050,13 @@ export const FEEDS = SITE_VARIANT === 'tech'
     : SITE_VARIANT === 'happy'
       ? HAPPY_FEEDS
       : FULL_FEEDS;
+
+export const CANADIAN_TOP_NEWS_FEEDS: Feed[] = [
+  { name: 'CBC News', url: rss('https://www.cbc.ca/cmlink/rss-topstories') },
+  { name: 'CBC Canada', url: rss('https://www.cbc.ca/cmlink/rss-canada') },
+  { name: 'Canada Gazette', url: rss('https://www.gazette.gc.ca/rss/p1-eng.xml') },
+  { name: 'Canada Gazette', url: rss('https://news.google.com/rss/search?q=%22Canada+Gazette%22+OR+%22Canadian+Gazette%22+when:30d&hl=en-CA&gl=CA&ceid=CA:en') },
+];
 
 export const SOURCE_REGION_MAP: Record<string, { labelKey: string; feedKeys: string[] }> = {
   // Full (geopolitical) variant regions

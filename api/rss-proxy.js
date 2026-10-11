@@ -100,6 +100,11 @@ const ALLOWED_DOMAINS = [
   'www.gov.uk',
   'www.foreignaffairs.com',
   'www.atlanticcouncil.org',
+  // Canada
+  'www.cbc.ca',
+  'cbc.ca',
+  'www.gazette.gc.ca',
+  'gazette.gc.ca',
   // Tech variant domains
   'www.zdnet.com',
   'www.techmeme.com',

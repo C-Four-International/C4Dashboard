@@ -20,6 +20,8 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
       { name: 'NPR News', url: 'https://feeds.npr.org/1001/rss.xml' },
       { name: 'Politico', url: gn('site:politico.com when:1d') },
       { name: 'Axios', url: 'https://api.axios.com/feed/' },
+      { name: 'CBC News', url: 'https://www.cbc.ca/cmlink/rss-topstories' },
+      { name: 'Canada Gazette', url: 'https://www.gazette.gc.ca/rss/p1-eng.xml' },
     ],
     europe: [
       { name: 'France 24', url: 'https://www.france24.com/en/rss' },

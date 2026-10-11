@@ -428,6 +428,7 @@
       "intelBrief": "Intelligence Brief",
       "generatingBrief": "Generating intelligence brief...",
       "topNews": "Top News",
+      "loadingNews": "Loading top news...",
       "activeSignals": "Active Signals",
       "timeline": "7-Day Timeline",
       "predictionMarkets": "Prediction Markets",

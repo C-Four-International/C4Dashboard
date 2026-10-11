@@ -42,6 +42,7 @@ export class CountryBriefPage {
     SD: { n: 22, s: 8.7, e: 38.6, w: 21.8 }, US: { n: 49, s: 24.5, e: -66.9, w: -125 },
     GB: { n: 58.7, s: 49.9, e: 1.8, w: -8.2 }, DE: { n: 55.1, s: 47.3, e: 15.0, w: 5.9 },
     FR: { n: 51.1, s: 41.3, e: 9.6, w: -5.1 }, TR: { n: 42.1, s: 36, e: 44.8, w: 26 },
+    CA: { n: 83.1, s: 41.7, e: -52.6, w: -141.0 },
   };
 
   private static INFRA_ICONS: Record<BriefAssetType, string> = {
@@ -385,10 +386,28 @@ export class CountryBriefPage {
     el.innerHTML = `${arrow} ${escapeHtml(data.indexName)}: ${sign}${data.weekChangePercent}% (1W)`;
   }
 
+  public showNewsLoading(): void {
+    const section = this.overlay.querySelector('.cb-news-section') as HTMLElement | null;
+    const content = this.overlay.querySelector('.cb-news-content');
+    if (!section || !content) return;
+    section.style.display = '';
+    content.innerHTML = `
+      <div class="intel-brief-loading">
+        <div class="intel-skeleton"></div>
+        <div class="intel-skeleton short"></div>
+        <span class="intel-loading-text">${t('modals.countryBrief.loadingNews')}</span>
+      </div>`;
+  }
+
   public updateNews(headlines: NewsItem[]): void {
     const section = this.overlay.querySelector('.cb-news-section') as HTMLElement | null;
     const content = this.overlay.querySelector('.cb-news-content');
-    if (!section || !content || headlines.length === 0) return;
+    if (!section || !content) return;
+
+    if (headlines.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
 
     const items = headlines.slice(0, 8);
     this.currentHeadlineCount = items.length;
