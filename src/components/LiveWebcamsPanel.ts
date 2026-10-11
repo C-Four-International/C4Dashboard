@@ -354,7 +354,7 @@ export class LiveWebcamsPanel extends Panel {
   private render(): void {
     this.destroyIframes();
 
-    if (!this.isVisible || this.isIdle) {
+    if (!this.isVisible || this.isIdle || document.hidden) {
       this.content.innerHTML = '<div class="webcam-placeholder">Webcams paused</div>';
       return;
     }
@@ -478,10 +478,11 @@ export class LiveWebcamsPanel extends Panel {
       (entries) => {
         const wasVisible = this.isVisible;
         this.isVisible = entries.some(e => e.isIntersecting);
-        if (this.isVisible && !wasVisible && !this.isIdle) {
+        if (this.isVisible && !wasVisible && !this.isIdle && !document.hidden) {
           this.render();
         } else if (!this.isVisible && wasVisible) {
           this.destroyIframes();
+          this.content.innerHTML = '<div class="webcam-placeholder">Webcams paused</div>';
         }
       },
       { threshold: 0.1 }
@@ -492,11 +493,18 @@ export class LiveWebcamsPanel extends Panel {
   private setupIdleDetection(): void {
     this.boundVisibilityHandler = () => {
       if (document.hidden) {
-        if (this.idleTimeout) clearTimeout(this.idleTimeout);
+        if (this.idleTimeout) {
+          clearTimeout(this.idleTimeout);
+          this.idleTimeout = null;
+        }
+        this.destroyIframes();
+        this.content.innerHTML = '<div class="webcam-placeholder">Webcams paused</div>';
       } else {
         if (this.isIdle) {
           this.isIdle = false;
-          if (this.isVisible) this.render();
+        }
+        if (this.isVisible) {
+          this.render();
         }
         this.boundIdleResetHandler();
       }
@@ -507,8 +515,9 @@ export class LiveWebcamsPanel extends Panel {
       if (this.idleTimeout) clearTimeout(this.idleTimeout);
       if (this.isIdle) {
         this.isIdle = false;
-        if (this.isVisible) this.render();
+        if (this.isVisible && !document.hidden) this.render();
       }
+      if (document.hidden) return;
       this.idleTimeout = setTimeout(() => {
         this.isIdle = true;
         this.destroyIframes();
@@ -524,7 +533,7 @@ export class LiveWebcamsPanel extends Panel {
   }
 
   public refresh(): void {
-    if (this.isVisible && !this.isIdle) {
+    if (this.isVisible && !this.isIdle && !document.hidden) {
       this.render();
     }
   }
