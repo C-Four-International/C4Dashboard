@@ -12181,12 +12181,14 @@ a.prediction-link:hover {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
-  max-width: 260px;
-  max-height: 50vh;
+  width: 270px;
+  max-width: 280px;
+  max-height: 52vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   flex-wrap: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .deckgl-layer-toggles .toggle-header {
@@ -12203,19 +12205,36 @@ a.prediction-link:hover {
   flex-shrink: 0;
 }
 
+.deckgl-layer-toggles .toggle-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.deckgl-layer-toggles .layer-expand-all-btn,
 .deckgl-layer-toggles .toggle-collapse {
   background: none;
   border: none;
   color: var(--text-dim);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.deckgl-layer-toggles .layer-expand-all-btn:hover,
+.deckgl-layer-toggles .toggle-collapse:hover {
+  color: var(--text-bright, #fff);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .deckgl-layer-toggles .toggle-list {
-  padding: 4px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -12224,6 +12243,102 @@ a.prediction-link:hover {
 }
 
 .deckgl-layer-toggles .toggle-list.collapsed {
+  display: none;
+}
+
+.deckgl-layer-toggles .layer-category-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.deckgl-layer-toggles .layer-category-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  user-select: none;
+  text-align: left;
+}
+
+.deckgl-layer-toggles .layer-category-header:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-hover, rgba(255, 255, 255, 0.25));
+  color: var(--text-bright, #fff);
+}
+
+.deckgl-layer-toggles .layer-category-header[aria-expanded="true"] {
+  border-color: rgba(68, 255, 136, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.deckgl-layer-toggles .category-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.deckgl-layer-toggles .category-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deckgl-layer-toggles .category-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.deckgl-layer-toggles .category-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  transition: all 0.2s ease;
+  min-width: 14px;
+  text-align: center;
+}
+
+.deckgl-layer-toggles .category-badge.has-active {
+  background: rgba(68, 255, 136, 0.18);
+  color: var(--green);
+  border: 1px solid rgba(68, 255, 136, 0.35);
+  box-shadow: 0 0 6px rgba(68, 255, 136, 0.15);
+}
+
+.deckgl-layer-toggles .category-chevron {
+  font-size: 8px;
+  color: var(--text-dim);
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.deckgl-layer-toggles .layer-category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0 4px 6px;
+  margin-left: 4px;
+  border-left: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.deckgl-layer-toggles .layer-category-list.collapsed {
   display: none;
 }
 
@@ -12503,7 +12618,8 @@ a.prediction-link:hover {
 /* Responsive adjustments for deck.gl on smaller desktops */
 @media (max-width: 1200px) {
   .deckgl-layer-toggles {
-    max-width: 180px;
+    width: 240px;
+    max-width: 250px;
   }
 
   .deckgl-legend {

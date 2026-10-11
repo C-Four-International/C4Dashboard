@@ -333,17 +333,18 @@ export class MapComponent {
 
     // Variant-aware layer buttons
     const fullLayers: (keyof MapLayers)[] = [
-      'alertStatus',
-      'conflicts', 'hotspots', 'sanctions', 'protests',  // geopolitical
-      'bases', 'nuclear', 'irradiators',                 // military/strategic
-      'military',                                         // military tracking (flights + vessels)
-      'cables', 'pipelines', 'outages', 'datacenters', 'gpsJamming', // infrastructure
-      // cyberThreats is intentionally hidden on SVG/mobile fallback (DeckGL desktop only)
-      'ais', 'flights',                                   // transport
-      'natural', 'weather', 'fires', 'aqi',               // natural
-      'threatScore',                                      // threat score
-      'economic',                                         // economic
-      'waterways',                                        // labels
+      // General Intel
+      'alertStatus', 'hotspots', 'threatScore',
+      // Infrastructure
+      'pipelines', 'cables', 'datacenters', 'outages',
+      // Military
+      'military', 'conflicts', 'bases', 'nuclear', 'irradiators',
+      // Shipping & Air Traffic
+      'ais', 'flights', 'waterways', 'gpsJamming',
+      // Natural
+      'natural', 'weather', 'fires', 'aqi',
+      // Additional geopolitical/economic
+      'sanctions', 'protests', 'economic',
     ];
     const techLayers: (keyof MapLayers)[] = [
       'cables', 'datacenters', 'outages', 'gpsJamming',  // tech infrastructure

@@ -3626,105 +3626,273 @@ export class DeckGLMap {
     const toggles = document.createElement('div');
     toggles.className = 'layer-toggles deckgl-layer-toggles';
 
-    const layerConfig = SITE_VARIANT === 'tech'
+    interface LayerCategoryItem {
+      key: keyof MapLayers;
+      label: string;
+      icon: string;
+    }
+
+    interface LayerCategoryGroup {
+      id: string;
+      title: string;
+      layers: LayerCategoryItem[];
+    }
+
+    const categories: LayerCategoryGroup[] = SITE_VARIANT === 'tech'
       ? [
-        { key: 'startupHubs', label: t('components.deckgl.layers.startupHubs'), icon: '&#128640;' },
-        { key: 'techHQs', label: t('components.deckgl.layers.techHQs'), icon: '&#127970;' },
-        { key: 'accelerators', label: t('components.deckgl.layers.accelerators'), icon: '&#9889;' },
-        { key: 'cloudRegions', label: t('components.deckgl.layers.cloudRegions'), icon: '&#9729;' },
-        { key: 'datacenters', label: t('components.deckgl.layers.aiDataCenters'), icon: '&#128421;' },
-        { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
-        { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
-        { key: 'techEvents', label: t('components.deckgl.layers.techEvents'), icon: '&#128197;' },
-        { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
-        { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
-        { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
-        { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
-        { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
-        { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
-        { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
+        {
+          id: 'general-intel',
+          title: 'General Intel',
+          layers: [
+            { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
+          ],
+        },
+        {
+          id: 'tech-ecosystem',
+          title: 'Tech Ecosystem',
+          layers: [
+            { key: 'startupHubs', label: t('components.deckgl.layers.startupHubs'), icon: '&#128640;' },
+            { key: 'techHQs', label: t('components.deckgl.layers.techHQs'), icon: '&#127970;' },
+            { key: 'accelerators', label: t('components.deckgl.layers.accelerators'), icon: '&#9889;' },
+            { key: 'cloudRegions', label: t('components.deckgl.layers.cloudRegions'), icon: '&#9729;' },
+            { key: 'techEvents', label: t('components.deckgl.layers.techEvents'), icon: '&#128197;' },
+          ],
+        },
+        {
+          id: 'infrastructure',
+          title: 'Infrastructure',
+          layers: [
+            { key: 'datacenters', label: t('components.deckgl.layers.aiDataCenters'), icon: '&#128421;' },
+            { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
+          ],
+        },
+        {
+          id: 'signals-air',
+          title: 'Aviation & Signals',
+          layers: [
+            { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
+            { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
+          ],
+        },
+        {
+          id: 'natural',
+          title: 'Natural',
+          layers: [
+            { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
+            { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
+            { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
+            { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
+            { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
+          ],
+        },
       ]
       : SITE_VARIANT === 'finance'
         ? [
-          { key: 'stockExchanges', label: t('components.deckgl.layers.stockExchanges'), icon: '&#127963;' },
-          { key: 'financialCenters', label: t('components.deckgl.layers.financialCenters'), icon: '&#128176;' },
-          { key: 'centralBanks', label: t('components.deckgl.layers.centralBanks'), icon: '&#127974;' },
-          { key: 'commodityHubs', label: t('components.deckgl.layers.commodityHubs'), icon: '&#128230;' },
-          { key: 'gulfInvestments', label: t('components.deckgl.layers.gulfInvestments'), icon: '&#127760;' },
-          { key: 'tradeRoutes', label: t('components.deckgl.layers.tradeRoutes'), icon: '&#128674;' },
-          { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
-          { key: 'pipelines', label: t('components.deckgl.layers.pipelines'), icon: '&#128738;' },
-          { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '&#128225;' },
-          { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
-          { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
-          { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
-          { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
-          { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
-          { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
-          { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
-          { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
+          {
+            id: 'financial-markets',
+            title: 'Financial Markets',
+            layers: [
+              { key: 'stockExchanges', label: t('components.deckgl.layers.stockExchanges'), icon: '&#127963;' },
+              { key: 'financialCenters', label: t('components.deckgl.layers.financialCenters'), icon: '&#128176;' },
+              { key: 'centralBanks', label: t('components.deckgl.layers.centralBanks'), icon: '&#127974;' },
+              { key: 'commodityHubs', label: t('components.deckgl.layers.commodityHubs'), icon: '&#128230;' },
+              { key: 'gulfInvestments', label: t('components.deckgl.layers.gulfInvestments'), icon: '&#127760;' },
+            ],
+          },
+          {
+            id: 'infra-trade',
+            title: 'Infrastructure & Trade',
+            layers: [
+              { key: 'tradeRoutes', label: t('components.deckgl.layers.tradeRoutes'), icon: '&#128674;' },
+              { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
+              { key: 'pipelines', label: t('components.deckgl.layers.pipelines'), icon: '&#128738;' },
+              { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '&#128225;' },
+              { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
+            ],
+          },
+          {
+            id: 'intel-signals',
+            title: 'Intel & Aviation',
+            layers: [
+              { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
+              { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
+              { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
+            ],
+          },
+          {
+            id: 'natural',
+            title: 'Natural',
+            layers: [
+              { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
+              { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
+              { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
+              { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
+            ],
+          },
         ]
         : SITE_VARIANT === 'happy'
           ? [
-            { key: 'positiveEvents', label: 'Positive Events', icon: '&#127775;' },
-            { key: 'kindness', label: 'Acts of Kindness', icon: '&#128154;' },
-            { key: 'happiness', label: 'World Happiness', icon: '&#128522;' },
-            { key: 'speciesRecovery', label: 'Species Recovery', icon: '&#128062;' },
-            { key: 'renewableInstallations', label: 'Clean Energy', icon: '&#9889;' },
-            { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
-            { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
-            { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
-            { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
+            {
+              id: 'positive-signals',
+              title: 'Well-being & Kindness',
+              layers: [
+                { key: 'positiveEvents', label: 'Positive Events', icon: '&#127775;' },
+                { key: 'kindness', label: 'Acts of Kindness', icon: '&#128154;' },
+                { key: 'happiness', label: 'World Happiness', icon: '&#128522;' },
+                { key: 'speciesRecovery', label: 'Species Recovery', icon: '&#128062;' },
+                { key: 'renewableInstallations', label: 'Clean Energy', icon: '&#9889;' },
+              ],
+            },
+            {
+              id: 'natural',
+              title: 'Natural Environment',
+              layers: [
+                { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
+                { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
+                { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
+                { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
+              ],
+            },
           ]
           : [
-            { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
-            { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '&#127757;' },
-            { key: 'hotspots', label: t('components.deckgl.layers.intelHotspots'), icon: '&#127919;' },
-            { key: 'conflicts', label: t('components.deckgl.layers.conflictZones'), icon: '&#9876;' },
-            { key: 'bases', label: t('components.deckgl.layers.militaryBases'), icon: '&#127963;' },
-            { key: 'nuclear', label: t('components.deckgl.layers.nuclearSites'), icon: '&#9762;' },
-            { key: 'irradiators', label: t('components.deckgl.layers.gammaIrradiators'), icon: '&#9888;' },
-            { key: 'spaceports', label: t('components.deckgl.layers.spaceports'), icon: '&#128640;' },
-            { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
-            { key: 'pipelines', label: t('components.deckgl.layers.pipelines'), icon: '&#128738;' },
-            { key: 'datacenters', label: t('components.deckgl.layers.aiDataCenters'), icon: '&#128421;' },
-            { key: 'military', label: t('components.deckgl.layers.militaryActivity'), icon: '&#9992;' },
-            { key: 'ais', label: t('components.deckgl.layers.shipTraffic'), icon: '&#128674;' },
-            { key: 'tradeRoutes', label: t('components.deckgl.layers.tradeRoutes'), icon: '&#9875;' },
-            { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '&#9992;' },
-            { key: 'climate', label: t('components.deckgl.layers.climateAnomalies'), icon: '&#127787;' },
-            { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
-            { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
-            { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
-            { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
-            { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
-            { key: 'threatScore', label: 'Threat Score', icon: '&#128308;' },
-            { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
-            { key: 'agriculturalStressDI', label: t('components.deckgl.layers.agriculturalStressDI'), icon: '&#127806;' },
-            { key: 'agriculturalStressASI', label: t('components.deckgl.layers.agriculturalStressASI'), icon: '&#127806;' },
-            { key: 'agriculturalStressVCI', label: t('components.deckgl.layers.agriculturalStressVCI'), icon: '&#127806;' },
-            { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
-            { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
+            {
+              id: 'general-intel',
+              title: 'General Intel',
+              layers: [
+                { key: 'alertStatus', label: 'Alert Status', icon: '&#9888;' },
+                { key: 'hotspots', label: t('components.deckgl.layers.intelHotspots'), icon: '&#127919;' },
+                { key: 'threatScore', label: 'Threat Score', icon: '&#128308;' },
+              ],
+            },
+            {
+              id: 'infrastructure',
+              title: 'Infrastructure',
+              layers: [
+                { key: 'pipelines', label: t('components.deckgl.layers.pipelines'), icon: '&#128738;' },
+                { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
+                { key: 'spaceports', label: t('components.deckgl.layers.spaceports'), icon: '&#128640;' },
+                { key: 'datacenters', label: t('components.deckgl.layers.aiDataCenters'), icon: '&#128421;' },
+                { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
+                { key: 'nuclear', label: t('components.deckgl.layers.nuclearSites'), icon: '&#9762;' },
+                { key: 'agriculturalStressASI', label: 'Agricultural Index', icon: '&#127806;' },
+              ],
+            },
+            {
+              id: 'military',
+              title: 'Military',
+              layers: [
+                { key: 'military', label: t('components.deckgl.layers.militaryActivity'), icon: '&#9992;' },
+                { key: 'conflicts', label: t('components.deckgl.layers.conflictZones'), icon: '&#9876;' },
+                { key: 'bases', label: t('components.deckgl.layers.militaryBases'), icon: '&#127963;' },
+                { key: 'irradiators', label: t('components.deckgl.layers.gammaIrradiators'), icon: '&#9888;' },
+              ],
+            },
+            {
+              id: 'shipping-air',
+              title: 'Shipping & Air Traffic',
+              layers: [
+                { key: 'ais', label: t('components.deckgl.layers.shipTraffic'), icon: '&#128674;' },
+                { key: 'flights', label: 'Aviation', icon: '&#9992;' },
+                { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
+                { key: 'tradeRoutes', label: t('components.deckgl.layers.tradeRoutes'), icon: '&#128675;' },
+                { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
+              ],
+            },
+            {
+              id: 'natural',
+              title: 'Natural',
+              layers: [
+                { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '&#127757;' },
+                { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
+                { key: 'weather', label: 'Weather Alerts', icon: '&#9928;' },
+                { key: 'climate', label: t('components.deckgl.layers.climateAnomalies'), icon: '&#127787;' },
+                { key: 'aqi', label: 'Air Quality', icon: '💨' },
+                { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
+                { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
+                { key: 'agriculturalStressDI', label: 'Drought Intensity', icon: '&#127806;' },
+                { key: 'agriculturalStressVCI', label: 'Vegetation Conditions', icon: '&#127806;' },
+              ],
+            },
           ];
 
     toggles.innerHTML = `
       <div class="toggle-header">
         <span>${t('components.deckgl.layersTitle')}</span>
-        <button class="layer-help-btn" title="${t('components.deckgl.layerGuide')}">?</button>
-        <button class="toggle-collapse">&#9660;</button>
+        <div class="toggle-header-actions">
+          <button class="layer-expand-all-btn" title="Expand / collapse all categories" aria-label="Toggle all categories">&#8645;</button>
+          <button class="layer-help-btn" title="${t('components.deckgl.layerGuide')}">?</button>
+          <button class="toggle-collapse" title="Collapse panel">&#9660;</button>
+        </div>
       </div>
-      <div class="toggle-list" style="max-height: 32vh; overflow-y: auto; scrollbar-width: thin;">
-        ${layerConfig.map(({ key, label, icon }) => `
-          <label class="layer-toggle" data-layer="${key}">
-            <input type="checkbox" ${this.state.layers[key as keyof MapLayers] ? 'checked' : ''}>
-            <span class="toggle-icon">${icon}</span>
-            <span class="toggle-label">${label}</span>
-          </label>
-        `).join('')}
+      <div class="toggle-list" style="max-height: 48vh; overflow-y: auto; scrollbar-width: thin;">
+        ${categories.map((cat, catIndex) => {
+          const activeCount = cat.layers.filter(item => Boolean(this.state.layers[item.key])).length;
+          const isExpanded = activeCount > 0 || catIndex === 0;
+          return `
+            <div class="layer-category-group" data-category="${cat.id}">
+              <button type="button" class="layer-category-header" aria-expanded="${isExpanded ? 'true' : 'false'}">
+                <span class="category-title">
+                  <span class="category-name">${cat.title}</span>
+                </span>
+                <span class="category-meta">
+                  <span class="category-badge ${activeCount > 0 ? 'has-active' : ''}">${activeCount}</span>
+                  <span class="category-chevron">${isExpanded ? '&#9660;' : '&#9654;'}</span>
+                </span>
+              </button>
+              <div class="layer-category-list ${isExpanded ? '' : 'collapsed'}">
+                ${cat.layers.map(({ key, label, icon }) => `
+                  <label class="layer-toggle" data-layer="${key}">
+                    <input type="checkbox" ${this.state.layers[key] ? 'checked' : ''}>
+                    <span class="toggle-icon">${icon}</span>
+                    <span class="toggle-label">${label}</span>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }).join('')}
       </div>
     `;
 
     this.container.appendChild(toggles);
+
+    // Bind category expand/collapse toggles
+    toggles.querySelectorAll('.layer-category-header').forEach(headerBtn => {
+      headerBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const group = headerBtn.closest('.layer-category-group');
+        const list = group?.querySelector('.layer-category-list');
+        const chevron = headerBtn.querySelector('.category-chevron');
+        if (list) {
+          const isNowCollapsed = list.classList.toggle('collapsed');
+          headerBtn.setAttribute('aria-expanded', isNowCollapsed ? 'false' : 'true');
+          if (chevron) {
+            chevron.innerHTML = isNowCollapsed ? '&#9654;' : '&#9660;';
+          }
+        }
+      });
+    });
+
+    // Expand / collapse all categories button
+    const expandAllBtn = toggles.querySelector('.layer-expand-all-btn');
+    expandAllBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const lists = toggles.querySelectorAll('.layer-category-list');
+      const headers = toggles.querySelectorAll('.layer-category-header');
+      const anyCollapsed = Array.from(lists).some(l => l.classList.contains('collapsed'));
+      lists.forEach(l => {
+        l.classList.toggle('collapsed', !anyCollapsed);
+      });
+      headers.forEach(h => {
+        h.setAttribute('aria-expanded', anyCollapsed ? 'true' : 'false');
+        const chevron = h.querySelector('.category-chevron');
+        if (chevron) {
+          chevron.innerHTML = anyCollapsed ? '&#9660;' : '&#9654;';
+        }
+      });
+    });
 
     // Bind toggle events
     toggles.querySelectorAll('.layer-toggle input').forEach(input => {
@@ -3734,6 +3902,7 @@ export class DeckGLMap {
           this.state.layers[layer] = (input as HTMLInputElement).checked;
           this.setLayers({ ...this.state.layers });
           this.onLayerChange?.(layer, (input as HTMLInputElement).checked, 'user');
+          this.updateCategoryCounts();
         }
       });
     });
@@ -3758,6 +3927,24 @@ export class DeckGLMap {
     collapseBtn?.addEventListener('click', () => {
       toggleList?.classList.toggle('collapsed');
       if (collapseBtn) collapseBtn.innerHTML = toggleList?.classList.contains('collapsed') ? '&#9654;' : '&#9660;';
+    });
+
+    this.updateCategoryCounts();
+  }
+
+  private updateCategoryCounts(): void {
+    const categories = this.container.querySelectorAll('.layer-category-group');
+    categories.forEach(catEl => {
+      const inputs = catEl.querySelectorAll('.layer-toggle input') as NodeListOf<HTMLInputElement>;
+      let activeCount = 0;
+      inputs.forEach(input => {
+        if (input.checked) activeCount++;
+      });
+      const badge = catEl.querySelector('.category-badge');
+      if (badge) {
+        badge.textContent = String(activeCount);
+        badge.classList.toggle('has-active', activeCount > 0);
+      }
     });
   }
 
@@ -4085,6 +4272,8 @@ export class DeckGLMap {
       const toggle = this.container.querySelector(`.layer-toggle[data-layer="${key}"] input`) as HTMLInputElement;
       if (toggle) toggle.checked = value;
     });
+
+    this.updateCategoryCounts();
 
     // Fetch data for dynamic layers if they are enabled
     if (layers.gpsJamming) {
@@ -4600,6 +4789,7 @@ export class DeckGLMap {
       this.state.layers[layer] = true;
       const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"] input`) as HTMLInputElement;
       if (toggle) toggle.checked = true;
+      this.updateCategoryCounts();
       this.render();
       this.onLayerChange?.(layer, true, 'programmatic');
     }
@@ -4611,6 +4801,7 @@ export class DeckGLMap {
     this.state.layers[layer] = !this.state.layers[layer];
     const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"] input`) as HTMLInputElement;
     if (toggle) toggle.checked = this.state.layers[layer];
+    this.updateCategoryCounts();
     this.render();
 
     if (layer === 'alertStatus' && this.state.layers[layer]) {
