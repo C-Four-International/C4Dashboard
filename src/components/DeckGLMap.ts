@@ -630,6 +630,10 @@ export class DeckGLMap {
           console.warn('[DeckGLMap] Failed to initialize MapTiler weather layers:', e);
         }
       }
+
+      if (this.state.layers.waterTemperature) {
+        this.updateWaterTemperatureLayer(true);
+      }
     });
   }
 
@@ -1275,9 +1279,12 @@ export class DeckGLMap {
       layers.push(this.createDayNightLayer());
     }
 
-    // Water Surface Temperature layer (NASA GIBS MUR L4 SST heatmap)
+    // Water Surface Temperature layer is managed in MapLibre beneath the weather radar layer.
+    // Falls back to DeckGL if MapLibre is not initialized.
     if (mapLayers.waterTemperature) {
-      layers.push(this.createWaterTemperatureLayer());
+      if (!this.maplibreMap) {
+        layers.push(this.createWaterTemperatureLayer());
+      }
     }
 
     if (mapLayers.alertStatus) {
@@ -1779,6 +1786,72 @@ export class DeckGLMap {
       },
       pickable: false,
     });
+  }
+
+  private updateWaterTemperatureLayer(enabled: boolean): void {
+    if (!this.maplibreMap) return;
+    if (!this.maplibreMap.isStyleLoaded()) {
+      this.maplibreMap.once('style.load', () => this.updateWaterTemperatureLayer(enabled));
+      return;
+    }
+
+    const SOURCE_ID = 'sea-surface-temperature-source';
+    const LAYER_ID = 'sea-surface-temperature-layer';
+
+    try {
+      if (enabled) {
+        if (!this.maplibreMap.getSource(SOURCE_ID)) {
+          this.maplibreMap.addSource(SOURCE_ID, {
+            type: 'raster',
+            tiles: [
+              'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GHRSST_L4_MUR_Sea_Surface_Temperature/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png',
+            ],
+            tileSize: 256,
+            maxzoom: 7,
+            attribution: 'NASA GIBS (MUR L4 SST)',
+          });
+        }
+
+        // Target insertion before weather radar layers so weather radar always renders above SST
+        const beforeLayerId = this.maplibreMap.getLayer('maptiler-pressure')
+          ? 'maptiler-pressure'
+          : this.maplibreMap.getLayer('maptiler-precipitation')
+            ? 'maptiler-precipitation'
+            : this.maplibreMap.getLayer('maptiler-radar')
+              ? 'maptiler-radar'
+              : this.maplibreMap.getLayer('country-hover-fill')
+                ? 'country-hover-fill'
+                : undefined;
+
+        if (!this.maplibreMap.getLayer(LAYER_ID)) {
+          this.maplibreMap.addLayer(
+            {
+              id: LAYER_ID,
+              type: 'raster',
+              source: SOURCE_ID,
+              paint: {
+                'raster-opacity': 0.72,
+                'raster-fade-duration': 150,
+              },
+            },
+            beforeLayerId
+          );
+        } else if (beforeLayerId) {
+          try {
+            this.maplibreMap.moveLayer(LAYER_ID, beforeLayerId);
+          } catch { /* ignore */ }
+        }
+      } else {
+        if (this.maplibreMap.getLayer(LAYER_ID)) {
+          this.maplibreMap.removeLayer(LAYER_ID);
+        }
+        if (this.maplibreMap.getSource(SOURCE_ID)) {
+          this.maplibreMap.removeSource(SOURCE_ID);
+        }
+      }
+    } catch (err) {
+      console.warn('[DeckGLMap] Failed to update sea surface temperature layer:', err);
+    }
   }
 
   private createGpsJammingLayer(): HeatmapLayer {
@@ -4579,6 +4652,9 @@ export class DeckGLMap {
         if (this.waterTempLegend) {
           this.waterTempLegend.style.display = layers.waterTemperature ? 'flex' : 'none';
         }
+
+        // Lower render hierarchy for sea surface temperature so weather radar displays above it
+        this.updateWaterTemperatureLayer(Boolean(layers.waterTemperature));
       } catch (e) {
         console.warn('[DeckGLMap] Failed to toggle weather layers:', e);
       }

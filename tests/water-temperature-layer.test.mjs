@@ -68,3 +68,35 @@ test('Proxy allowlists include NASA GIBS Earthdata domain', () => {
   const viteConfig = fs.readFileSync('vite.config.ts', 'utf8');
   assert.ok(viteConfig.includes("'gibs.earthdata.nasa.gov'"), 'vite.config.ts must allow gibs.earthdata.nasa.gov');
 });
+
+test('Sea surface temperature layer render hierarchy is below weather radar layers', () => {
+  const deckGlMapTs = fs.readFileSync('src/components/DeckGLMap.ts', 'utf8');
+
+  // Must have updateWaterTemperatureLayer method managing MapLibre layer
+  assert.ok(
+    deckGlMapTs.includes('updateWaterTemperatureLayer'),
+    'DeckGLMap must have updateWaterTemperatureLayer method'
+  );
+  assert.ok(
+    deckGlMapTs.includes("const LAYER_ID = 'sea-surface-temperature-layer';"),
+    'Must define sea-surface-temperature-layer MapLibre layer ID'
+  );
+
+  // Must insert before weather radar layers (maptiler-pressure, maptiler-precipitation, maptiler-radar)
+  assert.ok(
+    deckGlMapTs.includes("this.maplibreMap.getLayer('maptiler-pressure')") &&
+    deckGlMapTs.includes("this.maplibreMap.getLayer('maptiler-precipitation')") &&
+    deckGlMapTs.includes("this.maplibreMap.getLayer('maptiler-radar')"),
+    'Must inspect weather radar layers to position sea surface temperature underneath them'
+  );
+  assert.ok(
+    deckGlMapTs.includes('beforeLayerId'),
+    'Must pass beforeLayerId to addLayer/moveLayer so weather radar renders above SST'
+  );
+
+  // setLayers must call updateWaterTemperatureLayer to maintain hierarchy dynamically
+  assert.ok(
+    deckGlMapTs.includes('this.updateWaterTemperatureLayer(Boolean(layers.waterTemperature))'),
+    'setLayers must synchronize sea surface temperature layer in MapLibre'
+  );
+});
