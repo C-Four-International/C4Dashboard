@@ -4,6 +4,7 @@ import { escapeHtml } from '@/utils/sanitize';
 import { t } from '../services/i18n';
 import { trackWebcamSelected, trackWebcamRegionFiltered } from '@/services/analytics';
 import { getStreamQuality, subscribeStreamQualityChange } from '@/services/ai-flow-settings';
+import { fetchLiveVideoId } from '@/services/live-news';
 
 type WebcamRegion = 'middle-east' | 'europe' | 'asia' | 'americas';
 
@@ -17,7 +18,7 @@ interface WebcamFeed {
   fallbackVideoIds: [string, string];
 }
 
-// Verified active YouTube live stream IDs and 2 fallbacks for each.
+// Verified active YouTube 24/7 live streams and verified live fallbacks for each feed.
 const WEBCAM_FEEDS: WebcamFeed[] = [
   // Middle East — Jerusalem & Tehran adjacent (conflict hotspots)
   {
@@ -27,7 +28,7 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     region: 'middle-east',
     channelHandle: '@TheWesternWall',
     fallbackVideoId: 'LMHUcDktP-w',
-    fallbackVideoIds: ['UyduhBUpO7Q', 'gJsZdfSyPrM'],
+    fallbackVideoIds: ['gJsZdfSyPrM', '0_21ZFRAK3o'],
   },
   {
     id: 'tehran',
@@ -35,8 +36,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'Iran',
     region: 'middle-east',
     channelHandle: '@IranHDCams',
-    fallbackVideoId: '-zGuR1qVKrU',
-    fallbackVideoIds: ['Fxi3jVeuw4g', '5y3dYo-KcsA'],
+    fallbackVideoId: '0_21ZFRAK3o',
+    fallbackVideoIds: ['o-3SPgLOjCk', 'LMHUcDktP-w'],
   },
   {
     id: 'tel-aviv',
@@ -44,8 +45,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'Israel',
     region: 'middle-east',
     channelHandle: '@IsraelLiveCam',
-    fallbackVideoId: '-VLcYT5QBrY',
-    fallbackVideoIds: ['ipdvjWrl_5g', 'BsXkVNrTvhU'],
+    fallbackVideoId: '0_21ZFRAK3o',
+    fallbackVideoIds: ['LMHUcDktP-w', 'o-3SPgLOjCk'],
   },
   {
     id: 'mecca',
@@ -53,8 +54,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'Saudi Arabia',
     region: 'middle-east',
     channelHandle: '@MakkahLive',
-    fallbackVideoId: 'DEcpmPUbkDQ',
-    fallbackVideoIds: ['3Hgm9qThfX4', 'n_k8TWHk9WI'],
+    fallbackVideoId: 'n_k8TWHk9WI',
+    fallbackVideoIds: ['DFR8KZMjQT0', 'qojXdT1zoa4'],
   },
   // Europe
   {
@@ -63,8 +64,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'Ukraine',
     region: 'europe',
     channelHandle: '@DWNews',
-    fallbackVideoId: 'p5RLcaR3iOw',
-    fallbackVideoIds: ['e2gC37ILQmk', '-Q7FuPINDjA'],
+    fallbackVideoId: 'e2gC37ILQmk',
+    fallbackVideoIds: ['o-3SPgLOjCk', 'LuKwFajn37U'],
   },
   {
     id: 'odessa',
@@ -73,7 +74,7 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     region: 'europe',
     channelHandle: '@UkraineLiveCam',
     fallbackVideoId: 'e2gC37ILQmk',
-    fallbackVideoIds: ['p5RLcaR3iOw', 'iLM_TaUKLeY'],
+    fallbackVideoIds: ['o-3SPgLOjCk', 'LuKwFajn37U'],
   },
   {
     id: 'paris',
@@ -81,8 +82,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'France',
     region: 'europe',
     channelHandle: '@PalaisIena',
-    fallbackVideoId: 'OzYp4NRZlwQ',
-    fallbackVideoIds: ['wP1RwzORoBs', 'jZZy50w69zI'],
+    fallbackVideoId: 'kboDFtMZqQI',
+    fallbackVideoIds: ['LuKwFajn37U', 'CY1BMUfII4Y'],
   },
   {
     id: 'st-petersburg',
@@ -90,8 +91,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'Russia',
     region: 'europe',
     channelHandle: '@SPBLiveCam',
-    fallbackVideoId: 'V19KdSK1V8g',
-    fallbackVideoIds: ['CjtIYbmVfck', 'eDkveV1id1M'],
+    fallbackVideoId: 'CjtIYbmVfck',
+    fallbackVideoIds: ['o-3SPgLOjCk', 'e2gC37ILQmk'],
   },
   {
     id: 'london',
@@ -99,8 +100,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'UK',
     region: 'europe',
     channelHandle: '@EarthCam',
-    fallbackVideoId: 'N8v5y2StMDQ',
-    fallbackVideoIds: ['uDBYuEV4zjI', 'Lxqcg1qt0XU'],
+    fallbackVideoId: 'uDBYuEV4zjI',
+    fallbackVideoIds: ['2A20GPyGtVo', 'LuKwFajn37U'],
   },
   // Americas
   {
@@ -109,8 +110,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'USA',
     region: 'americas',
     channelHandle: '@AxisCommunications',
-    fallbackVideoId: 'U85B2-kljyc',
-    fallbackVideoIds: ['NiC4XwcM7oM', 'rxhU5YXz6us'],
+    fallbackVideoId: 'CY1BMUfII4Y',
+    fallbackVideoIds: ['2blgPhEGUy0', 'LuKwFajn37U'],
   },
   {
     id: 'new-york',
@@ -118,8 +119,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'USA',
     region: 'americas',
     channelHandle: '@EarthCam',
-    fallbackVideoId: 'PGrq-2mju2s',
-    fallbackVideoIds: ['bd83M-ftXX4', '4qyZLflp-sI'],
+    fallbackVideoId: 'lwy6tgg4b_4',
+    fallbackVideoIds: ['59AJVnSe2pw', 'CY1BMUfII4Y'],
   },
   {
     id: 'los-angeles',
@@ -128,7 +129,7 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     region: 'americas',
     channelHandle: '@VeniceVHotel',
     fallbackVideoId: 'EO_1LWqsCNE',
-    fallbackVideoIds: ['JnNhhJQJ9KY', '-N6Y5Bh06c0'],
+    fallbackVideoIds: ['CY1BMUfII4Y', 'TSGQMohOLU0'],
   },
   {
     id: 'miami',
@@ -137,7 +138,7 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     region: 'americas',
     channelHandle: '@FloridaLiveCams',
     fallbackVideoId: 'TSGQMohOLU0',
-    fallbackVideoIds: ['96gYpFS4ZvY', '5YCajRjvWCg'],
+    fallbackVideoIds: ['96gYpFS4ZvY', 'EO_1LWqsCNE'],
   },
   // Asia-Pacific
   {
@@ -147,7 +148,7 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     region: 'asia',
     channelHandle: '@JackyWuTaipei',
     fallbackVideoId: 'z_fY1pj1VBw',
-    fallbackVideoIds: ['Y-dGAitUwDs', 'ZXEHi0fG2-4'],
+    fallbackVideoIds: ['DMEHBuEixY0', 'PznqRZYdiHs'],
   },
   {
     id: 'shanghai',
@@ -155,8 +156,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'China',
     region: 'asia',
     channelHandle: '@SkylineWebcams',
-    fallbackVideoId: '76EwqI5XZIc',
-    fallbackVideoIds: ['cje_VvuyaEQ', 'r1VOcQ1xUN0'],
+    fallbackVideoId: 'DMEHBuEixY0',
+    fallbackVideoIds: ['PznqRZYdiHs', 'z_fY1pj1VBw'],
   },
   {
     id: 'tokyo',
@@ -164,8 +165,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'Japan',
     region: 'asia',
     channelHandle: '@TokyoLiveCam4K',
-    fallbackVideoId: 's49TVEPng0Q',
-    fallbackVideoIds: ['PHjIoS--abI', '4pu9sF5Qssw'],
+    fallbackVideoId: 'cgEgNLJLnY0',
+    fallbackVideoIds: ['NdAyRlYxw3M', 'sIy0J6TeCxY'],
   },
   {
     id: 'seoul',
@@ -174,7 +175,7 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     region: 'asia',
     channelHandle: '@seoullive',
     fallbackVideoId: 'GhNscofIqHU',
-    fallbackVideoIds: ['nDQ_PdOIuPQ', 'xwewcDBVr8I'],
+    fallbackVideoIds: ['cgEgNLJLnY0', 'z_fY1pj1VBw'],
   },
   {
     id: 'sydney',
@@ -182,8 +183,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     country: 'Australia',
     region: 'asia',
     channelHandle: '@WebcamSydney',
-    fallbackVideoId: '0M_t0DEY7Jo',
-    fallbackVideoIds: ['ggy1-vP7CIw', '7pcL-0Wo77U'],
+    fallbackVideoId: '5uZa3-RMFos',
+    fallbackVideoIds: ['DMEHBuEixY0', 'GhNscofIqHU'],
   },
 ];
 
@@ -206,6 +207,20 @@ export class LiveWebcamsPanel extends Panel {
   private readonly IDLE_PAUSE_MS = 5 * 60 * 1000;
   private isIdle = false;
   private streamIndices: Map<string, number> = new Map();
+  private liveVideoIds: Map<string, string> = new Map();
+
+  private resolveDynamicLiveStream(feed: WebcamFeed): void {
+    if (this.liveVideoIds.has(feed.id)) return;
+    fetchLiveVideoId(feed.channelHandle).then(liveId => {
+      if (liveId && liveId !== feed.fallbackVideoId) {
+        this.liveVideoIds.set(feed.id, liveId);
+        const curIdx = this.streamIndices.get(feed.id) ?? 0;
+        if (curIdx === 0 && this.isVisible && !this.isIdle && !document.hidden) {
+          this.render();
+        }
+      }
+    }).catch(() => {});
+  }
 
   constructor() {
     super({ id: 'live-webcams', title: t('panels.liveWebcams') });
@@ -237,7 +252,7 @@ export class LiveWebcamsPanel extends Panel {
     const idx = this.streamIndices.get(feed.id) ?? 0;
     if (idx === 1 && feed.fallbackVideoIds?.[0]) return feed.fallbackVideoIds[0];
     if (idx === 2 && feed.fallbackVideoIds?.[1]) return feed.fallbackVideoIds[1];
-    return feed.fallbackVideoId;
+    return this.liveVideoIds.get(feed.id) || feed.fallbackVideoId;
   }
 
   private cycleFeedStream(feedId: string): void {
@@ -335,6 +350,7 @@ export class LiveWebcamsPanel extends Panel {
   }
 
   private createIframe(feed: WebcamFeed): HTMLIFrameElement {
+    this.resolveDynamicLiveStream(feed);
     const iframe = document.createElement('iframe');
     iframe.className = 'webcam-iframe';
     const videoId = this.getFeedVideoId(feed);
