@@ -1490,9 +1490,9 @@ export class DeckGLMap {
       layers.push(this.createDisplacementArcsLayer());
     }
 
-    // Climate anomalies heatmap layer
+    // Climate anomalies layers
     if (mapLayers.climate && this.climateAnomalies.length > 0) {
-      layers.push(this.createClimateHeatmapLayer());
+      layers.push(...this.createClimateLayers());
     }
 
     // Trade routes layer
@@ -3557,6 +3557,17 @@ export class DeckGLMap {
       }
       case 'repair-ships-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name || t('components.deckgl.tooltip.repairShip'))}</strong><br/>${text(obj.status)}</div>` };
+      case 'climate-points-layer': {
+        const a = obj as ClimateAnomaly;
+        const icon = a.type === 'cold' ? '❄️' : a.type === 'wet' ? '🌧️' : a.type === 'dry' ? '☀️' : a.type === 'mixed' ? '⚡' : '🌡️';
+        const sign = a.tempDelta > 0 ? '+' : '';
+        const tempStr = `${sign}${a.tempDelta.toFixed(1)}°C`;
+        const precipSign = a.precipDelta > 0 ? '+' : '';
+        const precipStr = `${precipSign}${a.precipDelta.toFixed(1)}mm`;
+        return {
+          html: `<div class="deckgl-tooltip"><strong>${icon} ${text(a.zone)}</strong><br/>${t('components.climate.temp')}: <strong>${tempStr}</strong> · ${t('components.climate.precip')}: <strong>${precipStr}</strong><br/><span style="text-transform:uppercase;font-size:10px;opacity:0.85;font-weight:600;">${text(a.severity)} · ${text(a.type)}</span></div>`,
+        };
+      }
       case 'weather-layer': {
         const areaDesc = typeof obj.areaDesc === 'string' ? obj.areaDesc : '';
         const area = areaDesc ? `<br/><small>${text(areaDesc.slice(0, 50))}${areaDesc.length > 50 ? '...' : ''}</small>` : '';
@@ -3788,6 +3799,7 @@ export class DeckGLMap {
       'ais-disruptions-layer': 'ais',
       'cable-advisories-layer': 'cable-advisory',
       'repair-ships-layer': 'repair-ship',
+      'climate-points-layer': 'climate',
     };
 
     const popupType = layerToPopupType[layerId];
@@ -4720,26 +4732,105 @@ export class DeckGLMap {
     });
   }
 
-  private createClimateHeatmapLayer(): HeatmapLayer<ClimateAnomaly> {
-    return new HeatmapLayer<ClimateAnomaly>({
-      id: 'climate-heatmap-layer',
+  private createClimateLayers(): Layer[] {
+    const layers: Layer[] = [];
+    if (this.climateAnomalies.length === 0) return layers;
+
+    const warmAnomalies = this.climateAnomalies.filter(a => a.type === 'warm' || a.tempDelta > 0);
+    const coldAnomalies = this.climateAnomalies.filter(a => a.type === 'cold' || a.tempDelta < 0 || (a.type === 'wet' && a.tempDelta <= 0));
+
+    // Ambient warm glow for positive temperature anomalies
+    if (warmAnomalies.length > 0) {
+      layers.push(new HeatmapLayer<ClimateAnomaly>({
+        id: 'climate-warm-heatmap-layer',
+        data: warmAnomalies,
+        getPosition: (d) => [d.lon, d.lat],
+        getWeight: (d) => Math.max(0.5, Math.abs(d.tempDelta) * 1.5 + (d.precipDelta < 0 ? Math.abs(d.precipDelta) * 0.05 : 0)),
+        radiusPixels: 45,
+        intensity: 0.7,
+        threshold: 0.1,
+        opacity: 0.45,
+        colorRange: [
+          [254, 240, 138],
+          [251, 191, 36],
+          [249, 115, 22],
+          [239, 68, 68],
+          [185, 28, 28],
+        ],
+        pickable: false,
+      }));
+    }
+
+    // Ambient cool glow for negative temperature and wet anomalies
+    if (coldAnomalies.length > 0) {
+      layers.push(new HeatmapLayer<ClimateAnomaly>({
+        id: 'climate-cold-heatmap-layer',
+        data: coldAnomalies,
+        getPosition: (d) => [d.lon, d.lat],
+        getWeight: (d) => Math.max(0.5, Math.abs(d.tempDelta) * 1.5 + (d.precipDelta > 0 ? d.precipDelta * 0.05 : 0)),
+        radiusPixels: 45,
+        intensity: 0.7,
+        threshold: 0.1,
+        opacity: 0.45,
+        colorRange: [
+          [186, 230, 253],
+          [56, 189, 248],
+          [14, 165, 233],
+          [37, 99, 235],
+          [29, 78, 216],
+        ],
+        pickable: false,
+      }));
+    }
+
+    // Interactive pickable nodes
+    layers.push(new ScatterplotLayer<ClimateAnomaly>({
+      id: 'climate-points-layer',
       data: this.climateAnomalies,
       getPosition: (d) => [d.lon, d.lat],
-      getWeight: (d) => Math.abs(d.tempDelta) + Math.abs(d.precipDelta) * 0.1,
-      radiusPixels: 40,
-      intensity: 0.6,
-      threshold: 0.15,
-      opacity: 0.45,
-      colorRange: [
-        [68, 136, 255],
-        [100, 200, 255],
-        [255, 255, 100],
-        [255, 200, 50],
-        [255, 100, 50],
-        [255, 50, 50],
-      ],
-      pickable: false,
-    });
+      getRadius: (d) => (d.severity === 'extreme' ? 18000 : 12000),
+      radiusMinPixels: 6,
+      radiusMaxPixels: 18,
+      stroked: true,
+      filled: true,
+      lineWidthMinPixels: 1.5,
+      getLineColor: (d) => (d.severity === 'extreme' ? [255, 255, 255, 240] : [255, 255, 255, 180]),
+      getFillColor: (d) => {
+        if (d.type === 'warm' || d.tempDelta > 0) {
+          return d.severity === 'extreme' ? [239, 68, 68, 240] : [249, 115, 22, 230];
+        }
+        if (d.type === 'cold' || d.tempDelta < 0) {
+          return d.severity === 'extreme' ? [2, 132, 199, 240] : [14, 165, 233, 230];
+        }
+        if (d.type === 'wet') return [20, 184, 166, 230];
+        if (d.type === 'dry') return [245, 158, 11, 230];
+        return [168, 85, 247, 230];
+      },
+      pickable: true,
+    }));
+
+    // Pulse rings for extreme anomalies
+    const extremeAnomalies = this.climateAnomalies.filter(a => a.severity === 'extreme');
+    if (extremeAnomalies.length > 0) {
+      const pulse = 1.0 + 0.4 * (0.5 + 0.5 * Math.sin((this.pulseTime || Date.now()) / 800));
+      layers.push(new ScatterplotLayer<ClimateAnomaly>({
+        id: 'climate-points-pulse',
+        data: extremeAnomalies,
+        getPosition: (d) => [d.lon, d.lat],
+        getRadius: 16000,
+        radiusScale: pulse,
+        radiusMinPixels: 8,
+        radiusMaxPixels: 24,
+        stroked: true,
+        filled: false,
+        getLineColor: (d) => (d.tempDelta > 0 ? [239, 68, 68, 140] : [14, 165, 233, 140]),
+        lineWidthMinPixels: 1.5,
+        pickable: false,
+        updateTriggers: { radiusScale: this.pulseTime },
+      }));
+    }
+
+    return layers;
   }
 
   private createTradeRoutesLayer(): ArcLayer<TradeRouteSegment> {
@@ -4886,7 +4977,19 @@ export class DeckGLMap {
 
   public setClimateAnomalies(anomalies: ClimateAnomaly[]): void {
     this.climateAnomalies = anomalies;
+    this.syncPulseAnimation();
     this.render();
+  }
+
+  public showClimateAnomaly(anomaly: ClimateAnomaly): void {
+    const screenPos = this.projectToScreen(anomaly.lat, anomaly.lon);
+    const { x, y } = screenPos || this.getContainerCenter();
+    this.popup.show({
+      type: 'climate',
+      data: anomaly,
+      x,
+      y,
+    });
   }
 
   public setNewsLocations(data: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date; items?: import('@/types').NewsItem[] }>): void {

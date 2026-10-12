@@ -2,6 +2,7 @@ import type { ConflictZone, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, 
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { Earthquake } from '@/services/earthquakes';
 import type { WeatherAlert } from '@/services/weather';
+import { type ClimateAnomaly, getSeverityIcon } from '@/services/climate';
 import { UNDERSEA_CABLES } from '@/config';
 import type { StartupHub, Accelerator, TechHQ, CloudRegion } from '@/config/tech-geo';
 import type { TechHubActivity } from '@/services/tech-activity';
@@ -14,7 +15,7 @@ import { getNaturalEventIcon } from '@/services/eonet';
 import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot-escalation';
 import { getCableHealthRecord } from '@/services/cable-health';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub';
+export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'climate';
 
 interface TechEventPopupData {
   id: string;
@@ -120,7 +121,7 @@ interface DatacenterClusterData {
 
 interface PopupData {
   type: PopupType;
-  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | CyberThreat | BgpAnomaly | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData;
+  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | CyberThreat | BgpAnomaly | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData | ClimateAnomaly;
   relatedNews?: NewsItem[];
   x: number;
   y: number;
@@ -429,6 +430,8 @@ export class MapPopup {
         return this.renderCentralBankPopup(data.data as CentralBankPopupData);
       case 'commodityHub':
         return this.renderCommodityHubPopup(data.data as CommodityHubPopupData);
+      case 'climate':
+        return this.renderClimatePopup(data.data as ClimateAnomaly);
       default:
         return '';
     }
@@ -2649,4 +2652,63 @@ export class MapPopup {
       </div>
     `;
   }
+
+  private renderClimatePopup(anomaly: ClimateAnomaly): string {
+    const icon = getSeverityIcon(anomaly);
+    const tempSign = anomaly.tempDelta > 0 ? '+' : '';
+    const precipSign = anomaly.precipDelta > 0 ? '+' : '';
+    const tempClass = anomaly.tempDelta > 0 ? 'climate-warm' : 'climate-cold';
+    const precipClass = anomaly.precipDelta > 0 ? 'climate-wet' : 'climate-dry';
+    const sevLabel = t(`components.climate.severity.${anomaly.severity}`) || anomaly.severity.toUpperCase();
+    const typeLabel = anomaly.type.toUpperCase();
+
+    let assessment = '';
+    if (anomaly.type === 'warm') {
+      assessment = `Significant heat departure (${tempSign}${anomaly.tempDelta.toFixed(1)}°C above 30-day baseline). Accelerates evapotranspiration, strains regional water basins, and elevates heat index stress.`;
+    } else if (anomaly.type === 'cold') {
+      assessment = `Pronounced cold departure (${tempSign}${anomaly.tempDelta.toFixed(1)}°C below 30-day baseline). Sharp sub-seasonal temperature drop elevating frost risk, livestock vulnerability, and heating demand.`;
+    } else if (anomaly.type === 'wet') {
+      assessment = `Substantial precipitation surplus (${precipSign}${anomaly.precipDelta.toFixed(1)} mm vs baseline). Saturated soil levels elevate watershed runoff and flood vulnerability.`;
+    } else if (anomaly.type === 'dry') {
+      assessment = `Precipitation deficit (${precipSign}${anomaly.precipDelta.toFixed(1)} mm vs baseline). Sub-baseline rainfall deepens meteorological drought risks and soil moisture depletion.`;
+    } else {
+      assessment = `Compound anomaly displaying simultaneous anomalous temperature departure (${tempSign}${anomaly.tempDelta.toFixed(1)}°C) and precipitation deviation (${precipSign}${anomaly.precipDelta.toFixed(1)} mm).`;
+    }
+
+    return `
+      <div class="popup-header climate ${escapeHtml(anomaly.severity)} ${escapeHtml(anomaly.type)}">
+        <span class="popup-title">${icon} ${escapeHtml(anomaly.zone.toUpperCase())}</span>
+        <span class="popup-badge ${escapeHtml(anomaly.severity)}">${escapeHtml(sevLabel)} · ${escapeHtml(typeLabel)}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">${t('components.climate.temp')}</span>
+            <span class="stat-value ${tempClass}" style="font-weight: 700; font-size: 15px;">${tempSign}${anomaly.tempDelta.toFixed(1)}°C</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">${t('components.climate.precip')}</span>
+            <span class="stat-value ${precipClass}" style="font-weight: 700; font-size: 15px;">${precipSign}${anomaly.precipDelta.toFixed(1)} mm</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">${t('popups.coordinates')}</span>
+            <span class="stat-value">${anomaly.lat.toFixed(2)}°, ${anomaly.lon.toFixed(2)}°</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Baseline Window</span>
+            <span class="stat-value" style="font-size: 11px;">7d vs 30d ERA5</span>
+          </div>
+        </div>
+        <div class="popup-description" style="margin-top: 10px; line-height: 1.45; font-size: 12px; color: var(--text-secondary);">
+          ${escapeHtml(assessment)}
+        </div>
+        <div style="margin-top: 8px; font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
+          <span>Source: Open-Meteo / Copernicus ERA5</span>
+          <span style="opacity: 0.85;">${escapeHtml(anomaly.period)}</span>
+        </div>
+      </div>
+    `;
+  }
 }
+

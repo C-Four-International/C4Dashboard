@@ -135,6 +135,7 @@ export class MapComponent {
   private techEvents: TechEventMarker[] = [];
   private techActivities: TechHubActivity[] = [];
   private geoActivities: GeoHubActivity[] = [];
+  private climateAnomalies: import('@/services/climate').ClimateAnomaly[] = [];
   private news: NewsItem[] = [];
   private onTechHubClick?: (hub: TechHubActivity) => void;
   private onGeoHubClick?: (hub: GeoHubActivity) => void;
@@ -2799,6 +2800,44 @@ export class MapComponent {
 
       this.overlays.appendChild(div);
     });
+
+    // Climate anomalies
+    if (this.state.layers.climate && this.climateAnomalies.length > 0) {
+      this.climateAnomalies.forEach((a) => {
+        const pos = projection([a.lon, a.lat]);
+        if (!pos) return;
+
+        const div = document.createElement('div');
+        const isWarm = a.type === 'warm' || a.tempDelta > 0;
+        const isCold = a.type === 'cold' || a.tempDelta < 0;
+        div.className = `climate-marker ${a.severity} ${isWarm ? 'warm' : isCold ? 'cold' : a.type}`;
+        div.style.left = `${pos[0]}px`;
+        div.style.top = `${pos[1]}px`;
+        div.style.position = 'absolute';
+        div.style.transform = 'translate(-50%, -50%)';
+        div.style.cursor = 'pointer';
+        div.style.width = a.severity === 'extreme' ? '18px' : '14px';
+        div.style.height = a.severity === 'extreme' ? '18px' : '14px';
+        div.style.borderRadius = '50%';
+        div.style.border = '2px solid rgba(255, 255, 255, 0.9)';
+        div.style.background = isWarm ? '#ef4444' : isCold ? '#0ea5e9' : a.type === 'wet' ? '#14b8a6' : a.type === 'dry' ? '#f59e0b' : '#a855f7';
+        div.style.boxShadow = '0 0 8px rgba(0,0,0,0.5)';
+        div.title = `${a.zone}: ${a.tempDelta > 0 ? '+' : ''}${a.tempDelta}°C (${a.severity} ${a.type})`;
+
+        div.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = this.container.getBoundingClientRect();
+          this.popup.show({
+            type: 'climate',
+            data: a,
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        });
+
+        this.overlays.appendChild(div);
+      });
+    }
   }
 
   private getRelatedNews(hotspot: Hotspot): NewsItem[] {
@@ -3523,6 +3562,26 @@ export class MapComponent {
   public setTechEvents(events: TechEventMarker[]): void {
     this.techEvents = events;
     this.render();
+  }
+
+  public setClimateAnomalies(anomalies: import('@/services/climate').ClimateAnomaly[]): void {
+    this.climateAnomalies = anomalies;
+    this.render();
+  }
+
+  public showClimateAnomaly(anomaly: import('@/services/climate').ClimateAnomaly): void {
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    const projection = this.getProjection(width, height);
+    const pos = projection([anomaly.lon, anomaly.lat]);
+    if (pos) {
+      this.popup.show({
+        type: 'climate',
+        data: anomaly,
+        x: pos[0],
+        y: pos[1],
+      });
+    }
   }
 
   public setCyberThreats(_threats: CyberThreat[]): void {

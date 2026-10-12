@@ -220,7 +220,11 @@ export function ingestClimateForCII(anomalies: ClimateAnomaly[]): void {
 
   for (const a of anomalies) {
     if (a.severity === 'normal') continue;
-    const codes = ZONE_COUNTRY_MAP[a.zone] || [];
+    const codes = [...(ZONE_COUNTRY_MAP[a.zone] || [])];
+    if (codes.length === 0) {
+      const geoCode = getCountryFromLocation(a.lat, a.lon);
+      if (geoCode) codes.push(geoCode);
+    }
     for (const code of codes) {
       if (!countryDataMap.has(code)) countryDataMap.set(code, initCountryData());
       const stress = a.severity === 'extreme' ? 15 : 8;

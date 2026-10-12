@@ -1179,7 +1179,7 @@
         "moderate": "MODERATE",
         "normal": "NORMAL"
       },
-      "infoTooltip": "<strong>Climate Anomaly Monitor</strong> Temperature and precipitation deviations from 30-day baseline. Data from Open-Meteo (ERA5 reanalysis).<ul><li><strong>Extreme</strong>: >5°C or >80mm/day deviation</li><li><strong>Moderate</strong>: >3°C or >40mm/day deviation</li></ul>Monitors 15 conflict/disaster-prone zones."
+      "infoTooltip": "<strong>Climate Anomaly Monitor</strong> Temperature and precipitation deviations from 30-day baseline. Data from Open-Meteo (ERA5 reanalysis).<ul><li><strong>Extreme</strong>: &gt;4°C or &gt;50mm deviation</li><li><strong>Moderate</strong>: &gt;1.5°C or &gt;15mm deviation</li></ul>Monitors 80 global climate zones across all continents. Click any dot on the map or row in the panel to inspect local climate context."
     },
     "newsPanel": {
       "close": "Close",

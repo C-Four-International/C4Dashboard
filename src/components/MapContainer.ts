@@ -319,6 +319,16 @@ export class MapContainer {
   public setClimateAnomalies(anomalies: ClimateAnomaly[]): void {
     if (this.useDeckGL) {
       this.deckGLMap?.setClimateAnomalies(anomalies);
+    } else {
+      this.svgMap?.setClimateAnomalies(anomalies);
+    }
+  }
+
+  public showClimateAnomaly(anomaly: ClimateAnomaly): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.showClimateAnomaly(anomaly);
+    } else {
+      this.svgMap?.showClimateAnomaly(anomaly);
     }
   }
 

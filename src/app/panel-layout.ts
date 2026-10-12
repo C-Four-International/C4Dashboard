@@ -508,8 +508,11 @@ export class PanelLayoutManager implements AppModule {
 
       const { ClimateAnomalyPanel } = await import('@/components/ClimateAnomalyPanel');
       const climatePanel = new ClimateAnomalyPanel();
-      climatePanel.setZoneClickHandler((lat: number, lon: number) => {
+      climatePanel.setZoneClickHandler((lat: number, lon: number, anomaly?: import('@/services/climate').ClimateAnomaly) => {
         this.ctx.map?.setCenter(lat, lon, 4);
+        if (anomaly) {
+          this.ctx.map?.showClimateAnomaly(anomaly);
+        }
       });
       this.ctx.panels['climate'] = climatePanel;
 

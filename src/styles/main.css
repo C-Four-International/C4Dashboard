@@ -5529,6 +5529,36 @@ a.prediction-link:hover {
   background: rgba(0, 209, 255, 0.12);
 }
 
+.popup-header.climate {
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom: 2px solid var(--semantic-high);
+}
+
+.popup-header.climate.warm {
+  background: rgba(239, 68, 68, 0.15);
+  border-bottom-color: #ef4444;
+}
+
+.popup-header.climate.cold {
+  background: rgba(14, 165, 233, 0.15);
+  border-bottom-color: #0ea5e9;
+}
+
+.popup-header.climate.wet {
+  background: rgba(20, 184, 166, 0.15);
+  border-bottom-color: #14b8a6;
+}
+
+.popup-header.climate.dry {
+  background: rgba(245, 158, 11, 0.15);
+  border-bottom-color: #f59e0b;
+}
+
+.popup-header.climate.mixed {
+  background: rgba(168, 85, 247, 0.15);
+  border-bottom-color: #a855f7;
+}
+
 .popup-title {
   font-size: 16px;
   font-weight: bold;

@@ -5,7 +5,7 @@ import { t } from '@/services/i18n';
 
 export class ClimateAnomalyPanel extends Panel {
   private anomalies: ClimateAnomaly[] = [];
-  private onZoneClick?: (lat: number, lon: number) => void;
+  private onZoneClick?: (lat: number, lon: number, anomaly?: ClimateAnomaly) => void;
 
   constructor() {
     super({
@@ -18,7 +18,7 @@ export class ClimateAnomalyPanel extends Panel {
     this.showLoading(t('common.loadingClimateData'));
   }
 
-  public setZoneClickHandler(handler: (lat: number, lon: number) => void): void {
+  public setZoneClickHandler(handler: (lat: number, lon: number, anomaly?: ClimateAnomaly) => void): void {
     this.onZoneClick = handler;
   }
 
@@ -36,7 +36,9 @@ export class ClimateAnomalyPanel extends Panel {
 
     const sorted = [...this.anomalies].sort((a, b) => {
       const severityOrder = { extreme: 0, moderate: 1, normal: 2 };
-      return (severityOrder[a.severity] || 2) - (severityOrder[b.severity] || 2);
+      const sevDiff = (severityOrder[a.severity] || 2) - (severityOrder[b.severity] || 2);
+      if (sevDiff !== 0) return sevDiff;
+      return Math.abs(b.tempDelta) - Math.abs(a.tempDelta);
     });
 
     const rows = sorted.map(a => {
@@ -46,7 +48,7 @@ export class ClimateAnomalyPanel extends Panel {
       const sevClass = `severity-${a.severity}`;
       const rowClass = a.severity === 'extreme' ? ' climate-extreme-row' : '';
 
-      return `<tr class="climate-row${rowClass}" data-lat="${a.lat}" data-lon="${a.lon}">
+      return `<tr class="climate-row${rowClass}" data-zone="${escapeHtml(a.zone)}" data-lat="${a.lat}" data-lon="${a.lon}">
         <td class="climate-zone"><span class="climate-icon">${icon}</span>${escapeHtml(a.zone)}</td>
         <td class="climate-num ${tempClass}">${formatDelta(a.tempDelta, '°C')}</td>
         <td class="climate-num ${precipClass}">${formatDelta(a.precipDelta, 'mm')}</td>
@@ -74,7 +76,9 @@ export class ClimateAnomalyPanel extends Panel {
       el.addEventListener('click', () => {
         const lat = Number((el as HTMLElement).dataset.lat);
         const lon = Number((el as HTMLElement).dataset.lon);
-        if (Number.isFinite(lat) && Number.isFinite(lon)) this.onZoneClick?.(lat, lon);
+        const zoneName = (el as HTMLElement).dataset.zone;
+        const anomaly = this.anomalies.find(a => a.zone === zoneName || (a.lat === lat && a.lon === lon));
+        if (Number.isFinite(lat) && Number.isFinite(lon)) this.onZoneClick?.(lat, lon, anomaly);
       });
     });
   }
