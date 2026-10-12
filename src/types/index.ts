@@ -553,6 +553,7 @@ export interface MapLayers {
   flights: boolean;
   military: boolean;
   natural: boolean;
+  waterTemperature: boolean;
   spaceports: boolean;
   minerals: boolean;
   fires: boolean;

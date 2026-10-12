@@ -105,6 +105,9 @@ const ALLOWED_DOMAINS = [
   'cbc.ca',
   'www.gazette.gc.ca',
   'gazette.gc.ca',
+  // NASA GIBS Earthdata
+  'gibs.earthdata.nasa.gov',
+  'earthdata.nasa.gov',
   // Tech variant domains
   'www.zdnet.com',
   'www.techmeme.com',

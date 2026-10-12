@@ -5944,6 +5944,57 @@ a.prediction-link:hover {
   text-transform: uppercase;
 }
 
+/* Water surface temperature legend */
+.water-temp-legend {
+  position: absolute;
+  bottom: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text);
+  z-index: 99;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  pointer-events: none;
+}
+
+.water-temp-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.water-temp-source {
+  font-size: 9px;
+  font-weight: 600;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
+}
+
+.water-temp-gradient {
+  width: 220px;
+  height: 8px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #40004b, #2166ac, #4393c3, #92c5de, #fddbc7, #f4a582, #d6604d, #b2182b, #67001f);
+  border: 1px solid var(--border);
+}
+
+.water-temp-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  color: var(--text-dim);
+}
+
 .map-legend-item {
   display: flex;
   align-items: center;

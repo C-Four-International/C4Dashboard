@@ -131,6 +131,7 @@ const layers = {
   speciesRecovery: false,
   renewableInstallations: false,
   tradeRoutes: false,
+  waterTemperature: false,
   dayNight: false, threatScore: false,
 };
 

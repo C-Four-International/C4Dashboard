@@ -181,6 +181,7 @@ const allLayersEnabled: MapLayers = {
   speciesRecovery: false,
   renewableInstallations: false,
   tradeRoutes: true,
+  waterTemperature: true,
   dayNight: false, threatScore: false,
 };
 
@@ -231,6 +232,7 @@ const allLayersDisabled: MapLayers = {
   speciesRecovery: false,
   renewableInstallations: false,
   tradeRoutes: false,
+  waterTemperature: false,
   dayNight: false, threatScore: false,
 };
 

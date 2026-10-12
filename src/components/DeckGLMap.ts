@@ -283,6 +283,7 @@ export class DeckGLMap {
   private cableAdvisories: CableAdvisory[] = [];
   private repairShips: RepairShip[] = [];
   private weatherTimeBar: HTMLElement | null = null;
+  private waterTempLegend: HTMLElement | null = null;
   private healthByCableId: Record<string, CableHealthRecord> = {};
   private protests: SocialUnrestEvent[] = [];
   private militaryFlights: MilitaryFlight[] = [];
@@ -439,6 +440,7 @@ export class DeckGLMap {
     this.createTimeSlider();
     this.createLayerToggles();
     this.createLegend();
+    this.createWaterTempLegend();
   }
 
   private setupDOM(): void {
@@ -1273,6 +1275,11 @@ export class DeckGLMap {
       layers.push(this.createDayNightLayer());
     }
 
+    // Water Surface Temperature layer (NASA GIBS MUR L4 SST heatmap)
+    if (mapLayers.waterTemperature) {
+      layers.push(this.createWaterTemperatureLayer());
+    }
+
     if (mapLayers.alertStatus) {
       const alertLayer = this.createAlertStatusLayer();
       if (alertLayer) layers.push(alertLayer);
@@ -1733,6 +1740,41 @@ export class DeckGLMap {
           bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]],
           // Optional: If the FAO tiles have a solid white background covering the map, uncomment the line below:
           // transparentColor: [255, 255, 255, 255]
+        });
+      },
+      pickable: false,
+    });
+  }
+
+  private createWaterTemperatureLayer(opacity: number = 0.72): TileLayer {
+    return new TileLayer({
+      id: 'water-temperature-layer',
+      data: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GHRSST_L4_MUR_Sea_Surface_Temperature/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png',
+      minZoom: 0,
+      maxZoom: 7,
+      tileSize: 256,
+      opacity,
+      getTileData: async (tile: any) => {
+        const { x, y, z } = tile.index || {};
+        if (x == null || y == null || z == null) return null;
+        const clampedZ = Math.min(Math.max(z, 0), 7);
+        const url = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GHRSST_L4_MUR_Sea_Surface_Temperature/default/default/GoogleMapsCompatible_Level7/${clampedZ}/${y}/${x}.png`;
+        try {
+          const response = await fetch(url, { signal: tile.signal });
+          if (!response.ok) return null;
+          const blob = await response.blob();
+          return typeof createImageBitmap === 'function' ? await createImageBitmap(blob) : null;
+        } catch {
+          return null;
+        }
+      },
+      renderSubLayers: (props: any) => {
+        if (!props.data) return null;
+        const { boundingBox } = props.tile;
+        return new BitmapLayer(props, {
+          data: undefined,
+          image: props.data,
+          bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]],
         });
       },
       pickable: false,
@@ -3846,6 +3888,7 @@ export class DeckGLMap {
           layers: [
             { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
             { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
+            { key: 'waterTemperature', label: t('components.deckgl.layers.waterTemperature') || 'Water Surface Temp', icon: '&#127754;' },
             { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
             { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
             { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
@@ -3892,6 +3935,7 @@ export class DeckGLMap {
             layers: [
               { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
               { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
+              { key: 'waterTemperature', label: t('components.deckgl.layers.waterTemperature') || 'Water Surface Temp', icon: '&#127754;' },
               { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
               { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
             ],
@@ -3916,6 +3960,7 @@ export class DeckGLMap {
               layers: [
                 { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
                 { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
+                { key: 'waterTemperature', label: t('components.deckgl.layers.waterTemperature') || 'Water Surface Temp', icon: '&#127754;' },
                 { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
                 { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '&#128225;' },
               ],
@@ -3973,6 +4018,7 @@ export class DeckGLMap {
                 { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '&#127757;' },
                 { key: 'weatherRadar', label: 'Weather Radar', icon: '&#127782;' },
                 { key: 'weather', label: 'Weather Alerts', icon: '&#9928;' },
+                { key: 'waterTemperature', label: t('components.deckgl.layers.waterTemperature') || 'Water Surface Temp', icon: '&#127754;' },
                 { key: 'climate', label: t('components.deckgl.layers.climateAnomalies'), icon: '&#127787;' },
                 { key: 'aqi', label: 'Air Quality', icon: '💨' },
                 { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
@@ -4167,6 +4213,7 @@ export class DeckGLMap {
       helpItem(label('fires'), 'techFires'),
       helpItem(label('weather'), 'weatherAlerts'),
       helpItem(label('weatherRadar'), 'weatherRadarDesc'),
+      helpItem(label('waterTemperature'), 'waterTemperatureDesc'),
       helpItem(label('aqi'), 'aqiDesc'),
       helpItem(staticLabel('countries'), 'countriesOverlay'),
     ])}
@@ -4195,6 +4242,7 @@ export class DeckGLMap {
       helpItem(label('strategicWaterways'), 'macroWaterways'),
       helpItem(label('weather'), 'weatherAlertsMarket'),
       helpItem(label('weatherRadar'), 'weatherRadarDesc'),
+      helpItem(label('waterTemperature'), 'waterTemperatureDesc'),
       helpItem(label('aqi'), 'aqiDesc'),
       helpItem(label('naturalEvents'), 'naturalEventsMacro'),
     ])}
@@ -4239,6 +4287,7 @@ export class DeckGLMap {
       helpItem(label('fires'), 'firesFull'),
       helpItem(label('weather'), 'weatherAlerts'),
       helpItem(label('weatherRadar'), 'weatherRadarDesc'),
+      helpItem(label('waterTemperature'), 'waterTemperatureDesc'),
       helpItem(label('aqi'), 'aqiDesc'),
       helpItem(label('climateAnomalies'), 'climateAnomalies'),
       helpItem(label('criticalMinerals'), 'mineralsFull'),
@@ -4334,6 +4383,27 @@ export class DeckGLMap {
     `;
 
     this.container.appendChild(legend);
+  }
+
+  private createWaterTempLegend(): void {
+    this.waterTempLegend = document.createElement('div');
+    this.waterTempLegend.className = 'water-temp-legend';
+    this.waterTempLegend.style.display = this.state.layers.waterTemperature ? 'flex' : 'none';
+    this.waterTempLegend.innerHTML = `
+      <div class="water-temp-title">
+        <span>🌊 Water Surface Temp</span>
+        <span class="water-temp-source">NASA GIBS</span>
+      </div>
+      <div class="water-temp-gradient"></div>
+      <div class="water-temp-labels">
+        <span>-2°C</span>
+        <span>8°C</span>
+        <span>18°C</span>
+        <span>26°C</span>
+        <span>35°C</span>
+      </div>
+    `;
+    this.container.appendChild(this.waterTempLegend);
   }
 
   // Public API methods (matching MapComponent interface)
@@ -4503,6 +4573,11 @@ export class DeckGLMap {
         // Toggle Time Tracking Bar Visibility
         if (this.weatherTimeBar) {
           this.weatherTimeBar.style.display = isWeatherRadarEnabled ? 'flex' : 'none';
+        }
+
+        // Toggle Water Temperature Legend Visibility
+        if (this.waterTempLegend) {
+          this.waterTempLegend.style.display = layers.waterTemperature ? 'flex' : 'none';
         }
       } catch (e) {
         console.warn('[DeckGLMap] Failed to toggle weather layers:', e);
@@ -5355,6 +5430,7 @@ export class DeckGLMap {
     this.maplibreMap?.remove();
     this.maplibreMap = null;
 
+    this.waterTempLegend = null;
     this.container.innerHTML = '';
   }
 }

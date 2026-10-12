@@ -23,6 +23,7 @@ const LAYER_KEYS: (keyof MapLayers)[] = [
   'flights',
   'military',
   'natural',
+  'waterTemperature',
   'spaceports',
   'minerals',
   'fires',

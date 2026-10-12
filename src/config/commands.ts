@@ -59,6 +59,7 @@ export const COMMANDS: Command[] = [
   { id: 'layer:outages', keywords: ['outages', 'internet outages'], label: 'Toggle internet outages', icon: '\u{1F4E1}', category: 'layers' },
   { id: 'layer:tradeRoutes', keywords: ['trade routes', 'shipping lanes', 'trade'], label: 'Toggle trade routes', icon: '\u{1F6A2}', category: 'layers' },
   { id: 'layer:dayNight', keywords: ['day night', 'terminator', 'night overlay', 'solar'], label: 'Toggle day/night terminator', icon: '\u{1F30D}', category: 'layers' },
+  { id: 'layer:waterTemperature', keywords: ['water temperature', 'sea surface temperature', 'sst', 'ocean temperature', 'nasa gibs', 'water'], label: 'Toggle water temperature heatmap', icon: '\u{1F30A}', category: 'layers' },
 
   // Panel navigation (matching actual DEFAULT_PANELS keys)
   { id: 'panel:live-news', keywords: ['news', 'live news', 'headlines'], label: 'Jump to Live News', icon: '\u{1F4F0}', category: 'panels' },

@@ -342,14 +342,14 @@ export class MapComponent {
       // Shipping & Air Traffic
       'ais', 'flights', 'waterways', 'gpsJamming',
       // Natural
-      'natural', 'weather', 'fires', 'aqi',
+      'natural', 'waterTemperature', 'weather', 'fires', 'aqi',
       // Additional geopolitical/economic
       'sanctions', 'protests', 'economic',
     ];
     const techLayers: (keyof MapLayers)[] = [
       'cables', 'datacenters', 'outages', 'bgpAnomalies', 'gpsJamming',  // tech infrastructure
       'startupHubs', 'cloudRegions', 'accelerators', 'techHQs', 'techEvents', // tech ecosystem
-      'natural', 'weather', 'weatherRadar', 'fires', 'aqi',                   // natural events
+      'natural', 'waterTemperature', 'weather', 'weatherRadar', 'fires', 'aqi',                   // natural events
       'economic',                                         // economic/geographic
       'flights',                                          // aviation
     ];
@@ -357,11 +357,11 @@ export class MapComponent {
       'stockExchanges', 'financialCenters', 'centralBanks', 'commodityHubs', // finance ecosystem
       'cables', 'pipelines', 'outages', 'gpsJamming',      // infrastructure
       'sanctions', 'economic', 'waterways',               // geopolitical/economic
-      'natural', 'weather', 'weatherRadar', 'fires', 'aqi',               // natural events
+      'natural', 'waterTemperature', 'weather', 'weatherRadar', 'fires', 'aqi',               // natural events
       'flights',                                          // aviation
     ];
     const happyLayers: (keyof MapLayers)[] = [
-      'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations', 'weather', 'weatherRadar', 'aqi', 'gpsJamming', 'agriculturalStressDI', 'agriculturalStressASI', 'agriculturalStressVCI',
+      'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations', 'weather', 'weatherRadar', 'waterTemperature', 'aqi', 'gpsJamming', 'agriculturalStressDI', 'agriculturalStressASI', 'agriculturalStressVCI',
     ];
     const layers = SITE_VARIANT === 'tech' ? techLayers : SITE_VARIANT === 'finance' ? financeLayers : SITE_VARIANT === 'happy' ? happyLayers : fullLayers;
     const layerLabelKeys: Partial<Record<keyof MapLayers, string>> = {
@@ -380,6 +380,7 @@ export class MapComponent {
       ais: 'components.deckgl.layers.shipTraffic',
       flights: 'components.deckgl.layers.flightDelays',
       natural: 'components.deckgl.layers.naturalEvents',
+      waterTemperature: 'components.deckgl.layers.waterTemperature',
       weather: 'components.deckgl.layers.weather',
       gpsJamming: 'components.deckgl.layers.gpsJamming',
       agriculturalStressDI: 'components.deckgl.layers.agriculturalStressDI',
