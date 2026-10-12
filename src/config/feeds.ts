@@ -64,7 +64,11 @@ export const SOURCE_TIERS: Record<string, number> = {
   // Canadian Sources
   'CBC News': 2,
   'CBC Canada': 2,
+  'CBC Politics': 2,
   'Canada Gazette': 1,
+  'Canada Gazette Part 1': 1,
+  'Canada Gazette Part 2': 1,
+  'Canada Gazette Part 3': 1,
   'Canadian Gazette': 1,
 
   // Tier 1 - Official Government & International Orgs
@@ -307,7 +311,7 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   'Treasury': 'gov', 'DOJ': 'gov', 'DHS': 'gov', 'CDC': 'gov',
   'FEMA': 'gov', 'Federal Reserve': 'gov', 'SEC': 'gov',
   'UN News': 'gov', 'CISA': 'gov',
-  'Canada Gazette': 'gov', 'Canadian Gazette': 'gov',
+  'Canada Gazette': 'gov', 'Canada Gazette Part 1': 'gov', 'Canada Gazette Part 2': 'gov', 'Canada Gazette Part 3': 'gov', 'Canadian Gazette': 'gov',
 
   // Intel/Defense specialty
   'Defense One': 'intel', 'Breaking Defense': 'intel', 'The War Zone': 'intel',
@@ -337,7 +341,7 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   // Brazilian Addition
   'Brasil Paralelo': 'mainstream',
   // Canadian Addition
-  'CBC News': 'mainstream', 'CBC Canada': 'mainstream',
+  'CBC News': 'mainstream', 'CBC Canada': 'mainstream', 'CBC Politics': 'mainstream',
 
   // Market/Finance
   'CNBC': 'market', 'MarketWatch': 'market', 'Yahoo Finance': 'market',
@@ -431,7 +435,11 @@ export const SOURCE_PROPAGANDA_RISK: Record<string, SourceRiskProfile> = {
   'Brasil Paralelo': { risk: 'low', note: 'Independent media company: no political ties, no public funding, 100% subscriber-funded.' },
   'CBC News': { risk: 'low', note: 'Canadian public broadcaster, editorially independent' },
   'CBC Canada': { risk: 'low', note: 'Canadian public broadcaster, editorially independent' },
+  'CBC Politics': { risk: 'low', note: 'Canadian public broadcaster, editorially independent' },
   'Canada Gazette': { risk: 'low', note: 'Official government newspaper of Canada' },
+  'Canada Gazette Part 1': { risk: 'low', note: 'Official government newspaper of Canada' },
+  'Canada Gazette Part 2': { risk: 'low', note: 'Official government newspaper of Canada' },
+  'Canada Gazette Part 3': { risk: 'low', note: 'Official government newspaper of Canada' },
   'Canadian Gazette': { risk: 'low', note: 'Official government newspaper of Canada' },
 };
 
@@ -455,7 +463,7 @@ const FULL_FEEDS: Record<string, Feed[]> = {
   us: [
     { name: 'NPR News', url: rss('https://feeds.npr.org/1001/rss.xml') },
     { name: 'Politico', url: rss('https://news.google.com/rss/search?q=site:politico.com+when:1d&hl=en-US&gl=US&ceid=US:en') },
-    { name: 'CBC News', url: rss('https://www.cbc.ca/cmlink/rss-topstories') },
+    { name: 'CBC News', url: rss('https://www.cbc.ca/cmlink/rss-canada') },
     { name: 'Canada Gazette', url: rss('https://www.gazette.gc.ca/rss/p1-eng.xml') },
   ],
   europe: [
@@ -1052,10 +1060,12 @@ export const FEEDS = SITE_VARIANT === 'tech'
       : FULL_FEEDS;
 
 export const CANADIAN_TOP_NEWS_FEEDS: Feed[] = [
-  { name: 'CBC News', url: rss('https://www.cbc.ca/cmlink/rss-topstories') },
   { name: 'CBC Canada', url: rss('https://www.cbc.ca/cmlink/rss-canada') },
-  { name: 'Canada Gazette', url: rss('https://www.gazette.gc.ca/rss/p1-eng.xml') },
-  { name: 'Canada Gazette', url: rss('https://news.google.com/rss/search?q=%22Canada+Gazette%22+OR+%22Canadian+Gazette%22+when:30d&hl=en-CA&gl=CA&ceid=CA:en') },
+  { name: 'CBC Politics', url: rss('https://www.cbc.ca/cmlink/rss-politics') },
+  { name: 'CBC News', url: rss('https://www.cbc.ca/cmlink/rss-topstories') },
+  { name: 'Canada Gazette Part 1', url: rss('https://www.gazette.gc.ca/rss/p1-eng.xml') },
+  { name: 'Canada Gazette Part 2', url: rss('https://www.gazette.gc.ca/rss/p2-eng.xml') },
+  { name: 'Canada Gazette Part 3', url: rss('https://www.gazette.gc.ca/rss/en-ls-eng.xml') },
 ];
 
 export const SOURCE_REGION_MAP: Record<string, { labelKey: string; feedKeys: string[] }> = {

@@ -1,4 +1,4 @@
-import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
+import { escapeHtml, sanitizeUrl, cleanArticleUrl } from '@/utils/sanitize';
 import { t } from '@/services/i18n';
 import { getCSSColor } from '@/utils';
 // import type { CountryScore } from '@/services/country-instability';
@@ -414,7 +414,8 @@ export class CountryBriefPage {
     section.style.display = '';
 
     content.innerHTML = items.map((item, i) => {
-      const safeUrl = sanitizeUrl(item.link);
+      const cleanUrl = item.link ? cleanArticleUrl(item.link) : '';
+      const safeUrl = cleanUrl ? sanitizeUrl(cleanUrl) : '';
       const threatColor = item.threat?.level === 'critical' ? getCSSColor('--threat-critical')
         : item.threat?.level === 'high' ? getCSSColor('--threat-high')
         : item.threat?.level === 'medium' ? getCSSColor('--threat-medium')
@@ -427,7 +428,7 @@ export class CountryBriefPage {
           <div class="cb-news-meta">${escapeHtml(item.source)} · ${timeAgo}</div>
         </div>`;
       if (safeUrl) {
-        return `<a href="${safeUrl}" target="_blank" rel="noopener" class="cb-news-card" id="cb-news-${i + 1}">${cardBody}</a>`;
+        return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="cb-news-card" id="cb-news-${i + 1}">${cardBody}</a>`;
       }
       return `<div class="cb-news-card" id="cb-news-${i + 1}">${cardBody}</div>`;
     }).join('');

@@ -3,6 +3,7 @@ import type { NewsItem } from '@/types';
 import { CountryBriefPage } from '@/components/CountryBriefPage';
 import { CANADIAN_TOP_NEWS_FEEDS } from '@/config/feeds';
 import { fetchFeed } from '@/services/rss';
+import { cleanArticleUrl, isDirectArticleUrl } from '@/utils/sanitize';
 import { reverseGeocode } from '@/utils/reverse-geocode';
 import { getCountryAtCoordinates, hasCountryGeometry, isCoordinateInCountry } from '@/services/country-geometry';
 import { getCountryData, TIER1_COUNTRIES } from '@/services/country-instability';
@@ -24,6 +25,34 @@ type IntlDisplayNamesCtor = new (
   locales: string | string[],
   options: { type: 'region' }
 ) => { of: (code: string) => string | undefined };
+
+export const CANADIAN_PATTERNS: RegExp[] = [
+  /\bcanad(a|ian|ians|ien|ienne|iens|iennes)\b/i,
+  /\b(ottawa|parliament hill|house of commons|senate of canada)\b/i,
+  /\b(prime minister|pm trudeau|justin trudeau|trudeau|poilievre|pierre poilievre|mark carney|carney|jagmeet singh|jagmeet|blanchet|freeland|anand|joly)\b/i,
+  /\b(bank of canada|\bboc\b|rcmp|grc|cra|csis|crtc|statcan|statistics canada|canada post|health canada|transport canada|global affairs)\b/i,
+  /\b(canadian armed forces|\bcaf\b|royal canadian navy|canadian coast guard)\b/i,
+  /\b(first nations|inuit|m[eé]tis)\b/i,
+  /\b(ontario|quebec|qu[eé]bec|british columbia|\bb\.?c\.?\b|alberta|manitoba|saskatchewan|nova scotia|new brunswick|newfoundland|labrador|prince edward island|\bp\.?e\.?i\.?\b|yukon|northwest territories|\bnwt\b|nunavut)\b/i,
+  /\b(toronto|montreal|montr[eé]al|vancouver|calgary|edmonton|winnipeg|quebec city|halifax|victoria|regina|saskatoon|st\.?\s*john'?s|fredericton|charlottetown|whitehorse|yellowknife|iqaluit|mississauga|brampton|surrey|laval|gatineau|hamilton|banff|gta|maritimes)\b/i,
+  /\b(canada gazette|canadian gazette|order[- ]in[- ]council|bill c-\d+|bill s-\d+|loonie|toonie|\btsx\b)\b/i,
+];
+
+export function isCanadianNewsItem(item: { title: string; link?: string; source?: string }): boolean {
+  const title = (item.title || '').toLowerCase();
+  const url = (item.link || '').toLowerCase();
+  const source = (item.source || '').toLowerCase();
+
+  if (source.includes('gazette') || url.includes('gazette.gc.ca')) {
+    return true;
+  }
+
+  if ((url.includes('/news/world/') || url.includes('/news/us/')) && !/\bcanad(a|ian|ians)\b/i.test(title)) {
+    return false;
+  }
+
+  return CANADIAN_PATTERNS.some((p) => p.test(title) || p.test(url));
+}
 
 export class CountryIntelManager implements AppModule {
   private ctx: AppContext;
@@ -166,12 +195,15 @@ export class CountryIntelManager implements AppModule {
       return ourPos !== Infinity && (otherPos === Infinity || ourPos <= otherPos);
     });
     if (code === 'CA') {
-      if (filteredNews.length > 0) {
-        this.ctx.countryBriefPage.updateNews(filteredNews.slice(0, 8));
+      const canadianOnly = filteredNews
+        .filter((n) => isCanadianNewsItem(n) && isDirectArticleUrl(n.link))
+        .map((n) => ({ ...n, link: cleanArticleUrl(n.link) }));
+      if (canadianOnly.length > 0) {
+        this.ctx.countryBriefPage.updateNews(canadianOnly.slice(0, 8));
       } else {
         this.ctx.countryBriefPage.showNewsLoading();
       }
-      void this.aggregateCanadianTopNews(token, filteredNews);
+      void this.aggregateCanadianTopNews(token, canadianOnly);
     } else {
       if (filteredNews.length > 0) {
         this.ctx.countryBriefPage.updateNews(filteredNews.slice(0, 8));
@@ -481,18 +513,28 @@ export class CountryIntelManager implements AppModule {
         }
       });
 
-      if (fetchedItems.length > 0) {
+      // Filter only news pertaining to Canada and ensuring direct article hyperlinks
+      const canadianFetched = fetchedItems
+        .filter((item) => isCanadianNewsItem(item) && isDirectArticleUrl(item.link))
+        .map((item) => ({
+          ...item,
+          link: cleanArticleUrl(item.link || ''),
+        }));
+
+      if (canadianFetched.length > 0) {
         const knownLinks = new Set(this.ctx.allNews.map((n) => n.link));
-        const newItems = fetchedItems.filter((item) => item.link && !knownLinks.has(item.link));
+        const newItems = canadianFetched.filter((item) => item.link && !knownLinks.has(item.link));
         if (newItems.length > 0) {
           this.ctx.allNews.push(...newItems);
         }
       }
 
       // Aggregate top news with fair representation across CBC and Canada Gazette
-      const cbcItems = fetchedItems.filter((i) => i.source.startsWith('CBC'));
-      const gazetteItems = fetchedItems.filter((i) => i.source.includes('Gazette'));
-      const otherCanadian = existingNews.filter((i) => !i.source.startsWith('CBC') && !i.source.includes('Gazette'));
+      const cbcItems = canadianFetched.filter((i) => i.source.startsWith('CBC'));
+      const gazetteItems = canadianFetched.filter((i) => i.source.includes('Gazette'));
+      const otherCanadian = existingNews
+        .filter((i) => !i.source.startsWith('CBC') && !i.source.includes('Gazette') && isCanadianNewsItem(i) && isDirectArticleUrl(i.link))
+        .map((i) => ({ ...i, link: cleanArticleUrl(i.link || '') }));
 
       const combinedMap = new Map<string, NewsItem>();
       const pickTop = (items: NewsItem[], limit: number) => {
@@ -507,7 +549,7 @@ export class CountryIntelManager implements AppModule {
       otherCanadian.slice(0, 2).forEach((item) => combinedMap.set(item.link || item.title, item));
 
       if (combinedMap.size < 8) {
-        fetchedItems
+        canadianFetched
           .sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime())
           .forEach((item) => {
             if (combinedMap.size < 8) {
@@ -523,12 +565,18 @@ export class CountryIntelManager implements AppModule {
       if (aggregatedList.length > 0) {
         this.ctx.countryBriefPage.updateNews(aggregatedList.slice(0, 8));
       } else if (existingNews.length > 0) {
-        this.ctx.countryBriefPage.updateNews(existingNews.slice(0, 8));
+        const cleanedExisting = existingNews
+          .filter((i) => isCanadianNewsItem(i) && isDirectArticleUrl(i.link))
+          .map((i) => ({ ...i, link: cleanArticleUrl(i.link || '') }));
+        this.ctx.countryBriefPage.updateNews(cleanedExisting.slice(0, 8));
       }
     } catch (err) {
       console.warn('[CountryIntel] Canadian top news aggregation failed:', err);
       if (existingNews.length > 0 && this.ctx.countryBriefPage?.getCode() === 'CA') {
-        this.ctx.countryBriefPage.updateNews(existingNews.slice(0, 8));
+        const cleanedExisting = existingNews
+          .filter((i) => isCanadianNewsItem(i) && isDirectArticleUrl(i.link))
+          .map((i) => ({ ...i, link: cleanArticleUrl(i.link || '') }));
+        this.ctx.countryBriefPage.updateNews(cleanedExisting.slice(0, 8));
       }
     }
   }

@@ -46,3 +46,29 @@ export function sanitizeUrl(url: string): string {
 export function escapeAttr(str: string): string {
   return escapeHtml(str);
 }
+
+export function cleanArticleUrl(url: string): string {
+  if (!url) return '';
+  const trimmed = String(url).trim();
+  try {
+    const u = new URL(trimmed);
+    const trackingParams = [
+      'cmp', 'ref', 'oc', 'utm_source', 'utm_medium', 'utm_campaign',
+      'utm_term', 'utm_content', 'utm_id', 'fbclid', 'gclid'
+    ];
+    trackingParams.forEach((p) => {
+      u.searchParams.delete(p);
+    });
+    return u.toString();
+  } catch {
+    return trimmed.replace(/[?&]cmp=rss(&|$)/, '').replace(/\?$/, '');
+  }
+}
+
+export function isDirectArticleUrl(url?: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return false;
+  if (trimmed.includes('news.google.com') || trimmed.includes('google.com/url')) return false;
+  return true;
+}
