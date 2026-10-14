@@ -338,6 +338,33 @@ export class DataLoaderManager implements AppModule {
     });
 
     this.updateSearchIndex();
+
+    // Probe layer APIs to grey out any unavailable endpoints in the fallback dashboard
+    await this.probeLayerApis();
+  }
+
+  async probeLayerApis(): Promise<void> {
+    const endpoints: Array<{ layer: keyof MapLayers; url: string; name: string }> = [
+      { layer: 'bgpAnomalies', url: '/api/bgp-anomalies?probe=1', name: 'BGP Anomalies' },
+      { layer: 'gpsJamming', url: '/api/gps-jamming?probe=1', name: 'GPS Jamming' },
+      { layer: 'aqi', url: '/api/aqi?bounds=0,0,1,1', name: 'Air Quality' },
+      { layer: 'agriculturalStressDI', url: '/api/asis?probe=1', name: 'ASIS Drought Intensity' },
+      { layer: 'agriculturalStressASI', url: '/api/asis?probe=1', name: 'ASIS Agricultural Index' },
+      { layer: 'agriculturalStressVCI', url: '/api/asis?probe=1', name: 'ASIS Vegetation Conditions' },
+    ];
+
+    await Promise.allSettled(
+      endpoints.map(async ({ layer, url, name }) => {
+        try {
+          const resp = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+          if (!resp.ok && resp.status !== 405 && resp.status !== 400) {
+            this.ctx.map?.setLayerUnavailable(layer, true, `${name} API unavailable`);
+          }
+        } catch {
+          this.ctx.map?.setLayerUnavailable(layer, true, `${name} API unavailable`);
+        }
+      })
+    );
   }
 
   async loadDataForLayer(layer: keyof MapLayers): Promise<void> {
@@ -393,6 +420,9 @@ export class DataLoaderManager implements AppModule {
           await this.loadIntelligenceSignals();
           break;
       }
+    } catch (err) {
+      console.warn(`[DataLoader] Failed to load layer ${layer}:`, err);
+      this.ctx.map?.setLayerUnavailable(layer, true, 'API unavailable or service offline');
     } finally {
       this.ctx.inFlight.delete(layer);
       this.ctx.map?.setLayerLoading(layer, false);

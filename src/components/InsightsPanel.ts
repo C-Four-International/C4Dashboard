@@ -673,9 +673,9 @@ export class InsightsPanel extends Panel {
   private renderDisabledState(): void {
     this.setContent(`
       <div class="insights-disabled">
-        <div class="insights-disabled-icon">⚡</div>
-        <div class="insights-disabled-title">${t('components.insights.insightsDisabledTitle')}</div>
-        <div class="insights-disabled-hint">${t('components.insights.insightsDisabledHint')}</div>
+        <div class="insights-disabled-icon" style="color: #ef4444; font-size: 24px;">⚠️</div>
+        <div class="insights-disabled-title" style="color: #ef4444; font-weight: 700;">AI Functionality Unavailable</div>
+        <div class="insights-disabled-hint">Fallback dashboard in operation. AI inference and automated summarization are unavailable.</div>
       </div>
     `);
   }

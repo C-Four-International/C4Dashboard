@@ -505,6 +505,20 @@ export class MapContainer {
     }
   }
 
+  public setLayerUnavailable(layer: keyof MapLayers, unavailable: boolean, reason?: string): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.setLayerUnavailable(layer, unavailable, reason);
+    } else {
+      this.svgMap?.setLayerUnavailable(layer, unavailable, reason);
+    }
+  }
+
+  public isLayerUnavailable(layer: keyof MapLayers): boolean {
+    return this.useDeckGL
+      ? (this.deckGLMap?.isLayerUnavailable(layer) ?? false)
+      : (this.svgMap?.isLayerUnavailable(layer) ?? false);
+  }
+
   public flashAssets(assetType: AssetType, ids: string[]): void {
     if (this.useDeckGL) {
       this.deckGLMap?.flashAssets(assetType, ids);

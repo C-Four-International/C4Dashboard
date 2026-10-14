@@ -9,8 +9,6 @@ import {
   SITE_VARIANT,
 } from '@/config';
 import { initDB, cleanOldSnapshots, isAisConfigured, initAisStream, isOutagesConfigured, disconnectAisStream } from '@/services';
-import { mlWorker } from '@/services/ml-worker';
-import { getAiFlowSettings, subscribeAiFlowChange } from '@/services/ai-flow-settings';
 import { startLearning } from '@/services/country-instability';
 import { dataFreshness } from '@/services/data-freshness';
 import { loadFromStorage, parseMapUrlState, saveToStorage, isMobileDevice } from '@/utils';
@@ -304,21 +302,6 @@ export class App {
     const initStart = performance.now();
     await initDB();
     await initI18n();
-    const aiFlow = getAiFlowSettings();
-    if (aiFlow.browserModel || isDesktopRuntime()) {
-      await mlWorker.init();
-    }
-
-    this.unsubAiFlow = subscribeAiFlowChange((key) => {
-      if (key === 'browserModel') {
-        const s = getAiFlowSettings();
-        if (s.browserModel) {
-          mlWorker.init();
-        } else {
-          mlWorker.terminate();
-        }
-      }
-    });
 
     // Check AIS configuration before init
     if (!isAisConfigured()) {
@@ -382,12 +365,12 @@ export class App {
 
     startLearning();
 
-    // Hide unconfigured layers after first data load
+    // Mark unconfigured layers as unavailable on layer selection menu
     if (!isAisConfigured()) {
-      this.state.map?.hideLayerToggle('ais');
+      this.state.map?.setLayerUnavailable('ais', true, 'AIS service not configured or unavailable');
     }
     if (isOutagesConfigured() === false) {
-      this.state.map?.hideLayerToggle('outages');
+      this.state.map?.setLayerUnavailable('outages', true, 'Internet Outages API not configured or unavailable');
     }
 
     // Phase 7: Refresh scheduling

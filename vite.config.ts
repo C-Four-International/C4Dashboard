@@ -2,7 +2,7 @@ import { defineConfig, type Plugin, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { resolve, dirname, extname } from 'path';
 import { mkdir, readFile, writeFile } from 'fs/promises';
-import { brotliCompress } from 'zlib';
+import { brotliCompress, gzip } from 'zlib';
 import { promisify } from 'util';
 import pkg from './package.json';
 
@@ -10,15 +10,16 @@ const isE2E = process.env.VITE_E2E === '1';
 const isDesktopBuild = process.env.VITE_DESKTOP_RUNTIME === '1';
 
 const brotliCompressAsync = promisify(brotliCompress);
-const BROTLI_EXTENSIONS = new Set(['.js', '.mjs', '.css', '.html', '.svg', '.json', '.txt', '.xml', '.wasm']);
+const gzipCompressAsync = promisify(gzip);
+const COMPRESS_EXTENSIONS = new Set(['.js', '.mjs', '.css', '.html', '.svg', '.json', '.txt', '.xml', '.wasm']);
 
 // Load environment variables early so they are available to plugin logic and server handlers
 // Use an empty prefix to load ALL variables from .env
 Object.assign(process.env, loadEnv(process.env.NODE_ENV || 'development', process.cwd(), ''));
 
-function brotliPrecompressPlugin(): Plugin {
+function staticPrecompressPlugin(): Plugin {
   return {
-    name: 'brotli-precompress',
+    name: 'static-precompress',
     apply: 'build',
     async writeBundle(outputOptions, bundle) {
       const outDir = outputOptions.dir;
@@ -26,16 +27,22 @@ function brotliPrecompressPlugin(): Plugin {
 
       await Promise.all(Object.keys(bundle).map(async (fileName) => {
         const extension = extname(fileName).toLowerCase();
-        if (!BROTLI_EXTENSIONS.has(extension)) return;
+        if (!COMPRESS_EXTENSIONS.has(extension)) return;
 
         const sourcePath = resolve(outDir, fileName);
-        const compressedPath = `${sourcePath}.br`;
         const sourceBuffer = await readFile(sourcePath);
         if (sourceBuffer.length < 1024) return;
 
-        const compressedBuffer = await brotliCompressAsync(sourceBuffer);
-        await mkdir(dirname(compressedPath), { recursive: true });
-        await writeFile(compressedPath, compressedBuffer);
+        const [brotliBuffer, gzipBuffer] = await Promise.all([
+          brotliCompressAsync(sourceBuffer),
+          gzipCompressAsync(sourceBuffer, { level: 9 }),
+        ]);
+
+        await mkdir(dirname(sourcePath), { recursive: true });
+        await Promise.all([
+          writeFile(`${sourcePath}.br`, brotliBuffer),
+          writeFile(`${sourcePath}.gz`, gzipBuffer),
+        ]);
       }));
     },
   };
@@ -656,7 +663,7 @@ export default defineConfig({
     youtubeLivePlugin(),
     radarBgpPlugin(),
     sebufApiPlugin(),
-    brotliPrecompressPlugin(),
+    staticPrecompressPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,

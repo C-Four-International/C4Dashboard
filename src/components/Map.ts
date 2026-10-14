@@ -3061,6 +3061,36 @@ export class MapComponent {
     }
   }
 
+  public setLayerUnavailable(layer: keyof MapLayers, unavailable: boolean, reason: string = 'API unavailable'): void {
+    const btn = this.container.querySelector(`.layer-toggle[data-layer="${layer}"]`) as HTMLElement;
+    if (!btn) return;
+
+    btn.classList.toggle('unavailable', unavailable);
+    btn.classList.toggle('disabled', unavailable);
+
+    if (unavailable) {
+      btn.classList.remove('loading', 'active');
+      this.state.layers[layer] = false;
+      btn.setAttribute('title', reason);
+      let badge = btn.querySelector('.layer-status-badge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'layer-status-badge';
+        btn.appendChild(badge);
+      }
+      badge.textContent = 'Unavailable';
+    } else {
+      btn.removeAttribute('title');
+      const badge = btn.querySelector('.layer-status-badge');
+      if (badge) badge.remove();
+    }
+  }
+
+  public isLayerUnavailable(layer: keyof MapLayers): boolean {
+    const btn = this.container.querySelector(`.layer-toggle[data-layer="${layer}"]`);
+    return btn?.classList.contains('unavailable') ?? false;
+  }
+
   public onStateChanged(callback: (state: MapState) => void): void {
     this.onStateChange = callback;
   }

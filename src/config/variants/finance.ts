@@ -142,7 +142,7 @@ export const FEEDS: Record<string, Feed[]> = {
 export const DEFAULT_PANELS: Record<string, PanelConfig> = {
   map: { name: 'Global Markets Map', enabled: true, priority: 1 },
   'live-news': { name: 'Market Headlines', enabled: true, priority: 1 },
-  insights: { name: 'AI Market Insights', enabled: true, priority: 1 },
+  insights: { name: 'AI Market Insights', enabled: false, priority: 1 },
   markets: { name: 'Live Markets', enabled: true, priority: 1 },
   'markets-news': { name: 'Markets News', enabled: true, priority: 2 },
   forex: { name: 'Forex & Currencies', enabled: true, priority: 1 },

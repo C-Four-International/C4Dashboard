@@ -262,6 +262,35 @@ canvas,
   bottom: 0;
 }
 
+/* Fallback Dashboard Banner */
+.fallback-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(90deg, #991b1b 0%, #dc2626 50%, #991b1b 100%);
+  color: #ffffff;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  z-index: 9999;
+  flex-shrink: 0;
+  line-height: 1.4;
+  user-select: none;
+}
+
+.fallback-mode-banner .fallback-banner-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
 .header {
   display: none !important;
   align-items: center;
@@ -12572,6 +12601,64 @@ a.prediction-link:hover {
 
 .deckgl-layer-toggles .layer-toggle.has-data {
   border-color: rgba(68, 255, 136, 0.2);
+}
+
+/* Unavailable Layer Toggles in Fallback / Offline Mode */
+.deckgl-layer-toggles .layer-toggle.unavailable,
+.layer-toggles .layer-toggle.unavailable,
+.layer-toggle.unavailable {
+  opacity: 0.42 !important;
+  filter: grayscale(1);
+  cursor: not-allowed !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  transition: opacity 0.2s ease;
+}
+
+.deckgl-layer-toggles .layer-toggle.unavailable:hover,
+.layer-toggles .layer-toggle.unavailable:hover,
+.layer-toggle.unavailable:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.deckgl-layer-toggles .layer-toggle.unavailable input[type="checkbox"],
+.layer-toggles .layer-toggle.unavailable input[type="checkbox"],
+.layer-toggle.unavailable input[type="checkbox"] {
+  cursor: not-allowed !important;
+  opacity: 0.4;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  background: transparent !important;
+  pointer-events: none;
+}
+
+.deckgl-layer-toggles .layer-toggle.unavailable .toggle-label,
+.layer-toggles .layer-toggle.unavailable .toggle-label,
+.layer-toggle.unavailable .toggle-label {
+  color: var(--text-dim) !important;
+  text-decoration: line-through 1px rgba(255, 255, 255, 0.25);
+  font-style: italic;
+}
+
+.deckgl-layer-toggles .layer-toggle.unavailable .toggle-icon,
+.layer-toggle.unavailable .toggle-icon {
+  opacity: 0.4;
+}
+
+.layer-status-badge.unavailable-badge {
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  margin-left: auto;
+  flex-shrink: 0;
+  text-decoration: none;
+  line-height: 1.2;
 }
 
 /* deck.gl Legend - horizontal bar at bottom center */

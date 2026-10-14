@@ -64,6 +64,10 @@ export class PanelLayoutManager implements AppModule {
 
   async renderLayout(): Promise<void> {
     this.ctx.container.innerHTML = `
+      <div class="fallback-mode-banner" id="fallbackBanner">
+        <span class="fallback-banner-icon" aria-hidden="true">⚠️</span>
+        <span class="fallback-banner-text">Fallback dashboard in operation. AI functionality is unavailable.</span>
+      </div>
       <div class="header">
         <div class="header-left">
           <div class="variant-switcher">${(() => {

@@ -45,14 +45,14 @@ const STORAGE_KEY_MAP: Record<keyof AiFlowSettings, string> = {
 
 const DEFAULTS: AiFlowSettings = {
   browserModel: false,
-  cloudLlm: true,
-  mapNewsFlash: true,
+  cloudLlm: false,
+  mapNewsFlash: false,
 };
 
 export function getAiFlowSettings(): AiFlowSettings {
   return {
-    browserModel: readBool(STORAGE_KEY_BROWSER_MODEL, DEFAULTS.browserModel),
-    cloudLlm: readBool(STORAGE_KEY_CLOUD_LLM, DEFAULTS.cloudLlm),
+    browserModel: false,
+    cloudLlm: false,
     mapNewsFlash: readBool(STORAGE_KEY_MAP_NEWS_FLASH, DEFAULTS.mapNewsFlash),
   };
 }
@@ -63,8 +63,7 @@ export function setAiFlowSetting(key: keyof AiFlowSettings, value: boolean): voi
 }
 
 export function isAnyAiProviderEnabled(): boolean {
-  const s = getAiFlowSettings();
-  return s.cloudLlm || s.browserModel;
+  return false;
 }
 
 export function subscribeAiFlowChange(cb: (changedKey?: keyof AiFlowSettings) => void): () => void {

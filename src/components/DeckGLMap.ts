@@ -318,6 +318,7 @@ export class DeckGLMap {
   private aqiFetchPending: boolean = false;
   private gpsJammingData: import('@/services/gps-jamming').GpsJammingPoint[] = [];
   private gpsJammingFetchPending: boolean = false;
+  private unavailableLayers: Set<keyof MapLayers> = new Set();
 
   // Country highlight state
   private countryGeoJsonLoaded = false;
@@ -628,7 +629,10 @@ export class DeckGLMap {
           });
         } catch (e) {
           console.warn('[DeckGLMap] Failed to initialize MapTiler weather layers:', e);
+          this.setLayerUnavailable('weatherRadar', true, 'Weather Radar unavailable');
         }
+      } else {
+        this.setLayerUnavailable('weatherRadar', true, 'Weather Radar API key not configured');
       }
 
       if (this.state.layers.waterTemperature) {
@@ -1615,11 +1619,17 @@ export class DeckGLMap {
         if (json.status === 'ok' && json.data) {
           // Filter out stations with invalid '-' AQI
           this.aqiData = json.data.filter((s: any) => s.aqi && s.aqi !== '-');
+          this.setLayerUnavailable('aqi', false);
           this.render();
+        } else {
+          this.setLayerUnavailable('aqi', true, 'Air Quality API returned no data');
         }
+      } else {
+        this.setLayerUnavailable('aqi', true, 'Air Quality API unavailable');
       }
     } catch (e) {
-      console.error('[DeckGLMap] Failed to fetch AQI data:', e);
+      console.warn('[DeckGLMap] Failed to fetch AQI data:', e);
+      this.setLayerUnavailable('aqi', true, 'Air Quality API unavailable');
     } finally {
       this.aqiFetchPending = false;
     }
@@ -1631,9 +1641,15 @@ export class DeckGLMap {
     try {
       const { fetchGpsJammingData } = await import('@/services/gps-jamming');
       this.gpsJammingData = await fetchGpsJammingData();
+      if (!this.gpsJammingData || this.gpsJammingData.length === 0) {
+        this.setLayerUnavailable('gpsJamming', true, 'GPS Jamming data unavailable');
+      } else {
+        this.setLayerUnavailable('gpsJamming', false);
+      }
       this.render();
     } catch (e) {
-      console.error('[DeckGLMap] Failed to fetch GPS Jamming data:', e);
+      console.warn('[DeckGLMap] Failed to fetch GPS Jamming data:', e);
+      this.setLayerUnavailable('gpsJamming', true, 'GPS Jamming API unavailable');
     } finally {
       this.gpsJammingFetchPending = false;
     }
@@ -1734,10 +1750,16 @@ export class DeckGLMap {
         const { bbox } = props;
         if (!bbox) return null;
         const url = `/api/asis?service=${service}&bbox=${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch tile');
-        const blob = await response.blob();
-        return createImageBitmap(blob);
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Failed to fetch tile');
+          const blob = await response.blob();
+          return createImageBitmap(blob);
+        } catch (err) {
+          const layerKey = id === 'di' ? 'agriculturalStressDI' : id === 'asi' ? 'agriculturalStressASI' : 'agriculturalStressVCI';
+          this.setLayerUnavailable(layerKey, true, 'Agricultural Stress API unavailable');
+          throw err;
+        }
       },
       renderSubLayers: (props: any) => {
         const { boundingBox } = props.tile;
@@ -4139,13 +4161,16 @@ export class DeckGLMap {
                 </span>
               </button>
               <div class="layer-category-list ${isExpanded ? '' : 'collapsed'}">
-                ${cat.layers.map(({ key, label, icon }) => `
-                  <label class="layer-toggle" data-layer="${key}">
-                    <input type="checkbox" ${this.state.layers[key] ? 'checked' : ''}>
+                ${cat.layers.map(({ key, label, icon }) => {
+                  const isUnavailable = this.unavailableLayers.has(key);
+                  return `
+                  <label class="layer-toggle ${isUnavailable ? 'unavailable disabled' : ''}" data-layer="${key}" ${isUnavailable ? 'title="API unavailable"' : ''}>
+                    <input type="checkbox" ${this.state.layers[key] && !isUnavailable ? 'checked' : ''} ${isUnavailable ? 'disabled' : ''}>
                     <span class="toggle-icon">${icon}</span>
                     <span class="toggle-label">${label}</span>
+                    ${isUnavailable ? '<span class="layer-status-badge">Unavailable</span>' : ''}
                   </label>
-                `).join('')}
+                `;}).join('')}
               </div>
             </div>
           `;
@@ -4198,6 +4223,10 @@ export class DeckGLMap {
       input.addEventListener('change', () => {
         const layer = (input as HTMLInputElement).closest('.layer-toggle')?.getAttribute('data-layer') as keyof MapLayers;
         if (layer) {
+          if (this.unavailableLayers.has(layer)) {
+            (input as HTMLInputElement).checked = false;
+            return;
+          }
           this.state.layers[layer] = (input as HTMLInputElement).checked;
           this.setLayers({ ...this.state.layers });
           this.onLayerChange?.(layer, (input as HTMLInputElement).checked, 'user');
@@ -5205,6 +5234,53 @@ export class DeckGLMap {
     }
   }
 
+  public setLayerUnavailable(layer: keyof MapLayers, unavailable: boolean, reason: string = 'API unavailable'): void {
+    if (unavailable) {
+      this.unavailableLayers.add(layer);
+    } else {
+      this.unavailableLayers.delete(layer);
+    }
+
+    const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"]`) as HTMLElement;
+    if (toggle) {
+      const input = toggle.querySelector('input') as HTMLInputElement;
+
+      toggle.classList.toggle('unavailable', unavailable);
+      toggle.classList.toggle('disabled', unavailable);
+
+      if (unavailable) {
+        toggle.classList.remove('loading', 'active', 'has-data');
+        if (input) {
+          input.disabled = true;
+          input.checked = false;
+        }
+        this.state.layers[layer] = false;
+        toggle.setAttribute('title', reason);
+
+        let badge = toggle.querySelector('.layer-status-badge');
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'layer-status-badge';
+          toggle.appendChild(badge);
+        }
+        badge.textContent = 'Unavailable';
+      } else {
+        if (input) {
+          input.disabled = false;
+        }
+        toggle.removeAttribute('title');
+        const badge = toggle.querySelector('.layer-status-badge');
+        if (badge) badge.remove();
+      }
+
+      this.updateCategoryCounts();
+    }
+  }
+
+  public isLayerUnavailable(layer: keyof MapLayers): boolean {
+    return this.unavailableLayers.has(layer);
+  }
+
   public flashAssets(assetType: AssetType, ids: string[]): void {
     // Temporarily highlight assets
     ids.forEach(id => this.highlightedAssets[assetType].add(id));
@@ -5218,6 +5294,7 @@ export class DeckGLMap {
 
   // Enable layer programmatically
   public enableLayer(layer: keyof MapLayers): void {
+    if (this.unavailableLayers.has(layer)) return;
     if (!this.state.layers[layer]) {
       this.state.layers[layer] = true;
       const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"] input`) as HTMLInputElement;
@@ -5230,6 +5307,7 @@ export class DeckGLMap {
 
   // Toggle layer on/off programmatically
   public toggleLayer(layer: keyof MapLayers): void {
+    if (this.unavailableLayers.has(layer)) return;
     console.log(`[DeckGLMap.toggleLayer] ${layer}: ${this.state.layers[layer]} -> ${!this.state.layers[layer]}`);
     this.state.layers[layer] = !this.state.layers[layer];
     const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"] input`) as HTMLInputElement;

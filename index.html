@@ -416,6 +416,27 @@
       background-size: 200% 100%;
       animation: skel-shimmer 1.5s infinite
     }
+
+    /* ---------- fallback dashboard banner ---------- */
+    .fallback-mode-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: linear-gradient(90deg, #991b1b 0%, #b91c1c 50%, #991b1b 100%);
+      color: #ffffff;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+      flex-shrink: 0;
+      line-height: 1.4;
+      font-family: 'Montserrat', sans-serif;
+    }
   </style>
 
   <!-- Google Fonts (Nunito for happy variant) -->
@@ -427,6 +448,10 @@
 
 <body>
   <div id="app">
+    <div class="fallback-mode-banner" id="fallbackBanner">
+      <span class="fallback-banner-icon" aria-hidden="true">⚠️</span>
+      <span class="fallback-banner-text">Fallback dashboard in operation. AI functionality is unavailable.</span>
+    </div>
     <!-- Pre-render skeleton: visible instantly, replaced when JS calls renderLayout() -->
     <div class="skeleton-shell" aria-hidden="true">
       <div class="skeleton-header">
