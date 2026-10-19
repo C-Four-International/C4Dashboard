@@ -1,9 +1,6 @@
 # README
-======================================================================
 
 ## THE C4 MONITORING DASHBOARD (www.c4dash.org)
-
-======================================================================
 
 
 
@@ -27,7 +24,6 @@
 
 ## OVERVIEW & FEATURES
 
-----------------------------------------------------------------------
 
 C4 Dashboard builds on the pre-existing core of World Monitor, introducing 
 
@@ -47,7 +43,6 @@ custom enhancements tailored for our organization's use cases:
 
 ## LICENSE & ATTRIBUTION NOTICE
 
-----------------------------------------------------------------------
 
 Copyright (C) 2026 - The Cooperative Contingent of Concerned World Citizens, Inc. 
 
@@ -85,7 +80,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 ## SOURCE CODE DISCLOSURE (AGPL-3.0 COMPLIANCE)
 
-----------------------------------------------------------------------
 
 In accordance with the GNU Affero General Public License v3.0, the complete 
 
@@ -103,7 +97,6 @@ https://www.github.com/C-Four-International/C4Dashboard
 
 ## GETTING STARTED / LOCAL DEVELOPMENT
 
-----------------------------------------------------------------------
 
 To run a local instance of C4 Dashboard:
 
@@ -141,7 +134,6 @@ To run a local instance of C4 Dashboard:
 
 ## CONTACT & SUPPORT
 
-----------------------------------------------------------------------
 
 Organization Main Site: https://www.c-four.org
 
