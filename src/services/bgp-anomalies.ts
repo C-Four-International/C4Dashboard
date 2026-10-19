@@ -97,7 +97,7 @@ function getCoordinatesForCountry(countryCode?: string, id: string = ''): [numbe
   return [lon, lat];
 }
 
-let anomaliesConfigured: boolean | null = null;
+let anomaliesConfigured: boolean | null = false;
 
 export function isBgpAnomaliesConfigured(): boolean | null {
   return anomaliesConfigured;

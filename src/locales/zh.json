@@ -17,7 +17,8 @@
     "predictionMarkets": "预测市场",
     "loadingMarkets": "正在加载预测市场...",
     "infrastructure": "基础设施暴露",
-    "briefUnavailable": "AI简报不可用 — 请在设置中配置GEMINI_API_KEY。",
+    "briefUnavailable": "AI简报不可用 — 已启用后备方案。",
+    "fallbackBadge": "后备方案已启用",
     "cached": "已缓存",
     "fresh": "最新",
     "noMarkets": "未找到预测市场",
@@ -387,7 +388,8 @@
       "fresh": "最新",
       "noMarkets": "未找到预测市场",
       "predictionMarkets": "预测市场",
-      "unavailable": "AI简报不可用 — 请在设置中配置GEMINI_API_KEY。"
+      "unavailable": "AI简报不可用 — 已启用后备方案。",
+      "fallbackBadge": "后备方案已启用"
     },
     "countryBrief": {
       "identifying": "正在识别国家...",
@@ -403,7 +405,8 @@
       "predictionMarkets": "预测市场",
       "loadingMarkets": "正在加载预测市场...",
       "infrastructure": "基础设施暴露",
-      "briefUnavailable": "AI简报不可用 — 请在设置中配置GEMINI_API_KEY。",
+      "briefUnavailable": "AI简报不可用 — 已启用后备方案。",
+      "fallbackBadge": "后备方案已启用",
       "cached": "已缓存",
       "fresh": "最新",
       "noMarkets": "未找到预测市场",
@@ -1078,7 +1081,7 @@
         "moderate": "中等",
         "normal": "正常"
       },
-      "infoTooltip": "<strong>气候异常监测</strong>温度和降水相对于30天基线的偏差。数据来自Open-Meteo（ERA5再分析）。<ul><li><strong>极端</strong>：>5°C或>80mm/天偏差</li><li><strong>中等</strong>：>3°C或>40mm/天偏差</li></ul>监测15个冲突/灾害多发区域。"
+      "infoTooltip": "<strong>气候异常监测</strong>温度和降水相对于30天基线的偏差。数据来自Open-Meteo（ERA5再分析）。<ul><li><strong>极端</strong>：>4°C或>50mm/天偏差</li><li><strong>中等</strong>：>1.5°C或>15mm/天偏差</li></ul>监测覆盖所有大洲的80个全球气候区域。点击地图上的任意点或面板中的任意行可查看本地气候背景。"
     },
     "newsPanel": {
       "close": "关闭",

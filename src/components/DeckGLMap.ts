@@ -318,7 +318,7 @@ export class DeckGLMap {
   private aqiFetchPending: boolean = false;
   private gpsJammingData: import('@/services/gps-jamming').GpsJammingPoint[] = [];
   private gpsJammingFetchPending: boolean = false;
-  private unavailableLayers: Set<keyof MapLayers> = new Set();
+  private unavailableLayers: Set<keyof MapLayers> = new Set(['bgpAnomalies']);
 
   // Country highlight state
   private countryGeoJsonLoaded = false;
@@ -1668,6 +1668,7 @@ export class DeckGLMap {
 
       if (this.bgpAnomalies.length === 0) {
         if (isBgpAnomaliesConfigured() === false) {
+          this.setLayerUnavailable('bgpAnomalies', true, 'BGP Anomalies API unavailable');
           console.warn(
             '%c[DeckGLMap:BGP]%c Layer is active, but Cloudflare Radar API token is not configured on the server. ' +
             'Provide CLOUDFLARE_RADAR_API_TOKEN in your Vercel environment variables to see active BGP hijacks/leaks.',
@@ -1683,6 +1684,7 @@ export class DeckGLMap {
 
       this.render();
     } catch (e) {
+      this.setLayerUnavailable('bgpAnomalies', true, 'BGP Anomalies API unavailable');
       console.error(
         '%c[DeckGLMap:BGP]%c Failed to fetch or apply BGP anomalies:',
         'color: #ef4444; font-weight: bold;',

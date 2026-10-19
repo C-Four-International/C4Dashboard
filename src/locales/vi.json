@@ -17,7 +17,8 @@
     "predictionMarkets": "Thị trường Dự đoán",
     "loadingMarkets": "Đang tải thị trường dự đoán...",
     "infrastructure": "Mức độ phơi bày Hạ tầng",
-    "briefUnavailable": "Bản tin AI không khả dụng — cấu hình GEMINI_API_KEY trong Cài đặt.",
+    "briefUnavailable": "Bản tin AI không khả dụng — chế độ dự phòng đang hoạt động.",
+    "fallbackBadge": "Chế độ dự phòng",
     "cached": "Đã lưu cache",
     "fresh": "Mới cập nhật",
     "noMarkets": "Không tìm thấy thị trường dự đoán",
@@ -387,7 +388,8 @@
       "fresh": "Mới cập nhật",
       "noMarkets": "Không tìm thấy thị trường dự đoán",
       "predictionMarkets": "Thị trường Dự đoán",
-      "unavailable": "Bản tin AI không khả dụng — cấu hình GEMINI_API_KEY trong Cài đặt."
+      "unavailable": "Bản tin AI không khả dụng — chế độ dự phòng đang hoạt động.",
+      "fallbackBadge": "Chế độ dự phòng"
     },
     "countryBrief": {
       "identifying": "Đang xác định quốc gia...",
@@ -403,7 +405,8 @@
       "predictionMarkets": "Thị trường Dự đoán",
       "loadingMarkets": "Đang tải thị trường dự đoán...",
       "infrastructure": "Mức độ phơi bày Hạ tầng",
-      "briefUnavailable": "Bản tin AI không khả dụng — cấu hình GEMINI_API_KEY trong Cài đặt.",
+      "briefUnavailable": "Bản tin AI không khả dụng — chế độ dự phòng đang hoạt động.",
+      "fallbackBadge": "Chế độ dự phòng",
       "cached": "Đã lưu cache",
       "fresh": "Mới cập nhật",
       "noMarkets": "Không tìm thấy thị trường dự đoán",
@@ -1078,7 +1081,7 @@
         "moderate": "TRUNG BÌNH",
         "normal": "BÌNH THƯỜNG"
       },
-      "infoTooltip": "<strong>Giám sát Bất thường Khí hậu</strong> Độ lệch nhiệt độ và lượng mưa so với cơ sở 30 ngày. Dữ liệu từ Open-Meteo (phân tích ERA5).<ul><li><strong>Cực đoan</strong>: >5°C hoặc >80mm/ngày lệch</li><li><strong>Trung bình</strong>: >3°C hoặc >40mm/ngày lệch</li></ul>Giám sát 15 vùng xung đột/thiên tai."
+      "infoTooltip": "<strong>Giám sát Bất thường Khí hậu</strong> Độ lệch nhiệt độ và lượng mưa so với cơ sở 30 ngày. Dữ liệu từ Open-Meteo (phân tích ERA5).<ul><li><strong>Cực đoan</strong>: >4°C hoặc >50mm/ngày lệch</li><li><strong>Trung bình</strong>: >1.5°C hoặc >15mm/ngày lệch</li></ul>Giám sát 80 vùng khí hậu toàn cầu trên khắp các châu lục."
     },
     "newsPanel": {
       "close": "Đóng",

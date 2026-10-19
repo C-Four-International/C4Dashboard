@@ -348,6 +348,8 @@ export class DataLoaderManager implements AppModule {
   }
 
   async probeLayerApis(): Promise<void> {
+    this.ctx.map?.setLayerUnavailable('bgpAnomalies', true, 'BGP Anomalies API unavailable');
+
     const endpoints: Array<{ layer: keyof MapLayers; url: string; name: string }> = [
       { layer: 'bgpAnomalies', url: '/api/bgp-anomalies?probe=1', name: 'BGP Anomalies' },
       { layer: 'gpsJamming', url: '/api/gps-jamming?probe=1', name: 'GPS Jamming' },
@@ -1199,9 +1201,7 @@ export class DataLoaderManager implements AppModule {
       const anomalies = climateResult.anomalies;
       (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.setAnomalies(anomalies);
       ingestClimateForCII(anomalies);
-      if (this.ctx.mapLayers.climate) {
-        this.ctx.map?.setClimateAnomalies(anomalies);
-      }
+      this.ctx.map?.setClimateAnomalies(anomalies);
       this.ctx.map?.setLayerReady('climate', anomalies.length > 0);
       if (anomalies.length > 0) dataFreshness.recordUpdate('climate', anomalies.length);
     } catch (error) {

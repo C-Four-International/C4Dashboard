@@ -206,7 +206,7 @@
       "loadingIndex": "Index laden...",
       "loadingMarkets": "Voorspellingsmarkten laden...",
       "generatingBrief": "Inlichtingenoverzicht genereren...",
-      "unavailable": "AI-overzicht niet beschikbaar: configureer GEMINI_API_KEY in Instellingen.",
+      "unavailable": "AI-overzicht niet beschikbaar — fallback actief.",
       "cached": "in cache",
       "fresh": "Vers",
       "noMarkets": "Geen voorspellingsmarkten gevonden",
@@ -243,7 +243,8 @@
       "predictionMarkets": "Voorspellingsmarkten",
       "loadingMarkets": "Voorspellingsmarkten laden...",
       "infrastructure": "Blootstelling aan infrastructuur",
-      "briefUnavailable": "AI-overzicht niet beschikbaar: configureer GEMINI_API_KEY in Instellingen.",
+      "briefUnavailable": "AI-overzicht niet beschikbaar — fallback actief.",
+      "fallbackBadge": "Fallback actief",
       "cached": "in cache",
       "fresh": "Vers",
       "noMarkets": "Geen voorspellingsmarkten gevonden",
@@ -524,7 +525,7 @@
         "moderate": "MATIG",
         "normal": "NORMAAL"
       },
-      "infoTooltip": "<strong>Klimaatafwijkingsmonitor</strong> Temperatuur- en neerslagafwijkingen ten opzichte van de basislijn van 30 dagen. Gegevens uit Open-Meteo (heranalyse van ERA5).<ul><li><strong>Extreem</strong>: afwijking van >5°C of >80 mm/dag</li><li><strong>Gemiddeld</strong>: afwijking van >3°C of >40 mm/dag</li></ul>Bewaakt 15 conflict-/rampgevoelige zones."
+      "infoTooltip": "<strong>Klimaatafwijkingsmonitor</strong> Temperatuur- en neerslagafwijkingen ten opzichte van de basislijn van 30 dagen. Gegevens uit Open-Meteo (heranalyse van ERA5).<ul><li><strong>Extreem</strong>: afwijking van >4°C of >50 mm/dag</li><li><strong>Gemiddeld</strong>: afwijking van >1.5°C of >15 mm/dag</li></ul>Bewaakt 80 wereldwijde klimaatzones over alle continenten."
     },
     "newsPanel": {
       "close": "Dichtbij",
@@ -1866,7 +1867,8 @@
     "predictionMarkets": "Voorspellingsmarkten",
     "loadingMarkets": "Voorspellingsmarkten laden...",
     "infrastructure": "Blootstelling aan infrastructuur",
-    "briefUnavailable": "AI-overzicht niet beschikbaar — configureer GEMINI_API_KEY in Instellingen.",
+    "briefUnavailable": "AI-overzicht niet beschikbaar — fallback actief.",
+    "fallbackBadge": "Fallback actief",
     "cached": "In cache",
     "fresh": "Vers",
     "noMarkets": "Geen voorspellingsmarkten gevonden",

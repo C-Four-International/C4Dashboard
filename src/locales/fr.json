@@ -17,7 +17,8 @@
     "predictionMarkets": "Marchés de prédiction",
     "loadingMarkets": "Chargement des marchés...",
     "infrastructure": "Exposition infrastructure",
-    "briefUnavailable": "Brief IA indisponible — configurez GEMINI_API_KEY dans les paramètres.",
+    "briefUnavailable": "Brief IA indisponible — solution de repli en place.",
+    "fallbackBadge": "Repli actif",
     "cached": "En cache",
     "fresh": "Frais",
     "noMarkets": "Aucun marché trouvé",
@@ -387,7 +388,8 @@
       "fresh": "Frais",
       "noMarkets": "Aucun marché de prédiction trouvé",
       "predictionMarkets": "Marchés de Prédiction",
-      "unavailable": "Briefing IA indisponible — configurez GEMINI_API_KEY dans les Paramètres."
+      "unavailable": "Brief IA indisponible — solution de repli en place.",
+      "fallbackBadge": "Repli actif"
     },
     "countryBrief": {
       "components": {
@@ -420,7 +422,8 @@
       "predictionMarkets": "Marchés de prédiction",
       "loadingMarkets": "Chargement des marchés de prédiction...",
       "infrastructure": "Exposition aux infrastructures",
-      "briefUnavailable": "Brief AI indisponible – configurez GEMINI_API_KEY dans Paramètres.",
+      "briefUnavailable": "Brief IA indisponible — solution de repli en place.",
+      "fallbackBadge": "Repli actif",
       "cached": "En cache",
       "fresh": "Récent",
       "noMarkets": "Aucun marché de prédiction trouvé",
@@ -1078,7 +1081,7 @@
         "moderate": "MODÉRÉ",
         "normal": "NORMALE"
       },
-      "infoTooltip": "<strong>Moniteur des anomalies climatiques</strong> Écarts de température et de précipitations par rapport à la référence de 30 jours. Données d'Open-Meteo (réanalyse ERA5).<ul><li><strong>Extrême</strong> : >5 °C ou >80 mm/jour d'écart</li><li><strong>Modéré</strong> : >3 °C ou >40 mm/jour déviation</li></ul>Surveille 15 zones sujettes aux conflits/catastrophes."
+      "infoTooltip": "<strong>Moniteur des anomalies climatiques</strong> Écarts de température et de précipitations par rapport à la référence de 30 jours. Données d'Open-Meteo (réanalyse ERA5).<ul><li><strong>Extrême</strong> : >4 °C ou >50 mm/jour d'écart</li><li><strong>Modéré</strong> : >1.5 °C ou >15 mm/jour déviation</li></ul>Surveille 80 zones climatiques mondiales sur tous les continents."
     },
     "newsPanel": {
       "close": "Fermer",

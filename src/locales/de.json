@@ -17,7 +17,8 @@
     "predictionMarkets": "Prognosemärkte",
     "loadingMarkets": "Prognosemärkte werden geladen...",
     "infrastructure": "Infrastrukturexposition",
-    "briefUnavailable": "KI-Brief nicht verfügbar – konfigurieren Sie GEMINI_API_KEY in den Einstellungen.",
+    "briefUnavailable": "KI-Brief nicht verfügbar – Fallback aktiv.",
+    "fallbackBadge": "Fallback aktiv",
     "cached": "Zwischengespeichert",
     "fresh": "Aktuell",
     "noMarkets": "Keine Prognosemärkte gefunden",
@@ -365,7 +366,8 @@
       "fresh": "Frisch",
       "noMarkets": "Keine Prognosemärkte gefunden",
       "predictionMarkets": "Prognosemärkte",
-      "unavailable": "KI-Brief nicht verfügbar – konfigurieren Sie GEMINI_API_KEY in den Einstellungen."
+      "unavailable": "KI-Brief nicht verfügbar – Fallback aktiv.",
+      "fallbackBadge": "Fallback aktiv"
     },
     "countryBrief": {
       "components": {
@@ -398,7 +400,8 @@
       "predictionMarkets": "Prognosemärkte",
       "loadingMarkets": "Prognosemärkte werden geladen...",
       "infrastructure": "Infrastrukturexposition",
-      "briefUnavailable": "KI-Brief nicht verfügbar – konfigurieren Sie GEMINI_API_KEY in den Einstellungen.",
+      "briefUnavailable": "KI-Brief nicht verfügbar – Fallback aktiv.",
+      "fallbackBadge": "Fallback aktiv",
       "cached": "zwischengespeichert",
       "fresh": "Frisch",
       "noMarkets": "Keine Prognosemärkte gefunden",
@@ -758,7 +761,7 @@
         "moderate": "MÄSSIG",
         "normal": "NORMAL"
       },
-      "infoTooltip": "<strong>Klimanomalie-Monitor</strong> Temperatur- und Niederschlagsabweichungen von der 30-Tage-Basislinie. Daten von Open-Meteo (ERA5-Reanalyse).<ul><li><strong>Extrem</strong>: >5°C oder >80mm/Tag Abweichung</li><li><strong>Moderat</strong>: >3°C oder >40mm/Tag Abweichung</li></ul>Überwacht 15 konflikt-/katastrophengefährdete Zonen."
+      "infoTooltip": "<strong>Klimanomalie-Monitor</strong> Temperatur- und Niederschlagsabweichungen von der 30-Tage-Basislinie. Daten von Open-Meteo (ERA5-Reanalyse).<ul><li><strong>Extrem</strong>: >4°C oder >50mm/Tag Abweichung</li><li><strong>Moderat</strong>: >1.5°C oder >15mm/Tag Abweichung</li></ul>Überwacht 80 globale Klimazonen über alle Kontinente."
     },
     "newsPanel": {
       "close": "Schließen",

@@ -16,13 +16,6 @@ export default async function handler(req) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-  if (req.method !== 'GET') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
-  }
-
   // Cloudflare API Token from environment variables (supports common naming variations)
   const apiToken = process.env.CLOUDFLARE_RADAR_API_TOKEN
     || process.env.CLOUDFLARE_API_TOKEN
@@ -30,13 +23,27 @@ export default async function handler(req) {
     || process.env.CF_RADAR_TOKEN
     || process.env.CF_API_TOKEN;
 
+  if (req.method === 'HEAD') {
+    return new Response(null, {
+      status: apiToken ? 200 : 503,
+      headers: corsHeaders,
+    });
+  }
+
+  if (req.method !== 'GET') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
   if (!apiToken) {
     return new Response(JSON.stringify({
       configured: false,
       anomalies: [],
       message: 'Cloudflare Radar API token not configured. Please set CLOUDFLARE_RADAR_API_TOKEN in environment variables.',
     }), {
-      status: 200,
+      status: 503,
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'public, max-age=60',

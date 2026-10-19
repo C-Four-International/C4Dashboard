@@ -178,9 +178,10 @@ export class CountryIntelModal {
 
     if (data.error || data.skipped || !data.brief) {
       const msg = data.error || data.reason || t('modals.countryIntel.unavailable');
+      const isFallback = msg.toLowerCase().includes('fallback') || Boolean(data.fallback);
       const briefSection = this.contentEl.querySelector('.intel-brief-section');
       if (briefSection) {
-        briefSection.innerHTML = `<div class="intel-error">${escapeHtml(msg)}</div>`;
+        briefSection.innerHTML = `<div class="intel-error ${isFallback ? 'intel-fallback-notice' : ''}">${escapeHtml(msg)}</div>`;
       }
       return;
     }
@@ -189,10 +190,16 @@ export class CountryIntelModal {
     if (!briefSection) return;
 
     const formatted = this.formatBrief(data.brief);
+    const statusBadge = data.fallback
+      ? `<span class="intel-fallback">⚡ ${t('modals.countryIntel.fallbackBadge') || 'Fallback in place'}</span>`
+      : data.cached
+        ? `<span class="intel-cached">📋 ${t('modals.countryIntel.cached')}</span>`
+        : `<span class="intel-fresh">✨ ${t('modals.countryIntel.fresh')}</span>`;
+
     briefSection.innerHTML = `
       <div class="intel-brief">${formatted}</div>
       <div class="intel-footer">
-        ${data.cached ? `<span class="intel-cached">📋 ${t('modals.countryIntel.cached')}</span>` : `<span class="intel-fresh">✨ ${t('modals.countryIntel.fresh')}</span>`}
+        ${statusBadge}
         <span class="intel-timestamp">${data.generatedAt ? new Date(data.generatedAt).toLocaleTimeString() : ''}</span>
       </div>
     `;

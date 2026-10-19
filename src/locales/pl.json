@@ -17,7 +17,8 @@
     "predictionMarkets": "Rynki prognostyczne",
     "loadingMarkets": "Ładowanie rynków prognostycznych...",
     "infrastructure": "Ekspozycja infrastruktury",
-    "briefUnavailable": "Raport AI niedostępny — skonfiguruj GEMINI_API_KEY w Ustawieniach.",
+    "briefUnavailable": "Raport AI niedostępny — tryb awaryjny aktywny.",
+    "fallbackBadge": "Tryb awaryjny aktywny",
     "cached": "Z pamięci podręcznej",
     "fresh": "Aktualne",
     "noMarkets": "Nie znaleziono rynków prognostycznych",
@@ -365,7 +366,8 @@
       "fresh": "Świeży",
       "noMarkets": "Nie znaleziono rynków prognostycznych",
       "predictionMarkets": "Rynki prognostyczne",
-      "unavailable": "Opis AI niedostępny — skonfiguruj GEMINI_API_KEY w Ustawieniach."
+      "unavailable": "Raport AI niedostępny — tryb awaryjny aktywny.",
+      "fallbackBadge": "Tryb awaryjny aktywny"
     },
     "countryBrief": {
       "components": {
@@ -398,7 +400,8 @@
       "predictionMarkets": "Rynki prognostyczne",
       "loadingMarkets": "Ładowanie rynków prognoz...",
       "infrastructure": "Ekspozycja infrastruktury",
-      "briefUnavailable": "Opis AI niedostępny — skonfiguruj GEMINI_API_KEY w Ustawieniach.",
+      "briefUnavailable": "Raport AI niedostępny — tryb awaryjny aktywny.",
+      "fallbackBadge": "Tryb awaryjny aktywny",
       "cached": "w pamieci podrecznej",
       "fresh": "Świeży",
       "noMarkets": "Nie znaleziono rynków prognostycznych",
@@ -758,7 +761,7 @@
         "moderate": "UMIARKOWANY",
         "normal": "NORMALNY"
       },
-      "infoTooltip": "<strong>Monitor anomalii klimatycznych</strong> Odchylenia temperatury i opadów od 30-dniowej wartości bazowej. Dane z Open-Meteo (ponowna analiza ERA5).<ul><li><strong>Ekstremalne</strong>: >5°C lub >80mm/dzień odchylenie</li><li><strong>Umiarkowane</strong>: >3°C lub >40mm/dzień odchylenie</li></ul>Monitoruje 15 stref konfliktów/podatnych na katastrofy."
+      "infoTooltip": "<strong>Monitor anomalii klimatycznych</strong> Odchylenia temperatury i opadów od 30-dniowej wartości bazowej. Dane z Open-Meteo (ponowna analiza ERA5).<ul><li><strong>Ekstremalne</strong>: >4°C lub >50mm/dzień odchylenie</li><li><strong>Umiarkowane</strong>: >1.5°C lub >15mm/dzień odchylenie</li></ul>Monitoruje 80 globalnych stref klimatycznych na wszystkich kontynentach."
     },
     "newsPanel": {
       "close": "Zamknąć",

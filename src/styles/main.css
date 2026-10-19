@@ -14773,11 +14773,19 @@ body.has-critical-banner .panels-grid {
   color: var(--semantic-normal);
 }
 
+.intel-fallback {
+  color: var(--semantic-elevated, #f59e0b);
+}
+
 .intel-error {
   padding: 16px;
   text-align: center;
   color: rgba(255, 100, 100, 0.7);
   font-size: 13px;
+}
+
+.intel-error.intel-fallback-notice {
+  color: var(--text-muted);
 }
 
 /* ============================================

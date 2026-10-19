@@ -411,11 +411,20 @@ export class MapComponent {
     };
 
     layers.forEach((layer) => {
+      const isUnavailable = layer === 'bgpAnomalies';
       const btn = document.createElement('button');
-      btn.className = `layer-toggle ${this.state.layers[layer] ? 'active' : ''}`;
+      btn.className = `layer-toggle ${this.state.layers[layer] ? 'active' : ''} ${isUnavailable ? 'unavailable disabled' : ''}`;
       btn.dataset.layer = layer;
       btn.textContent = getLayerLabel(layer);
-      btn.addEventListener('click', () => this.toggleLayer(layer));
+      if (isUnavailable) {
+        btn.setAttribute('title', 'BGP Anomalies API unavailable');
+        const badge = document.createElement('span');
+        badge.className = 'layer-status-badge';
+        badge.textContent = 'Unavailable';
+        btn.appendChild(badge);
+      } else {
+        btn.addEventListener('click', () => this.toggleLayer(layer));
+      }
       toggles.appendChild(btn);
     });
 
@@ -2999,6 +3008,7 @@ export class MapComponent {
   ]);
 
   public toggleLayer(layer: keyof MapLayers, source: 'user' | 'programmatic' = 'user'): void {
+    if (this.isLayerUnavailable(layer)) return;
     console.log(`[Map.toggleLayer] ${layer}: ${this.state.layers[layer]} -> ${!this.state.layers[layer]}`);
     this.state.layers[layer] = !this.state.layers[layer];
     if (this.state.layers[layer]) {
@@ -3087,6 +3097,7 @@ export class MapComponent {
   }
 
   public isLayerUnavailable(layer: keyof MapLayers): boolean {
+    if (layer === 'bgpAnomalies') return true;
     const btn = this.container.querySelector(`.layer-toggle[data-layer="${layer}"]`);
     return btn?.classList.contains('unavailable') ?? false;
   }

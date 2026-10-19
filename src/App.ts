@@ -372,6 +372,7 @@ export class App {
     if (isOutagesConfigured() === false) {
       this.state.map?.setLayerUnavailable('outages', true, 'Internet Outages API not configured or unavailable');
     }
+    this.state.map?.setLayerUnavailable('bgpAnomalies', true, 'BGP Anomalies API unavailable');
 
     // Phase 7: Refresh scheduling
     this.setupRefreshIntervals();

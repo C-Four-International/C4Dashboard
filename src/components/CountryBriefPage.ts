@@ -328,15 +328,22 @@ export class CountryBriefPage {
 
     if (data.error || data.skipped || !data.brief) {
       const msg = data.error || data.reason || t('modals.countryBrief.briefUnavailable');
-      section.innerHTML = `<div class="intel-error">${escapeHtml(msg)}</div>`;
+      const isFallback = msg.toLowerCase().includes('fallback') || Boolean(data.fallback);
+      section.innerHTML = `<div class="intel-error ${isFallback ? 'intel-fallback-notice' : ''}">${escapeHtml(msg)}</div>`;
       return;
     }
 
     const formatted = this.formatBrief(data.brief, this.currentHeadlineCount);
+    const statusBadge = data.fallback
+      ? `<span class="intel-fallback">⚡ ${t('modals.countryBrief.fallbackBadge') || 'Fallback in place'}</span>`
+      : data.cached
+        ? `<span class="intel-cached">📋 ${t('modals.countryBrief.cached')}</span>`
+        : `<span class="intel-fresh">✨ ${t('modals.countryBrief.fresh')}</span>`;
+
     section.innerHTML = `
       <div class="cb-brief-text">${formatted}</div>
       <div class="cb-brief-footer">
-        ${data.cached ? `<span class="intel-cached">📋 ${t('modals.countryBrief.cached')}</span>` : `<span class="intel-fresh">✨ ${t('modals.countryBrief.fresh')}</span>`}
+        ${statusBadge}
         <span class="intel-timestamp">${data.generatedAt ? new Date(data.generatedAt).toLocaleTimeString() : ''}</span>
       </div>`;
   }

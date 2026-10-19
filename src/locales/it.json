@@ -17,7 +17,8 @@
     "predictionMarkets": "Mercati predittivi",
     "loadingMarkets": "Caricamento mercati predittivi...",
     "infrastructure": "Esposizione infrastrutturale",
-    "briefUnavailable": "Rapporto IA non disponibile — configura GEMINI_API_KEY nelle Impostazioni.",
+    "briefUnavailable": "Brief IA non disponibile — fallback attivo.",
+    "fallbackBadge": "Fallback attivo",
     "cached": "In cache",
     "fresh": "Aggiornato",
     "noMarkets": "Nessun mercato predittivo trovato",
@@ -365,7 +366,8 @@
       "fresh": "Fresco",
       "noMarkets": "Nessun mercato di previsione trovato",
       "predictionMarkets": "Mercati predittivi",
-      "unavailable": "Brief AI non disponibile: configura GEMINI_API_KEY in Impostazioni."
+      "unavailable": "Brief IA non disponibile — fallback attivo.",
+      "fallbackBadge": "Fallback attivo"
     },
     "countryBrief": {
       "components": {
@@ -398,7 +400,8 @@
       "predictionMarkets": "Mercati predittivi",
       "loadingMarkets": "Caricamento mercati predittivi...",
       "infrastructure": "Esposizione alle infrastrutture",
-      "briefUnavailable": "Brief AI non disponibile: configura GEMINI_API_KEY in Impostazioni.",
+      "briefUnavailable": "Brief IA non disponibile — fallback attivo.",
+      "fallbackBadge": "Fallback attivo",
       "cached": "In cache",
       "fresh": "Aggiornato",
       "noMarkets": "Nessun mercato predittivo trovato",
@@ -758,7 +761,7 @@
         "moderate": "MODERATA",
         "normal": "NORMALE"
       },
-      "infoTooltip": "<strong>Monitor delle anomalie climatiche</strong> Deviazioni di temperatura e precipitazioni rispetto al riferimento di 30 giorni. Dati da Open-Meteo (rianalisi ERA5).<ul><li><strong>Estremo</strong>: deviazione >5°C o >80 mm/giorno</li><li><strong>Moderato</strong>: deviazione >3°C o >40 mm/giorno</li></ul>Monitor 15 zone soggette a conflitti/disastri."
+      "infoTooltip": "<strong>Monitor delle anomalie climatiche</strong> Deviazioni di temperatura e precipitazioni rispetto al riferimento di 30 giorni. Dati da Open-Meteo (rianalisi ERA5).<ul><li><strong>Estremo</strong>: deviazione >4°C o >50 mm/giorno</li><li><strong>Moderato</strong>: deviazione >1.5°C o >15 mm/giorno</li></ul>Monitor 80 zone climatiche globali in tutti i continenti."
     },
     "newsPanel": {
       "close": "Vicino",

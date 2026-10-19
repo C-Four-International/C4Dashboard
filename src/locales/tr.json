@@ -17,7 +17,8 @@
     "predictionMarkets": "Tahmin Piyasalari",
     "loadingMarkets": "Tahmin piyasalari yukleniyor...",
     "infrastructure": "Altyapi Maruziyeti",
-    "briefUnavailable": "Yapay zeka brifingi kullanilamaz — Ayarlar'dan GEMINI_API_KEY yapilandiriniz.",
+    "briefUnavailable": "Yapay zeka brifingi kullanılamaz — yedek düzen devrede.",
+    "fallbackBadge": "Yedek düzen devrede",
     "cached": "Onbellekten",
     "fresh": "Guncel",
     "noMarkets": "Tahmin piyasasi bulunamadi",
@@ -387,7 +388,8 @@
       "fresh": "Guncel",
       "noMarkets": "Tahmin piyasasi bulunamadi",
       "predictionMarkets": "Tahmin Piyasalari",
-      "unavailable": "Yapay zeka brifingi kullanilamaz — Ayarlar'dan GEMINI_API_KEY yapilandiriniz."
+      "unavailable": "Yapay zeka brifingi kullanılamaz — yedek düzen devrede.",
+      "fallbackBadge": "Yedek düzen devrede"
     },
     "countryBrief": {
       "identifying": "Ulke belirleniyor...",
@@ -403,7 +405,8 @@
       "predictionMarkets": "Tahmin Piyasalari",
       "loadingMarkets": "Tahmin piyasalari yukleniyor...",
       "infrastructure": "Altyapi Maruziyeti",
-      "briefUnavailable": "Yapay zeka brifingi kullanilamaz — Ayarlar'dan GEMINI_API_KEY yapilandiriniz.",
+      "briefUnavailable": "Yapay zeka brifingi kullanılamaz — yedek düzen devrede.",
+      "fallbackBadge": "Yedek düzen devrede",
       "cached": "Onbellekten",
       "fresh": "Guncel",
       "noMarkets": "Tahmin piyasasi bulunamadi",
@@ -1078,7 +1081,7 @@
         "moderate": "ORTA",
         "normal": "NORMAL"
       },
-      "infoTooltip": "<strong>Iklim Anomali Izleme</strong> 30 gunluk temel degerden sicaklik ve yagis sapmalari. Veri: Open-Meteo (ERA5 reanaliz).<ul><li><strong>Asiri</strong>: >5 derece veya >80mm/gun sapma</li><li><strong>Orta</strong>: >3 derece veya >40mm/gun sapma</li></ul>15 catisma/afete yatkin bolgeyi izler."
+      "infoTooltip": "<strong>Iklim Anomali Izleme</strong> 30 gunluk temel degerden sicaklik ve yagis sapmalari. Veri: Open-Meteo (ERA5 reanaliz).<ul><li><strong>Asiri</strong>: >4 derece veya >50mm/gun sapma</li><li><strong>Orta</strong>: >1.5 derece veya >15mm/gun sapma</li></ul>tum kitalarda 80 kuresel iklim bolgesini izler."
     },
     "newsPanel": {
       "close": "Kapat",

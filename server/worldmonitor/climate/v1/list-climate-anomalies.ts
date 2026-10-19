@@ -305,10 +305,11 @@ export const listClimateAnomalies: ClimateServiceHandler['listClimateAnomalies']
   let anomalies = result?.anomalies ?? [];
 
   // Filter by minSeverity if requested
-  if (req?.min_severity && req.min_severity !== 'ANOMALY_SEVERITY_UNSPECIFIED') {
-    if (req.min_severity === 'ANOMALY_SEVERITY_EXTREME') {
+  const minSev = (req as any)?.minSeverity || req?.min_severity;
+  if (minSev && minSev !== 'ANOMALY_SEVERITY_UNSPECIFIED') {
+    if (minSev === 'ANOMALY_SEVERITY_EXTREME') {
       anomalies = anomalies.filter((a) => a.severity === 'ANOMALY_SEVERITY_EXTREME');
-    } else if (req.min_severity === 'ANOMALY_SEVERITY_MODERATE') {
+    } else if (minSev === 'ANOMALY_SEVERITY_MODERATE') {
       anomalies = anomalies.filter(
         (a) => a.severity === 'ANOMALY_SEVERITY_EXTREME' || a.severity === 'ANOMALY_SEVERITY_MODERATE',
       );

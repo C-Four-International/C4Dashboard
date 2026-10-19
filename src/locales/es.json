@@ -17,7 +17,8 @@
     "predictionMarkets": "Mercados de predicción",
     "loadingMarkets": "Cargando mercados de predicción...",
     "infrastructure": "Exposición de infraestructura",
-    "briefUnavailable": "Resumen de IA no disponible: configure GEMINI_API_KEY en Configuración.",
+    "briefUnavailable": "Resumen de IA no disponible — respaldo activo.",
+    "fallbackBadge": "Respaldo activo",
     "cached": "En caché",
     "fresh": "Actual",
     "noMarkets": "No se encontraron mercados de predicción",
@@ -365,7 +366,8 @@
       "fresh": "Fresco",
       "noMarkets": "No se encontraron mercados de predicción",
       "predictionMarkets": "Mercados de predicción",
-      "unavailable": "Resumen de IA no disponible: configure GEMINI_API_KEY en Configuración."
+      "unavailable": "Resumen de IA no disponible — respaldo activo.",
+      "fallbackBadge": "Respaldo activo"
     },
     "countryBrief": {
       "components": {
@@ -398,7 +400,8 @@
       "predictionMarkets": "Mercados de predicción",
       "loadingMarkets": "Cargando mercados de predicción...",
       "infrastructure": "Exposición de infraestructura",
-      "briefUnavailable": "Resumen de IA no disponible: configure GEMINI_API_KEY en Configuración.",
+      "briefUnavailable": "Resumen de IA no disponible — respaldo activo.",
+      "fallbackBadge": "Respaldo activo",
       "cached": "en cache",
       "fresh": "Fresco",
       "noMarkets": "No se encontraron mercados de predicción",
@@ -758,7 +761,7 @@
         "moderate": "MODERADO",
         "normal": "NORMAL"
       },
-      "infoTooltip": "<strong>Monitor de anomalías climáticas</strong> Desviaciones de temperatura y precipitación con respecto a la línea base de 30 días. Datos de Open-Meteo (reanálisis ERA5).<ul><li><strong>Extremo</strong>: >5°C o >80mm/día de desviación</li><li><strong>Moderado</strong>: >3°C o >40mm/día de desviación</li></ul>Monitorea 15 zonas propensas a conflictos/desastres."
+      "infoTooltip": "<strong>Monitor de anomalías climáticas</strong> Desviaciones de temperatura y precipitación con respecto a la línea base de 30 días. Datos de Open-Meteo (reanálisis ERA5).<ul><li><strong>Extremo</strong>: >4°C o >50mm/día de desviación</li><li><strong>Moderado</strong>: >1.5°C o >15mm/día de desviación</li></ul>Monitorea 80 zonas climáticas globales en todos los continentes."
     },
     "newsPanel": {
       "close": "Cerca",

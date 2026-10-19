@@ -206,7 +206,7 @@
       "loadingIndex": "Laddar index...",
       "loadingMarkets": "Laddar förutsägelsemarknader...",
       "generatingBrief": "Genererar underrättelseöversikt...",
-      "unavailable": "AI-kort inte tillgänglig — konfigurera GEMINI_API_KEY i Inställningar.",
+      "unavailable": "AI-översikt ej tillgänglig — fallback aktiv.",
       "cached": "cachelagrad",
       "fresh": "Färsk",
       "noMarkets": "Inga förutsägande marknader hittades",
@@ -243,7 +243,8 @@
       "predictionMarkets": "Förutsägelsemarknader",
       "loadingMarkets": "Laddar förutsägelsemarknader...",
       "infrastructure": "Infrastrukturexponering",
-      "briefUnavailable": "AI-kort inte tillgänglig — konfigurera GEMINI_API_KEY i Inställningar.",
+      "briefUnavailable": "AI-översikt ej tillgänglig — fallback aktiv.",
+      "fallbackBadge": "Fallback aktiv",
       "cached": "cachelagrad",
       "fresh": "Färsk",
       "noMarkets": "Inga förutsägande marknader hittades",
@@ -524,7 +525,7 @@
         "moderate": "MÅTTLIG",
         "normal": "NORMAL"
       },
-      "infoTooltip": "<strong>Climate Anomaly Monitor</strong> Temperatur- och nederbördsavvikelser från 30-dagars baslinje. Data från Open-Meteo (ERA5-omanalys).<ul><li><strong>Extrem</strong>: >5°C eller >80 mm/dag avvikelse</li><li><strong>Måttlig</strong>: >3°C eller >40mm/dag avvikelse </li>__ eller störst_5__m/dag-avvikelse </li>__ eller högst </ul>__pron. zoner."
+      "infoTooltip": "<strong>Climate Anomaly Monitor</strong> Temperatur- och nederbördsavvikelser från 30-dagars baslinje. Data från Open-Meteo (ERA5-omanalys).<ul><li><strong>Extrem</strong>: &gt;4°C eller &gt;50mm/dag avvikelse</li><li><strong>Måttlig</strong>: &gt;1.5°C eller &gt;15mm/dag avvikelse</li></ul>Övervakar 80 globala klimatzoner över alla kontinenter."
     },
     "newsPanel": {
       "close": "Nära",
@@ -1866,7 +1867,8 @@
     "predictionMarkets": "Förutsägelsemarknader",
     "loadingMarkets": "Laddar förutsägelsemarknader...",
     "infrastructure": "Infrastrukturexponering",
-    "briefUnavailable": "AI-sammanfattning ej tillgänglig — konfigurera GEMINI_API_KEY i Inställningar.",
+    "briefUnavailable": "AI-översikt ej tillgänglig — fallback aktiv.",
+    "fallbackBadge": "Fallback aktiv",
     "cached": "Cachelagrad",
     "fresh": "Aktuell",
     "noMarkets": "Inga förutsägelsemarknader hittades",

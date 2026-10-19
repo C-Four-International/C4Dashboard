@@ -206,7 +206,7 @@
       "loadingIndex": "Carregando índice...",
       "loadingMarkets": "Carregando mercados de previsão...",
       "generatingBrief": "Gerando resumo de inteligência...",
-      "unavailable": "Resumo de IA indisponível – configure GEMINI_API_KEY em Configurações.",
+      "unavailable": "Resumo de IA indisponível — fallback ativo.",
       "cached": "em cache",
       "fresh": "Fresco",
       "noMarkets": "Nenhum mercado de previsão encontrado",
@@ -243,7 +243,8 @@
       "predictionMarkets": "Mercados de previsão",
       "loadingMarkets": "Carregando mercados de previsão...",
       "infrastructure": "Exposição de infraestrutura",
-      "briefUnavailable": "Resumo de IA indisponível – configure GEMINI_API_KEY em Configurações.",
+      "briefUnavailable": "Resumo de IA indisponível — fallback ativo.",
+      "fallbackBadge": "Fallback ativo",
       "cached": "em cache",
       "fresh": "Fresco",
       "noMarkets": "Nenhum mercado de previsão encontrado",
@@ -524,7 +525,7 @@
         "moderate": "MODERADO",
         "normal": "NORMAL"
       },
-      "infoTooltip": "<strong>Climate Anomaly Monitor</strong> Temperature and precipitation deviations from 30-day baseline. Dados do Open-Meteo (reanálise ERA5).<ul><li><strong>Extremo</strong>: >5°C ou >80mm/dia ​​de desvio</li><li><strong>Moderado</strong>: >3°C ou >40mm/dia ​​de desvio</li></ul>Monitora 15 zonas propensas a conflitos/desastres."
+      "infoTooltip": "<strong>Climate Anomaly Monitor</strong> Temperature and precipitation deviations from 30-day baseline. Dados do Open-Meteo (reanálise ERA5).<ul><li><strong>Extremo</strong>: >4°C ou >50mm/dia ​​de desvio</li><li><strong>Moderado</strong>: >1.5°C ou >15mm/dia ​​de desvio</li></ul>Monitora 80 zonas climáticas globais em todos os continentes."
     },
     "newsPanel": {
       "close": "Fechar",
@@ -1866,7 +1867,8 @@
     "predictionMarkets": "Mercados de Previsão",
     "loadingMarkets": "Carregando mercados de previsão...",
     "infrastructure": "Exposição de Infraestrutura",
-    "briefUnavailable": "Resumo de IA indisponível — configure GEMINI_API_KEY em Configurações.",
+    "briefUnavailable": "Resumo de IA indisponível — fallback ativo.",
+    "fallbackBadge": "Fallback ativo",
     "cached": "Em cache",
     "fresh": "Atualizado",
     "noMarkets": "Nenhum mercado de previsão encontrado",
