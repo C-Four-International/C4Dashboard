@@ -723,6 +723,7 @@ export default defineConfig({
       },
 
       workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB to allow precaching large bundles
         globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
         globIgnores: ['**/ml*.js', '**/onnx*.wasm', '**/locale-*.js'],
         navigateFallback: null,
@@ -905,6 +906,9 @@ export default defineConfig({
           const localeMatch = id.match(/\/locales\/(\w+)\.json$/);
           if (localeMatch && localeMatch[1] !== 'en') {
             return `locale-${localeMatch[1]}`;
+          }
+          if (id.includes('/config/pipelines') || id.includes('\\config\\pipelines')) {
+            return 'pipelines-data';
           }
           return undefined;
         },
