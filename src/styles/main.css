@@ -719,6 +719,38 @@ canvas,
   border-color: var(--text);
 }
 
+.header-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--text-dim);
+  background: transparent;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.header-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--overlay-light);
+}
+
+.header-action-btn svg {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.header-action-btn:hover svg {
+  transform: scale(1.08);
+}
+
 .search-btn kbd {
   background: var(--bg-secondary);
   padding: 2px 5px;
