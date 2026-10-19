@@ -29,7 +29,7 @@ let flightCache: { data: MilitaryFlight[]; expiresAt: number } | null = null;
 // Track flight history for trails
 const flightHistory = new Map<string, { positions: [number, number][]; lastUpdate: number }>();
 const HISTORY_MAX_POINTS = 20;
-const HISTORY_CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const HISTORY_CLEANUP_INTERVAL = 20 * 60 * 1000; // 20 minutes
 
 // Circuit breaker for API calls
 const breaker = createCircuitBreaker<{ flights: MilitaryFlight[]; clusters: MilitaryFlightCluster[] }>({
@@ -365,14 +365,7 @@ async function fetchFromTar1090(url: string, sourceName: string): Promise<Milita
   const now = new Date();
 
   for (const plane of data.ac) {
-    if (!plane.lat || !plane.lon) continue;
-
-    // Check if within our regions of interest
-    const inRegion = MILITARY_QUERY_REGIONS.some(r =>
-      plane.lat! >= r.lamin && plane.lat! <= r.lamax &&
-      plane.lon! >= r.lomin && plane.lon! <= r.lomax
-    );
-    if (!inRegion) continue;
+    if (plane.lat == null || plane.lon == null) continue;
 
     const callsign = (plane.flight || '').trim();
     const icao24 = plane.hex.toLowerCase();
@@ -426,7 +419,7 @@ async function fetchFromTar1090(url: string, sourceName: string): Promise<Milita
     flights.push(flight);
   }
 
-  console.log(`[Military Flights] Fallback: ${sourceName} returned ${data.ac.length} total, kept ${flights.length} in regions`);
+  console.log(`[Military Flights] Fallback: ${sourceName} returned ${data.ac.length} total, parsed ${flights.length} global flights`);
   return flights;
 }
 
@@ -666,9 +659,9 @@ export async function fetchMilitaryFlights(): Promise<{
     // Enrich with Wingbits aircraft details (owner, operator, type)
     flights = await enrichFlightsWithWingbits(flights);
 
-    // Update cache (4 minutes base TTL + up to 2 minutes jitter to avoid rate limits)
+    // Update cache (15 minutes base TTL + up to 2 minutes jitter to avoid rate limits)
     const jitter = Math.floor(Math.random() * 2 * 60 * 1000);
-    const cacheTtl = (4 * 60 * 1000) + jitter;
+    const cacheTtl = (15 * 60 * 1000) + jitter;
     flightCache = { data: flights, expiresAt: Date.now() + cacheTtl };
 
     // Generate clusters

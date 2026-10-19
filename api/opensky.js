@@ -104,7 +104,7 @@ export default async function handler(req, res) {
 
     res.status(response.status);
     res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
-    res.setHeader('Cache-Control', 'public, max-age=15, s-maxage=60, stale-while-revalidate=300');
+    res.setHeader('Cache-Control', 'public, max-age=900, s-maxage=900, stale-while-revalidate=300');
 
     // Pipe response body
     const data = await response.json();

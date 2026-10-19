@@ -451,6 +451,8 @@ export const MILITARY_HOTSPOTS = [
   { name: 'EUCOM', lat: 52.0, lon: 28.0, radius: 15, priority: 'medium' },
   // Keep Arctic separate (large but low activity)
   { name: 'ARCTIC', lat: 75.0, lon: 0.0, radius: 10, priority: 'low' },
+  // North America
+  { name: 'NORTHCOM', lat: 38.0, lon: -97.0, radius: 20, priority: 'low' },
 ] as const;
 
 export interface QueryRegion {
@@ -464,6 +466,7 @@ export interface QueryRegion {
 export const MILITARY_QUERY_REGIONS: QueryRegion[] = [
   { name: 'PACIFIC', lamin: 10, lamax: 46, lomin: 107, lomax: 143 },
   { name: 'WESTERN', lamin: 13, lamax: 85, lomin: -10, lomax: 57 },
+  { name: 'AMERICAS', lamin: 15, lamax: 65, lomin: -130, lomax: -65 },
 ];
 
 if (import.meta.env.DEV) {
