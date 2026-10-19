@@ -25,7 +25,7 @@
 ## OVERVIEW & FEATURES
 
 
-C4 Dashboard builds on the pre-existing core of World Monitor, introducing 
+The C4 Monitoring Dashboard builds on the pre-existing core featureset of World Monitor, introducing 
 
 custom enhancements tailored for our organization's use cases:
 
