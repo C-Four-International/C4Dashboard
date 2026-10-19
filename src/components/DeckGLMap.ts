@@ -44,6 +44,7 @@ import type { AirportDelayAlert } from '@/services/aviation';
 import type { DisplacementFlow } from '@/services/displacement';
 import type { Earthquake } from '@/services/earthquakes';
 import type { ClimateAnomaly } from '@/services/climate';
+import type { RadiationStation } from '@/services/radiation';
 import { ArcLayer } from '@deck.gl/layers';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import { CollisionFilterExtension } from '@deck.gl/extensions';
@@ -292,6 +293,7 @@ export class DeckGLMap {
   private militaryVesselClusters: MilitaryVesselCluster[] = [];
   private naturalEvents: NaturalEvent[] = [];
   private firmsFireData: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }> = [];
+  private radiationData: RadiationStation[] = [];
   private techEvents: TechEventMarker[] = [];
   private flightDelays: AirportDelayAlert[] = [];
   private news: NewsItem[] = [];
@@ -1338,6 +1340,12 @@ export class DeckGLMap {
       layers.push(this.createIrradiatorsLayer());
     }
 
+    // Environmental Radiation monitoring layer (EPA RadNet + Chernobyl & Fukushima)
+    if (mapLayers.radiation && this.radiationData.length > 0) {
+      layers.push(this.createRadiationLayer(this.radiationData));
+      layers.push(this.createGhostLayer('radiation-layer', this.radiationData, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
+    }
+
     // Spaceports layer — hidden at low zoom
     if (mapLayers.spaceports && this.isLayerVisible('spaceports')) {
       layers.push(this.createSpaceportsLayer());
@@ -2207,6 +2215,34 @@ export class DeckGLMap {
       getFillColor: [255, 100, 255, 180] as [number, number, number, number], // Magenta
       radiusMinPixels: 4,
       radiusMaxPixels: 10,
+      pickable: true,
+    });
+  }
+
+  private createRadiationLayer(stations: RadiationStation[]): ScatterplotLayer {
+    return new ScatterplotLayer({
+      id: 'radiation-layer',
+      data: stations,
+      getPosition: (d: RadiationStation) => [d.lon, d.lat],
+      getRadius: (d: RadiationStation) => {
+        if (d.status === 'high') return 24000;
+        if (d.status === 'elevated') return 16000;
+        return 10000;
+      },
+      getFillColor: (d: RadiationStation) => {
+        if (d.status === 'high') return [255, 40, 40, 220] as [number, number, number, number];
+        if (d.status === 'elevated') return [255, 170, 0, 200] as [number, number, number, number];
+        return [0, 230, 180, 190] as [number, number, number, number];
+      },
+      getLineColor: (d: RadiationStation) => {
+        if (d.status === 'high') return [255, 100, 100, 255] as [number, number, number, number];
+        if (d.status === 'elevated') return [255, 230, 100, 255] as [number, number, number, number];
+        return [140, 255, 225, 255] as [number, number, number, number];
+      },
+      stroked: true,
+      lineWidthMinPixels: 1.5,
+      radiusMinPixels: 5,
+      radiusMaxPixels: 16,
       pickable: true,
     });
   }
@@ -3539,6 +3575,16 @@ export class DeckGLMap {
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.title)}</strong><br/>${text(obj.location)}</div>` };
       case 'irradiators-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.type || t('components.deckgl.layers.gammaIrradiators'))}</div>` };
+      case 'radiation-layer': {
+        const st = obj as RadiationStation;
+        const statusColor = st.status === 'high' ? '#ff3333' : st.status === 'elevated' ? '#ffaa00' : '#00e6b4';
+        const statusBadge = `<span style="color:${statusColor};font-weight:700;text-transform:uppercase">${text(st.status)}</span>`;
+        const doseStr = st.doseRate != null ? `${st.doseRate} nSv/h · ` : '';
+        const rawNote = st.rawCpm != null && st.rawCpm !== st.cpm ? `<br/><small style="opacity:0.85">Raw NaI: ${st.rawCpm.toLocaleString()} CPM (EPA Scintillator)</small>` : '';
+        return {
+          html: `<div class="deckgl-tooltip"><strong>☢ ${text(st.name)}</strong><br/><strong>${st.cpm.toLocaleString()} CPM</strong> <small style="opacity:0.85">(GM equiv)</small> · ${doseStr}${statusBadge}${rawNote}<br/><small style="opacity:0.75">${text(st.source)}</small></div>`,
+        };
+      }
       case 'spaceports-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.country || t('components.deckgl.layers.spaceports'))}</div>` };
       case 'ports-layer': {
@@ -3586,12 +3632,17 @@ export class DeckGLMap {
         const regionStr = text(fire.region || t('components.deckgl.layers.fires'));
         const brightStr = fire.brightness != null ? `${Math.round(fire.brightness)}K` : '';
         const frpStr = fire.frp != null ? `${Number(fire.frp).toFixed(1)} MW` : '';
-        const confStr = fire.confidence != null ? `${Math.round(fire.confidence)}%` : '';
+        const confNum = fire.confidence != null ? Math.round(fire.confidence) : null;
+        let confStr = '';
+        if (confNum != null && confNum > 0) {
+          const confLabel = confNum >= 80 ? 'High' : confNum >= 40 ? 'Nominal' : 'Low';
+          confStr = `${confNum}% (${confLabel})`;
+        }
         const timeOfDay = fire.daynight === 'D' ? 'Day' : fire.daynight === 'N' ? 'Night' : '';
         const details = [
           brightStr,
           frpStr,
-          confStr ? `${confStr} conf` : '',
+          confStr,
         ].filter(Boolean).join(' · ');
         const dateStr = [fire.acq_date, timeOfDay].filter(Boolean).join(' · ');
 
@@ -3793,6 +3844,7 @@ export class DeckGLMap {
       'bases-layer': 'base',
       'nuclear-layer': 'nuclear',
       'irradiators-layer': 'irradiator',
+      'radiation-layer': 'radiation',
       'datacenters-layer': 'datacenter',
       'cables-layer': 'cable',
       'pipelines-layer': 'pipeline',
@@ -3982,6 +4034,7 @@ export class DeckGLMap {
           layers: [
             { key: 'datacenters', label: t('components.deckgl.layers.aiDataCenters'), icon: '&#128421;' },
             { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
+            { key: 'radiation', label: t('components.deckgl.layers.radiation'), icon: '&#9762;' },
             { key: 'bgpAnomalies', label: t('components.deckgl.layers.bgpAnomalies'), icon: '&#128256;' },
           ],
         },
@@ -4026,6 +4079,7 @@ export class DeckGLMap {
               { key: 'tradeRoutes', label: t('components.deckgl.layers.tradeRoutes'), icon: '&#128674;' },
               { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
               { key: 'pipelines', label: t('components.deckgl.layers.pipelines'), icon: '&#128738;' },
+              { key: 'radiation', label: t('components.deckgl.layers.radiation'), icon: '&#9762;' },
               { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '&#128225;' },
               { key: 'bgpAnomalies', label: t('components.deckgl.layers.bgpAnomalies'), icon: '&#128256;' },
               { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '&#9875;' },
@@ -4095,6 +4149,7 @@ export class DeckGLMap {
                 { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
                 { key: 'spaceports', label: t('components.deckgl.layers.spaceports'), icon: '&#128640;' },
                 { key: 'datacenters', label: t('components.deckgl.layers.aiDataCenters'), icon: '&#128421;' },
+                { key: 'radiation', label: t('components.deckgl.layers.radiation'), icon: '&#9762;' },
                 { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
                 { key: 'nuclear', label: t('components.deckgl.layers.nuclearSites'), icon: '&#9762;' },
                 { key: 'agriculturalStressASI', label: 'Agricultural Index', icon: '&#127806;' },
@@ -4982,6 +5037,11 @@ export class DeckGLMap {
 
   public setFires(fires: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }>): void {
     this.firmsFireData = fires;
+    this.render();
+  }
+
+  public setRadiation(stations: RadiationStation[]): void {
+    this.radiationData = stations;
     this.render();
   }
 

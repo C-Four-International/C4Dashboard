@@ -646,6 +646,42 @@ function radarBgpPlugin(): Plugin {
   };
 }
 
+function radiationPlugin(): Plugin {
+  return {
+    name: 'radiation-proxy',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith('/api/radiation')) {
+          return next();
+        }
+
+        try {
+          const mod = await import('./api/radiation.js');
+          const port = server.config.server.port || 3000;
+          const url = new URL(req.url, `http://localhost:${port}`);
+          const webReq = new Request(url.href, {
+            method: req.method,
+            headers: req.headers as any,
+          });
+
+          const webRes = await mod.default(webReq);
+          res.statusCode = webRes.status;
+          webRes.headers.forEach((val: string, key: string) => {
+            res.setHeader(key, val);
+          });
+          const text = await webRes.text();
+          res.end(text);
+        } catch (error: any) {
+          console.error('[Radiation Dev]', error);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Failed in dev handler', details: error.message }));
+        }
+      });
+    },
+  };
+}
+
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
@@ -655,6 +691,7 @@ export default defineConfig({
     rssProxyPlugin(),
     youtubeLivePlugin(),
     radarBgpPlugin(),
+    radiationPlugin(),
     sebufApiPlugin(),
     brotliPrecompressPlugin(),
     VitePWA({

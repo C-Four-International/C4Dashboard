@@ -94,6 +94,7 @@ const layers = {
   ais: false,
   nuclear: false,
   irradiators: false,
+  radiation: false,
   sanctions: false,
   weather: false,
   weatherRadar: false,

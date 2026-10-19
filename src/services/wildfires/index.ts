@@ -39,7 +39,7 @@ export interface MapFire {
 // -- Client --
 
 const client = new WildfireServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
-const breaker = createCircuitBreaker<ListFireDetectionsResponse>({ name: 'Wildfires:v4', cacheTtlMs: 5 * 60 * 1000, persistCache: true });
+const breaker = createCircuitBreaker<ListFireDetectionsResponse>({ name: 'Wildfires:v5', cacheTtlMs: 5 * 60 * 1000, persistCache: true });
 
 const emptyFallback: ListFireDetectionsResponse = { fireDetections: [] };
 
@@ -64,12 +64,24 @@ export async function fetchAllFires(_days?: number): Promise<FetchResult> {
   return { regions, totalCount: detections.length };
 }
 
+export function isHighConfidence(c: FireConfidence | string | number | undefined): boolean {
+  if (c === 'FIRE_CONFIDENCE_HIGH' || c === 3 || c === '3') return true;
+  if (typeof c === 'string') {
+    const s = c.toLowerCase().trim();
+    if (s === 'high' || s === 'h') return true;
+    const n = parseFloat(s);
+    if (!Number.isNaN(n) && n >= 80) return true;
+  }
+  if (typeof c === 'number' && c >= 80) return true;
+  return false;
+}
+
 export function computeRegionStats(regions: Record<string, FireDetection[]>): FireRegionStats[] {
   const stats: FireRegionStats[] = [];
 
   for (const [region, fires] of Object.entries(regions)) {
     const highIntensity = fires.filter(
-      f => f.brightness > 360 && f.confidence === 'FIRE_CONFIDENCE_HIGH',
+      f => f.brightness > 360 && isHighConfidence(f.confidence),
     );
     stats.push({
       region,
@@ -106,11 +118,38 @@ export function toMapFires(fires: FireDetection[]): MapFire[] {
   }));
 }
 
-function confidenceToNumber(c: FireConfidence): number {
-  switch (c) {
-    case 'FIRE_CONFIDENCE_HIGH': return 95;
-    case 'FIRE_CONFIDENCE_NOMINAL': return 50;
-    case 'FIRE_CONFIDENCE_LOW': return 20;
-    default: return 0;
+export function confidenceToNumber(c: FireConfidence | string | number | undefined): number {
+  if (c == null) return 0;
+  if (typeof c === 'number') {
+    if (c === 3) return 95;
+    if (c === 2) return 50;
+    if (c === 1) return 20;
+    if (c > 0 && c <= 100) return Math.round(c);
+    return 0;
   }
+
+  const s = String(c).trim();
+  switch (s) {
+    case 'FIRE_CONFIDENCE_HIGH':
+    case '3':
+      return 95;
+    case 'FIRE_CONFIDENCE_NOMINAL':
+    case '2':
+      return 50;
+    case 'FIRE_CONFIDENCE_LOW':
+    case '1':
+      return 20;
+  }
+
+  const lower = s.toLowerCase();
+  if (lower === 'high' || lower === 'h' || lower.startsWith('high')) return 95;
+  if (lower === 'nominal' || lower === 'n' || lower.startsWith('nom')) return 50;
+  if (lower === 'low' || lower === 'l' || lower.startsWith('low')) return 20;
+
+  const num = parseFloat(s);
+  if (!Number.isNaN(num) && num > 0 && num <= 100) {
+    return Math.round(num);
+  }
+
+  return 0;
 }

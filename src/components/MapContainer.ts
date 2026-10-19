@@ -28,6 +28,7 @@ import type {
 } from '@/types';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { DisplacementFlow } from '@/services/displacement';
+import type { RadiationStation } from '@/services/radiation';
 import type { Earthquake } from '@/services/earthquakes';
 import type { ClimateAnomaly } from '@/services/climate';
 import type { WeatherAlert } from '@/services/weather';
@@ -293,6 +294,14 @@ export class MapContainer {
       this.deckGLMap?.setFires(fires);
     } else {
       this.svgMap?.setFires(fires);
+    }
+  }
+
+  public setRadiation(stations: RadiationStation[]): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.setRadiation(stations);
+    } else {
+      this.svgMap?.setRadiation(stations);
     }
   }
 

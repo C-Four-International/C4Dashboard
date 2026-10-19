@@ -11,6 +11,7 @@ import type { TechHubActivity } from '@/services/tech-activity';
 import type { GeoHubActivity } from '@/services/geo-activity';
 import { getNaturalEventIcon } from '@/services/eonet';
 import type { WeatherAlert } from '@/services/weather';
+import type { RadiationStation } from '@/services/radiation';
 import { getSeverityColor } from '@/services/weather';
 import {
   MAP_URLS,
@@ -132,6 +133,7 @@ export class MapComponent {
   private militaryVesselClusters: MilitaryVesselCluster[] = [];
   private naturalEvents: NaturalEvent[] = [];
   private firmsFireData: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }> = [];
+  private radiationData: RadiationStation[] = [];
   private techEvents: TechEventMarker[] = [];
   private techActivities: TechHubActivity[] = [];
   private geoActivities: GeoHubActivity[] = [];
@@ -337,7 +339,7 @@ export class MapComponent {
       // General Intel
       'alertStatus', 'hotspots', 'threatScore',
       // Infrastructure
-      'pipelines', 'cables', 'datacenters', 'outages', 'bgpAnomalies',
+      'pipelines', 'cables', 'datacenters', 'radiation', 'outages', 'bgpAnomalies',
       // Military
       'military', 'conflicts', 'bases', 'nuclear', 'irradiators',
       // Shipping & Air Traffic
@@ -348,7 +350,7 @@ export class MapComponent {
       'sanctions', 'protests', 'economic',
     ];
     const techLayers: (keyof MapLayers)[] = [
-      'cables', 'datacenters', 'outages', 'bgpAnomalies', 'gpsJamming',  // tech infrastructure
+      'cables', 'datacenters', 'radiation', 'outages', 'bgpAnomalies', 'gpsJamming',  // tech infrastructure
       'startupHubs', 'cloudRegions', 'accelerators', 'techHQs', 'techEvents', // tech ecosystem
       'natural', 'waterTemperature', 'weather', 'weatherRadar', 'fires', 'aqi',                   // natural events
       'economic',                                         // economic/geographic
@@ -356,7 +358,7 @@ export class MapComponent {
     ];
     const financeLayers: (keyof MapLayers)[] = [
       'stockExchanges', 'financialCenters', 'centralBanks', 'commodityHubs', // finance ecosystem
-      'cables', 'pipelines', 'outages', 'gpsJamming',      // infrastructure
+      'cables', 'pipelines', 'radiation', 'outages', 'gpsJamming',      // infrastructure
       'sanctions', 'economic', 'waterways',               // geopolitical/economic
       'natural', 'waterTemperature', 'weather', 'weatherRadar', 'fires', 'aqi',               // natural events
       'flights',                                          // aviation
@@ -372,6 +374,7 @@ export class MapComponent {
       bases: 'components.deckgl.layers.militaryBases',
       nuclear: 'components.deckgl.layers.nuclearSites',
       irradiators: 'components.deckgl.layers.gammaIrradiators',
+      radiation: 'components.deckgl.layers.radiation',
       military: 'components.deckgl.layers.militaryActivity',
       cables: 'components.deckgl.layers.underseaCables',
       pipelines: 'components.deckgl.layers.pipelines',
@@ -1401,6 +1404,41 @@ export class MapComponent {
           this.popup.show({
             type: 'irradiator',
             data: irradiator,
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        });
+
+        this.overlays.appendChild(div);
+      });
+    }
+
+    // Environmental Radiation monitoring (EPA RadNet + Chernobyl & Fukushima)
+    if (this.state.layers.radiation && this.radiationData.length > 0) {
+      this.radiationData.forEach((station) => {
+        const pos = projection([station.lon, station.lat]);
+        if (!pos) return;
+
+        const div = document.createElement('div');
+        div.className = `radiation-marker ${station.status}`;
+        div.style.left = `${pos[0]}px`;
+        div.style.top = `${pos[1]}px`;
+        div.style.position = 'absolute';
+        div.style.transform = 'translate(-50%, -50%)';
+        div.style.cursor = 'pointer';
+        div.style.zIndex = '15';
+        const color = station.status === 'high' ? '#ff3333' : station.status === 'elevated' ? '#ffaa00' : '#00e6b4';
+        div.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="${color}"><circle cx="12" cy="12" r="8" fill-opacity="0.3"/><circle cx="12" cy="12" r="4"/><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" fill-opacity="0.8"/></svg>`;
+        const rawText = station.rawCpm && station.rawCpm !== station.cpm ? ` · ${station.rawCpm.toLocaleString()} raw NaI` : '';
+        const doseText = station.doseRate != null ? ` · ${station.doseRate} nSv/h` : '';
+        div.title = `☢ ${station.name}: ${station.cpm} CPM (GM equiv)${doseText} (${station.status})${rawText}`;
+
+        div.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = this.container.getBoundingClientRect();
+          this.popup.show({
+            type: 'radiation',
+            data: station,
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
           });
@@ -2670,7 +2708,10 @@ export class MapComponent {
         dot.style.height = `${size}px`;
         dot.style.backgroundColor = color;
         const timeDesc = [fire.acq_date, fire.daynight ? (fire.daynight === 'D' ? 'Day' : 'Night') : ''].filter(Boolean).join(' · ');
-        dot.title = `🔥 ${fire.region || 'Fire'} — ${Math.round(fire.brightness)}K, ${fire.frp}MW (${fire.confidence}% conf)${timeDesc ? ` · ${timeDesc}` : ''}`;
+        const confNum = fire.confidence != null ? Math.round(fire.confidence) : 0;
+        const confLabel = confNum >= 80 ? 'High' : confNum >= 40 ? 'Nominal' : confNum > 0 ? 'Low' : '';
+        const confText = confLabel ? `${confNum}% (${confLabel})` : `${confNum}%`;
+        dot.title = `🔥 ${fire.region || 'Fire'} — ${Math.round(fire.brightness)}K, ${fire.frp}MW (${confText})${timeDesc ? ` · ${timeDesc}` : ''}`;
 
         this.overlays.appendChild(dot);
       });
@@ -3557,6 +3598,11 @@ export class MapComponent {
 
   public setFires(fires: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }>): void {
     this.firmsFireData = fires;
+    this.render();
+  }
+
+  public setRadiation(stations: RadiationStation[]): void {
+    this.radiationData = stations;
     this.render();
   }
 

@@ -812,6 +812,7 @@
         "militaryBases": "Military Bases",
         "nuclearSites": "Nuclear Sites",
         "gammaIrradiators": "Gamma Irradiators",
+        "radiation": "Radiation (RadNet)",
         "spaceports": "Spaceports",
         "pipelines": "Pipelines",
         "militaryActivity": "Military Activity",

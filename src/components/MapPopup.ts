@@ -1,4 +1,5 @@
 import type { ConflictZone, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, NuclearFacility, EconomicCenter, GammaIrradiator, Pipeline, UnderseaCable, CableAdvisory, RepairShip, InternetOutage, AIDataCenter, AisDisruptionEvent, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, Port, Spaceport, CriticalMineralProject, CyberThreat, BgpAnomaly } from '@/types';
+import type { RadiationStation } from '@/services/radiation';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { Earthquake } from '@/services/earthquakes';
 import type { WeatherAlert } from '@/services/weather';
@@ -15,7 +16,7 @@ import { getNaturalEventIcon } from '@/services/eonet';
 import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot-escalation';
 import { getCableHealthRecord } from '@/services/cable-health';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'climate';
+export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'radiation' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'climate';
 
 interface TechEventPopupData {
   id: string;
@@ -121,7 +122,7 @@ interface DatacenterClusterData {
 
 interface PopupData {
   type: PopupType;
-  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | CyberThreat | BgpAnomaly | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData | ClimateAnomaly;
+  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | CyberThreat | BgpAnomaly | NuclearFacility | EconomicCenter | GammaIrradiator | RadiationStation | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData | ClimateAnomaly;
   relatedNews?: NewsItem[];
   x: number;
   y: number;
@@ -370,6 +371,8 @@ export class MapPopup {
         return this.renderEconomicPopup(data.data as EconomicCenter);
       case 'irradiator':
         return this.renderIrradiatorPopup(data.data as GammaIrradiator);
+      case 'radiation':
+        return this.renderRadiationPopup(data.data as RadiationStation);
       case 'pipeline':
         return this.renderPipelinePopup(data.data as Pipeline);
       case 'cable':
@@ -1368,6 +1371,61 @@ export class MapPopup {
           </div>
         </div>
         <p class="popup-description">${t('popups.irradiator.description')}</p>
+      </div>
+    `;
+  }
+
+  private renderRadiationPopup(station: RadiationStation): string {
+    const badgeClass = station.status === 'high' ? 'critical' : station.status === 'elevated' ? 'elevated' : 'normal';
+    const doseText = station.doseRate != null ? `${station.doseRate} nSv/h (${(station.doseRate / 1000).toFixed(3)} µSv/h)` : 'N/A';
+    const hasRaw = station.rawCpm != null && station.rawCpm !== station.cpm;
+    const detectorName = station.detectorType || (station.source.includes('RadNet') ? '2"×2" NaI(Tl) Scintillation Detector' : 'LND 7317 Pancake GM Tube');
+
+    return `
+      <div class="popup-header radiation">
+        <span class="popup-title">☢ ${escapeHtml(station.name.toUpperCase())}</span>
+        <span class="popup-badge ${badgeClass}">${escapeHtml(station.status.toUpperCase())}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-subtitle">Environmental Radiation Monitoring</div>
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">Geiger Equiv. (CPM)</span>
+            <span class="stat-value" style="font-weight:700;">${station.cpm.toLocaleString()} CPM</span>
+          </div>
+          ${hasRaw ? `
+            <div class="popup-stat">
+              <span class="stat-label">Raw NaI Scintillator</span>
+              <span class="stat-value">${station.rawCpm?.toLocaleString()} CPM</span>
+            </div>
+          ` : ''}
+          <div class="popup-stat">
+            <span class="stat-label">Dose Equivalent</span>
+            <span class="stat-value">${doseText}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Sensor Type</span>
+            <span class="stat-value">${escapeHtml(detectorName)}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Data Source</span>
+            <span class="stat-value">${escapeHtml(station.source)}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Sample Time</span>
+            <span class="stat-value">${escapeHtml(station.time)}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Coordinates</span>
+            <span class="stat-value">${station.lat.toFixed(4)}°, ${station.lon.toFixed(4)}°</span>
+          </div>
+        </div>
+        <p class="popup-description" style="margin-top:12px;font-size:11px;line-height:1.5;">
+          ${station.source.includes('RadNet')
+            ? '<strong>EPA RadNet Stationary Monitor:</strong> RadNet uses a high-sensitivity 2"×2" NaI(Tl) scintillation crystal pulling air through a filter. Because scintillation crystals have &gt;100× the volume and photon capture sensitivity of handheld Geiger counters (registering 700–3,500 raw counts/min in clean ambient background), the primary CPM is normalized to standard Geiger-Müller (GM/Safecast) tube equivalent (1 CPM ≈ 3 nSv/h) so US cities, Chernobyl, and Fukushima are on the same comparative baseline.'
+            : '<strong>Safecast Open Radiation Network:</strong> Measures ambient environmental gamma radiation using calibrated Geiger-Müller pancake detectors (LND 7317) deployed around nuclear exclusion zones.'}
+        </p>
       </div>
     `;
   }

@@ -21,7 +21,7 @@ import type {
 import { CHROME_UA } from '../../../_shared/constants';
 import { cachedFetchJson } from '../../../_shared/redis';
 
-const REDIS_CACHE_KEY = 'wildfire:fires:v4';
+const REDIS_CACHE_KEY = 'wildfire:fires:v5';
 const REDIS_CACHE_TTL = 3600; // 1h — NASA FIRMS VIIRS NRT updates every ~3 hours
 
 const FIRMS_SOURCE = 'VIIRS_SNPP_NRT';
@@ -95,18 +95,28 @@ function classifyContinent(lat: number, lon: number): string {
   return 'Global';
 }
 
-/** Map VIIRS confidence letters to proto enum values. */
+/** Map VIIRS and MODIS confidence values to proto enum values. */
 function mapConfidence(c: string): FireConfidence {
-  switch (c.toLowerCase()) {
-    case 'h':
-      return 'FIRE_CONFIDENCE_HIGH';
-    case 'n':
-      return 'FIRE_CONFIDENCE_NOMINAL';
-    case 'l':
-      return 'FIRE_CONFIDENCE_LOW';
-    default:
-      return 'FIRE_CONFIDENCE_UNSPECIFIED';
+  const s = (c || '').trim().toLowerCase();
+  if (s === 'h' || s === 'high' || s.startsWith('high')) {
+    return 'FIRE_CONFIDENCE_HIGH';
   }
+  if (s === 'n' || s === 'nominal' || s.startsWith('nom')) {
+    return 'FIRE_CONFIDENCE_NOMINAL';
+  }
+  if (s === 'l' || s === 'low' || s.startsWith('low')) {
+    return 'FIRE_CONFIDENCE_LOW';
+  }
+
+  // Handle numeric percentages (e.g. from MODIS 0-100%)
+  const num = parseFloat(s);
+  if (!Number.isNaN(num)) {
+    if (num >= 80) return 'FIRE_CONFIDENCE_HIGH';
+    if (num >= 40) return 'FIRE_CONFIDENCE_NOMINAL';
+    if (num > 0) return 'FIRE_CONFIDENCE_LOW';
+  }
+
+  return 'FIRE_CONFIDENCE_UNSPECIFIED';
 }
 
 function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): { row: Record<string, string>, regionName: string }[] {

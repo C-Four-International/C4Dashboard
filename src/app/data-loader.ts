@@ -58,6 +58,7 @@ import { ingestProtestsForCII, ingestMilitaryForCII, ingestNewsForCII, ingestOut
 import { dataFreshness, type DataSourceId } from '@/services/data-freshness';
 import { fetchUnhcrPopulation } from '@/services/displacement';
 import { fetchClimateAnomalies } from '@/services/climate';
+import { fetchRadiationData } from '@/services/radiation';
 import { enrichEventsWithExposure } from '@/services/population-exposure';
 import { debounce } from '@/utils';
 import { getAiFlowSettings } from '@/services/ai-flow-settings';
@@ -324,6 +325,7 @@ export class DataLoaderManager implements AppModule {
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.flights) tasks.push({ name: 'flights', task: runGuarded('flights', () => this.loadFlightDelays()) });
     if (SITE_VARIANT !== 'happy' && CYBER_LAYER_ENABLED && this.ctx.mapLayers.cyberThreats) tasks.push({ name: 'cyberThreats', task: runGuarded('cyberThreats', () => this.loadCyberThreats()) });
     if (SITE_VARIANT !== 'happy' && (this.ctx.mapLayers.techEvents || SITE_VARIANT === 'tech')) tasks.push({ name: 'techEvents', task: runGuarded('techEvents', () => this.loadTechEvents()) });
+    if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.radiation) tasks.push({ name: 'radiation', task: runGuarded('radiation', () => this.loadRadiationData()) });
 
     if (SITE_VARIANT === 'tech') {
       tasks.push({ name: 'techReadiness', task: runGuarded('techReadiness', () => (this.ctx.panels['tech-readiness'] as TechReadinessPanel)?.refresh()) });
@@ -392,6 +394,9 @@ export class DataLoaderManager implements AppModule {
           break;
         case 'climate':
           await this.loadClimate();
+          break;
+        case 'radiation':
+          await this.loadRadiationData();
           break;
         case 'ucdpEvents':
           break;
@@ -1656,6 +1661,17 @@ export class DataLoaderManager implements AppModule {
       (this.ctx.panels['satellite-fires'] as SatelliteFiresPanel)?.update([], 0);
       this.ctx.statusPanel?.updateApi('FIRMS', { status: 'error' });
       dataFreshness.recordError('firms', String(e));
+    }
+  }
+
+  async loadRadiationData(): Promise<void> {
+    try {
+      const stations = await fetchRadiationData();
+      if (stations && stations.length > 0) {
+        this.ctx.map?.setRadiation(stations);
+      }
+    } catch (e) {
+      console.warn('[DataLoader] Radiation load failed:', e);
     }
   }
 

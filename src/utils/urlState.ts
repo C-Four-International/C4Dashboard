@@ -11,6 +11,7 @@ const LAYER_KEYS: (keyof MapLayers)[] = [
   'ais',
   'nuclear',
   'irradiators',
+  'radiation',
   'sanctions',
   'weather',
   'economic',
