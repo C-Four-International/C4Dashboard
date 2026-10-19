@@ -445,8 +445,8 @@ export class MapComponent {
 
     const label = (layerKey: string): string => t(`components.deckgl.layers.${layerKey}`).toUpperCase();
     const staticLabel = (labelKey: string): string => t(`components.deckgl.layerHelp.labels.${labelKey}`).toUpperCase();
-    const helpItem = (layerLabel: string, descriptionKey: string): string =>
-      `<div class="layer-help-item"><span>${layerLabel}</span> ${t(`components.deckgl.layerHelp.descriptions.${descriptionKey}`)}</div>`;
+    const helpItem = (layerLabel: string, descriptionKey: string, icon?: string): string =>
+      `<div class="layer-help-item"><span>${icon ? `${icon} ` : ''}${layerLabel}</span> ${t(`components.deckgl.layerHelp.descriptions.${descriptionKey}`)}</div>`;
     const helpSection = (titleKey: string, items: string[], noteKey?: string): string => `
       <div class="layer-help-section">
         <div class="layer-help-title">${t(`components.deckgl.layerHelp.sections.${titleKey}`)}</div>
@@ -465,25 +465,34 @@ export class MapComponent {
       ${helpHeader}
       <div class="layer-help-content">
         ${helpSection('techEcosystem', [
-      helpItem(label('startupHubs'), 'techStartupHubs'),
-      helpItem(label('cloudRegions'), 'techCloudRegions'),
-      helpItem(label('techHQs'), 'techHQs'),
-      helpItem(label('accelerators'), 'techAccelerators'),
-      helpItem(label('techEvents'), 'techEvents'),
+      helpItem(label('startupHubs'), 'techStartupHubs', '&#128640;'),
+      helpItem(label('cloudRegions'), 'techCloudRegions', '&#9729;'),
+      helpItem(label('techHQs'), 'techHQs', '&#127970;'),
+      helpItem(label('accelerators'), 'techAccelerators', '&#9889;'),
+      helpItem(label('techEvents'), 'techEvents', '&#128197;'),
     ])}
         ${helpSection('infrastructure', [
-      helpItem(label('underseaCables'), 'infraCables'),
-      helpItem(label('aiDataCenters'), 'infraDatacenters'),
-      helpItem(label('internetOutages'), 'infraOutages'),
-      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
+      helpItem(label('aiDataCenters'), 'infraDatacenters', '&#128421;'),
+      helpItem(label('underseaCables'), 'infraCables', '&#128268;'),
+      helpItem(label('radiation'), 'radiationDesc', '&#9762;'),
+      helpItem(label('internetOutages'), 'infraOutages', '&#128225;'),
+      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc', '&#128256;'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc', '&#128225;'),
     ])}
-        ${helpSection('naturalEconomic', [
-      helpItem(label('naturalEvents'), 'naturalEventsTech'),
-      helpItem(label('fires'), 'techFires'),
-      helpItem(label('weather'), 'weatherAlerts'),
-      helpItem(label('weatherRadar'), 'weatherRadarDesc'),
-      helpItem(label('aqi'), 'aqiDesc'),
-      helpItem(staticLabel('countries'), 'countriesOverlay'),
+        ${helpSection('signalsAir', [
+      helpItem(label('flightDelays'), 'transportDelays', '&#9992;'),
+      helpItem(label('economicCenters'), 'economicCentersDesc', '&#127974;'),
+    ])}
+        ${helpSection('natural', [
+      helpItem(label('naturalEvents'), 'naturalEventsTech', '&#127755;'),
+      helpItem(label('fires'), 'techFires', '&#128293;'),
+      helpItem(label('weather'), 'weatherAlerts', '&#9928;'),
+      helpItem(label('weatherRadar'), 'weatherRadarDesc', '&#127782;'),
+      helpItem(label('waterTemperature'), 'waterTemperatureDesc', '&#127754;'),
+      helpItem(label('aqi'), 'aqiDesc', '💨'),
+    ])}
+        ${helpSection('labels', [
+      helpItem(staticLabel('countries'), 'countriesOverlay', '&#127757;'),
     ])}
       </div>
     `;
@@ -491,25 +500,38 @@ export class MapComponent {
     const financeHelpContent = `
       ${helpHeader}
       <div class="layer-help-content">
-        ${helpSection('financeCore', [
-      helpItem(label('stockExchanges'), 'financeExchanges'),
-      helpItem(label('financialCenters'), 'financeCenters'),
-      helpItem(label('centralBanks'), 'financeCentralBanks'),
-      helpItem(label('commodityHubs'), 'financeCommodityHubs'),
-      helpItem(label('gulfInvestments'), 'financeGulfInvestments'),
+        ${helpSection('financialMarkets', [
+      helpItem(label('stockExchanges'), 'financeExchanges', '&#127963;'),
+      helpItem(label('financialCenters'), 'financeCenters', '&#128176;'),
+      helpItem(label('centralBanks'), 'financeCentralBanks', '&#127974;'),
+      helpItem(label('commodityHubs'), 'financeCommodityHubs', '&#128230;'),
+      helpItem(label('gulfInvestments'), 'financeGulfInvestments', '&#127760;'),
     ])}
-        ${helpSection('infrastructureRisk', [
-      helpItem(label('underseaCables'), 'financeCables'),
-      helpItem(label('pipelines'), 'financePipelines'),
-      helpItem(label('internetOutages'), 'financeOutages'),
-      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
+        ${helpSection('infraTrade', [
+      helpItem(label('underseaCables'), 'financeCables', '&#128268;'),
+      helpItem(label('pipelines'), 'financePipelines', '&#128738;'),
+      helpItem(label('radiation'), 'radiationDesc', '&#9762;'),
+      helpItem(label('internetOutages'), 'financeOutages', '&#128225;'),
+      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc', '&#128256;'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc', '&#128225;'),
+      helpItem(label('strategicWaterways'), 'macroWaterways', '&#9875;'),
     ])}
-        ${helpSection('macroContext', [
-      helpItem(label('strategicWaterways'), 'macroWaterways'),
-      helpItem(label('weather'), 'weatherAlertsMarket'),
-      helpItem(label('weatherRadar'), 'weatherRadarDesc'),
-      helpItem(label('aqi'), 'aqiDesc'),
-      helpItem(label('naturalEvents'), 'naturalEventsMacro'),
+        ${helpSection('intelSignals', [
+      helpItem(label('alertStatus'), 'alertStatusDesc', '&#9888;'),
+      helpItem(label('flightDelays'), 'transportDelays', '&#9992;'),
+      helpItem(staticLabel('sanctions'), 'geoSanctions', '&#128179;'),
+      helpItem(label('economicCenters'), 'economicCentersDesc', '&#127974;'),
+    ])}
+        ${helpSection('natural', [
+      helpItem(label('naturalEvents'), 'naturalEventsMacro', '&#127755;'),
+      helpItem(label('weather'), 'weatherAlertsMarket', '&#9928;'),
+      helpItem(label('weatherRadar'), 'weatherRadarDesc', '&#127782;'),
+      helpItem(label('waterTemperature'), 'waterTemperatureDesc', '&#127754;'),
+      helpItem(label('aqi'), 'aqiDesc', '💨'),
+      helpItem(label('fires'), 'firesFull', '&#128293;'),
+    ])}
+        ${helpSection('labels', [
+      helpItem(staticLabel('countries'), 'countriesOverlay', '&#127757;'),
     ])}
       </div>
     `;
@@ -521,44 +543,46 @@ export class MapComponent {
       helpItem(staticLabel('timeRecent'), 'timeRecent'),
       helpItem(staticLabel('timeExtended'), 'timeExtended'),
     ], 'timeAffects')}
-        ${helpSection('geopolitical', [
-      helpItem(label('alertStatus'), 'alertStatusDesc'),
-      helpItem(label('conflictZones'), 'geoConflicts'),
-      helpItem(label('intelHotspots'), 'geoHotspots'),
-      helpItem(staticLabel('sanctions'), 'geoSanctions'),
-      helpItem(label('protests'), 'geoProtests'),
-    ])}
-        ${helpSection('militaryStrategic', [
-      helpItem(label('militaryBases'), 'militaryBases'),
-      helpItem(label('nuclearSites'), 'militaryNuclear'),
-      helpItem(label('gammaIrradiators'), 'militaryIrradiators'),
-      helpItem(label('militaryActivity'), 'militaryActivity'),
+        ${helpSection('generalIntel', [
+      helpItem(label('alertStatus'), 'alertStatusDesc', '&#9888;'),
+      helpItem(label('intelHotspots'), 'geoHotspots', '&#127919;'),
+      helpItem(label('threatScore'), 'threatScoreDesc', '&#128308;'),
     ])}
         ${helpSection('infrastructure', [
-      helpItem(label('underseaCables'), 'infraCablesFull'),
-      helpItem(label('pipelines'), 'infraPipelinesFull'),
-      helpItem(label('internetOutages'), 'infraOutages'),
-      helpItem(label('aiDataCenters'), 'infraDatacentersFull'),
-      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc'),
-      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
+      helpItem(label('pipelines'), 'infraPipelinesFull', '&#128738;'),
+      helpItem(label('underseaCables'), 'infraCablesFull', '&#128268;'),
+      helpItem(label('aiDataCenters'), 'infraDatacentersFull', '&#128421;'),
+      helpItem(label('radiation'), 'radiationDesc', '&#9762;'),
+      helpItem(label('internetOutages'), 'infraOutages', '&#128225;'),
+      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc', '&#128256;'),
     ])}
-        ${helpSection('transport', [
-      helpItem(label('shipTraffic'), 'transportShipping'),
-      helpItem(label('flightDelays'), 'transportDelays'),
+        ${helpSection('military', [
+      helpItem(label('militaryActivity'), 'militaryActivity', '&#9992;'),
+      helpItem(label('conflictZones'), 'geoConflicts', '&#9876;'),
+      helpItem(label('militaryBases'), 'militaryBases', '&#127963;'),
+      helpItem(label('nuclearSites'), 'militaryNuclear', '&#9762;'),
+      helpItem(label('gammaIrradiators'), 'militaryIrradiators', '&#9888;'),
     ])}
-        ${helpSection('naturalEconomic', [
-      helpItem(label('naturalEvents'), 'naturalEventsFull'),
-      helpItem(label('fires'), 'firesFull'),
-      helpItem(label('weather'), 'weatherAlerts'),
-      helpItem(label('aqi'), 'aqiDesc'),
-      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
-      helpItem('AGRICULTURAL STRESS (FAO ASIS)', 'agriculturalStressGroupDesc'),
-      helpItem(label('economicCenters'), 'economicCentersDesc'),
-      helpItem(label('threatScore'), 'threatScoreDesc'),
+        ${helpSection('shippingAir', [
+      helpItem(label('shipTraffic'), 'transportShipping', '&#128674;'),
+      helpItem(label('flightDelays'), 'transportDelays', '&#9992;'),
+      helpItem(label('strategicWaterways'), 'waterwaysLabels', '&#9875;'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc', '&#128225;'),
+    ])}
+        ${helpSection('natural', [
+      helpItem(label('naturalEvents'), 'naturalEventsFull', '&#127755;'),
+      helpItem(label('waterTemperature'), 'waterTemperatureDesc', '&#127754;'),
+      helpItem(label('weather'), 'weatherAlerts', '&#9928;'),
+      helpItem(label('fires'), 'firesFull', '&#128293;'),
+      helpItem(label('aqi'), 'aqiDesc', '💨'),
+    ])}
+        ${helpSection('geopolitical', [
+      helpItem(staticLabel('sanctions'), 'geoSanctions', '&#128179;'),
+      helpItem(label('protests'), 'geoProtests', '&#128227;'),
+      helpItem(label('economicCenters'), 'economicCentersDesc', '&#127974;'),
     ])}
         ${helpSection('labels', [
-      helpItem(staticLabel('countries'), 'countriesOverlay'),
-      helpItem(label('strategicWaterways'), 'waterwaysLabels'),
+      helpItem(staticLabel('countries'), 'countriesOverlay', '&#127757;'),
     ])}
       </div>
     `;
