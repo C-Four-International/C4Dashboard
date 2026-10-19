@@ -166,4 +166,56 @@ describe('Radiation Monitoring Layer (EPA RadNet + Chernobyl & Fukushima)', () =
     assert.ok(dataLoaderSrc.includes('loadRadiationData'), 'data-loader must have loadRadiationData');
     assert.match(dataLoaderSrc, /case 'radiation':\s*await this\.loadRadiationData\(\);/);
   });
+
+  it('supports SAFECAST_API_KEY and caches radiation data for at least 6 hours', () => {
+    const radiationServiceSrc = readFileSync(
+      resolve(__dirname, '../src/services/radiation/index.ts'),
+      'utf-8'
+    );
+    assert.ok(radiationApiSrc.includes('process.env.SAFECAST_API_KEY'), 'API must check SAFECAST_API_KEY');
+    assert.ok(radiationApiSrc.includes('6 * 60 * 60 * 1000'), 'API in-memory cache TTL must be 6 hours');
+    assert.ok(radiationApiSrc.includes('max-age=21600'), 'API Cache-Control header must cache for 21600 seconds (6 hours)');
+    assert.ok(radiationApiSrc.includes('s-maxage=21600'), 'API Cache-Control s-maxage must cache for 21600 seconds (6 hours)');
+    assert.ok(radiationServiceSrc.includes('6 * 60 * 60 * 1000'), 'Client circuit breaker must cache for 6 hours');
+  });
+
+  it('includes major cities across Europe, Asia, and Middle East in Safecast stations', () => {
+    const radiationServiceSrc = readFileSync(
+      resolve(__dirname, '../src/services/radiation/index.ts'),
+      'utf-8'
+    );
+    // Europe
+    assert.ok(radiationApiSrc.includes("'safecast-london'"), 'Must include London in API');
+    assert.ok(radiationApiSrc.includes("'safecast-paris'"), 'Must include Paris in API');
+    assert.ok(radiationApiSrc.includes("'safecast-berlin'"), 'Must include Berlin in API');
+    assert.ok(radiationApiSrc.includes("'safecast-rome'"), 'Must include Rome in API');
+    assert.ok(radiationApiSrc.includes("'safecast-madrid'"), 'Must include Madrid in API');
+    assert.ok(radiationApiSrc.includes("'safecast-kyiv'"), 'Must include Kyiv in API');
+
+    // Asia
+    assert.ok(radiationApiSrc.includes("'safecast-tokyo'"), 'Must include Tokyo in API');
+    assert.ok(radiationApiSrc.includes("'safecast-seoul'"), 'Must include Seoul in API');
+    assert.ok(radiationApiSrc.includes("'safecast-taipei'"), 'Must include Taipei in API');
+    assert.ok(radiationApiSrc.includes("'safecast-hongkong'"), 'Must include Hong Kong in API');
+    assert.ok(radiationApiSrc.includes("'safecast-singapore'"), 'Must include Singapore in API');
+
+    // Middle East
+    assert.ok(radiationApiSrc.includes("'safecast-istanbul'"), 'Must include Istanbul in API');
+    assert.ok(radiationApiSrc.includes("'safecast-dubai'"), 'Must include Dubai in API');
+    assert.ok(radiationApiSrc.includes("'safecast-telaviv'"), 'Must include Tel Aviv in API');
+    assert.ok(radiationApiSrc.includes("'safecast-jerusalem'"), 'Must include Jerusalem in API');
+    assert.ok(radiationApiSrc.includes("'safecast-doha'"), 'Must include Doha in API');
+
+    // Baseline coverage in client service
+    assert.ok(radiationServiceSrc.includes("'safecast-london'"), 'Must include London in service baseline');
+    assert.ok(radiationServiceSrc.includes("'safecast-tokyo'"), 'Must include Tokyo in service baseline');
+    assert.ok(radiationServiceSrc.includes("'safecast-dubai'"), 'Must include Dubai in service baseline');
+    assert.ok(radiationServiceSrc.includes("'safecast-telaviv'"), 'Must include Tel Aviv in service baseline');
+  });
+
+  it('queries Safecast with captured_after to fetch fresh data and avoid stale historical readings', () => {
+    assert.ok(radiationApiSrc.includes('captured_after='), 'API query must specify captured_after parameter');
+    assert.ok(radiationApiSrc.includes('api_key='), 'API query must append api_key when present');
+  });
 });
+

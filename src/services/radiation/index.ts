@@ -77,7 +77,7 @@ export const BASELINE_RADIATION_STATIONS: RadiationStation[] = [
   { id: 'radnet-hi-honolulu', name: 'Honolulu, HI', city: 'Honolulu', state: 'HI', country: 'United States', lat: 21.3069, lon: -157.8583, cpm: 9, rawCpm: 624, doseRate: 28, unit: 'CPM', status: 'normal', time: 'Latest Approved', source: 'EPA RadNet (Envirofacts)', detectorType: 'NaI(Tl) Scintillator (EPA RadNet)' },
   { id: 'radnet-ak-anchorage', name: 'Anchorage, AK', city: 'Anchorage', state: 'AK', country: 'United States', lat: 61.2181, lon: -149.9003, cpm: 12, rawCpm: 767, doseRate: 37, unit: 'CPM', status: 'normal', time: 'Latest Approved', source: 'EPA RadNet (Envirofacts)', detectorType: 'NaI(Tl) Scintillator (EPA RadNet)' },
 
-  // Chernobyl & Fukushima (Safecast Open Radiation Network - Geiger-Müller Pancake Tube)
+  // Key Sites (Safecast Open Radiation Network - Geiger-Müller Pancake Tube)
   {
     id: 'safecast-chernobyl',
     name: 'Chernobyl Exclusion Zone',
@@ -85,9 +85,9 @@ export const BASELINE_RADIATION_STATIONS: RadiationStation[] = [
     country: 'Ukraine',
     lat: 51.389,
     lon: 30.099,
-    cpm: 106,
-    rawCpm: 106,
-    doseRate: 318,
+    cpm: 50,
+    rawCpm: 50,
+    doseRate: 150,
     unit: 'CPM',
     status: 'elevated',
     time: 'Recent Live Measurement',
@@ -101,20 +101,58 @@ export const BASELINE_RADIATION_STATIONS: RadiationStation[] = [
     country: 'Japan',
     lat: 37.4214,
     lon: 141.0326,
-    cpm: 64,
-    rawCpm: 64,
-    doseRate: 192,
+    cpm: 41,
+    rawCpm: 41,
+    doseRate: 123,
     unit: 'CPM',
     status: 'normal',
     time: 'Recent Live Measurement',
     source: 'Safecast Open Radiation Network',
     detectorType: 'Geiger-Müller Tube (Safecast)',
   },
+
+  // Europe - Major Metropolitan Centers (Safecast)
+  { id: 'safecast-london', name: 'London', city: 'London', country: 'United Kingdom', lat: 51.5074, lon: -0.1278, cpm: 16, rawCpm: 16, doseRate: 48, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-paris', name: 'Paris', city: 'Paris', country: 'France', lat: 48.8566, lon: 2.3522, cpm: 25, rawCpm: 25, doseRate: 75, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-berlin', name: 'Berlin', city: 'Berlin', country: 'Germany', lat: 52.5200, lon: 13.4050, cpm: 23, rawCpm: 23, doseRate: 69, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-madrid', name: 'Madrid', city: 'Madrid', country: 'Spain', lat: 40.4168, lon: -3.7038, cpm: 45, rawCpm: 45, doseRate: 135, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-rome', name: 'Rome', city: 'Rome', country: 'Italy', lat: 41.9028, lon: 12.4964, cpm: 55, rawCpm: 55, doseRate: 165, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-kyiv', name: 'Kyiv', city: 'Kyiv', country: 'Ukraine', lat: 50.4501, lon: 30.5234, cpm: 22, rawCpm: 22, doseRate: 66, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-warsaw', name: 'Warsaw', city: 'Warsaw', country: 'Poland', lat: 52.2297, lon: 21.0122, cpm: 25, rawCpm: 25, doseRate: 75, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-vienna', name: 'Vienna', city: 'Vienna', country: 'Austria', lat: 48.2082, lon: 16.3738, cpm: 28, rawCpm: 28, doseRate: 84, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-amsterdam', name: 'Amsterdam', city: 'Amsterdam', country: 'Netherlands', lat: 52.3676, lon: 4.9041, cpm: 24, rawCpm: 24, doseRate: 72, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-stockholm', name: 'Stockholm', city: 'Stockholm', country: 'Sweden', lat: 59.3293, lon: 18.0686, cpm: 35, rawCpm: 35, doseRate: 105, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-prague', name: 'Prague', city: 'Prague', country: 'Czechia', lat: 50.0755, lon: 14.4378, cpm: 25, rawCpm: 25, doseRate: 75, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-brussels', name: 'Brussels', city: 'Brussels', country: 'Belgium', lat: 50.8503, lon: 4.3517, cpm: 22, rawCpm: 22, doseRate: 66, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+
+  // Asia - Major Metropolitan Centers (Safecast)
+  { id: 'safecast-tokyo', name: 'Tokyo', city: 'Tokyo', country: 'Japan', lat: 35.6762, lon: 139.6503, cpm: 15, rawCpm: 15, doseRate: 45, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-osaka', name: 'Osaka', city: 'Osaka', country: 'Japan', lat: 34.6937, lon: 135.5023, cpm: 20, rawCpm: 20, doseRate: 60, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-seoul', name: 'Seoul', city: 'Seoul', country: 'South Korea', lat: 37.5665, lon: 126.9780, cpm: 32, rawCpm: 32, doseRate: 96, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-taipei', name: 'Taipei', city: 'Taipei', country: 'Taiwan', lat: 25.0330, lon: 121.5654, cpm: 38, rawCpm: 38, doseRate: 114, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-hongkong', name: 'Hong Kong', city: 'Hong Kong', country: 'China', lat: 22.3193, lon: 114.1694, cpm: 45, rawCpm: 45, doseRate: 135, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-beijing', name: 'Beijing', city: 'Beijing', country: 'China', lat: 39.9042, lon: 116.4074, cpm: 25, rawCpm: 25, doseRate: 75, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-shanghai', name: 'Shanghai', city: 'Shanghai', country: 'China', lat: 31.2304, lon: 121.4737, cpm: 24, rawCpm: 24, doseRate: 72, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-singapore', name: 'Singapore', city: 'Singapore', country: 'Singapore', lat: 1.3521, lon: 103.8198, cpm: 30, rawCpm: 30, doseRate: 90, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-bangkok', name: 'Bangkok', city: 'Bangkok', country: 'Thailand', lat: 13.7563, lon: 100.5018, cpm: 22, rawCpm: 22, doseRate: 66, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-newdelhi', name: 'New Delhi', city: 'New Delhi', country: 'India', lat: 28.6139, lon: 77.2090, cpm: 30, rawCpm: 30, doseRate: 90, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+
+  // Middle East - Major Metropolitan Centers (Safecast)
+  { id: 'safecast-istanbul', name: 'Istanbul', city: 'Istanbul', country: 'Turkey', lat: 41.0082, lon: 28.9784, cpm: 26, rawCpm: 26, doseRate: 78, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-ankara', name: 'Ankara', city: 'Ankara', country: 'Turkey', lat: 39.9334, lon: 32.8597, cpm: 28, rawCpm: 28, doseRate: 84, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-dubai', name: 'Dubai', city: 'Dubai', country: 'United Arab Emirates', lat: 25.2048, lon: 55.2708, cpm: 35, rawCpm: 35, doseRate: 105, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-abudhabi', name: 'Abu Dhabi', city: 'Abu Dhabi', country: 'United Arab Emirates', lat: 24.4539, lon: 54.3773, cpm: 32, rawCpm: 32, doseRate: 96, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-riyadh', name: 'Riyadh', city: 'Riyadh', country: 'Saudi Arabia', lat: 24.7136, lon: 46.6753, cpm: 30, rawCpm: 30, doseRate: 90, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-telaviv', name: 'Tel Aviv', city: 'Tel Aviv', country: 'Israel', lat: 32.0853, lon: 34.7818, cpm: 28, rawCpm: 28, doseRate: 84, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-jerusalem', name: 'Jerusalem', city: 'Jerusalem', country: 'Israel', lat: 31.7683, lon: 35.2137, cpm: 30, rawCpm: 30, doseRate: 90, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-doha', name: 'Doha', city: 'Doha', country: 'Qatar', lat: 25.2854, lon: 51.5310, cpm: 30, rawCpm: 30, doseRate: 90, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-kuwaitcity', name: 'Kuwait City', city: 'Kuwait City', country: 'Kuwait', lat: 29.3759, lon: 47.9774, cpm: 28, rawCpm: 28, doseRate: 84, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
+  { id: 'safecast-amman', name: 'Amman', city: 'Amman', country: 'Jordan', lat: 31.9454, lon: 35.9284, cpm: 28, rawCpm: 28, doseRate: 84, unit: 'CPM', status: 'normal', time: 'Recent Live Measurement', source: 'Safecast Open Radiation Network', detectorType: 'Geiger-Müller Tube (Safecast)' },
 ];
 
 const breaker = createCircuitBreaker<RadiationStation[]>({
-  name: 'Radiation:v3',
-  cacheTtlMs: 30 * 60 * 1000, // 30 minutes
+  name: 'Radiation:v4',
+  cacheTtlMs: 6 * 60 * 60 * 1000, // 6 hours
   persistCache: true,
 });
 
@@ -142,3 +180,4 @@ export async function fetchRadiationData(): Promise<RadiationStation[]> {
 export function getRadiationStatus(): string {
   return breaker.getStatus();
 }
+

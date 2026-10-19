@@ -1,11 +1,33 @@
+import { Redis } from '@upstash/redis/cloudflare';
 import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 
 export const config = { runtime: 'edge' };
 
-// In-memory cache for edge runtime
+// In-memory cache for edge runtime (6 hours TTL to reduce upstream rate limits)
 let cachedData = null;
 let cacheTimestamp = 0;
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+// In-flight request deduplication to prevent stampedes
+let inFlightFetch = null;
+
+let redisClient = null;
+function getRedis() {
+  if (redisClient === null && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    try {
+      redisClient = new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+      });
+    } catch {
+      redisClient = false;
+    }
+  }
+  return redisClient || null;
+}
+
+const REDIS_KEY = 'wm:radiation:stations:v2';
+const REDIS_TTL_SECONDS = 6 * 60 * 60; // 6 hours
 
 const EPA_STATIONS = [
   // Northeast
@@ -75,6 +97,50 @@ const EPA_STATIONS = [
   { id: 'radnet-ak-anchorage', name: 'Anchorage, AK', city: 'Anchorage', state: 'AK', epaCity: 'ANCHORAGE', lat: 61.2181, lon: -149.9003, defaultCpm: 767, defaultDose: 37 }
 ];
 
+const SAFECAST_STATIONS = [
+  // Exclusion & Vicinity Zones
+  { id: 'safecast-chernobyl', name: 'Chernobyl Exclusion Zone', city: 'Pripyat / Chernobyl', country: 'Ukraine', lat: 51.389, lon: 30.099, defaultCpm: 50, defaultDose: 150, status: 'elevated' },
+  { id: 'safecast-fukushima', name: 'Fukushima Daiichi Vicinity', city: 'Okuma / Fukushima', country: 'Japan', lat: 37.4214, lon: 141.0326, defaultCpm: 41, defaultDose: 123, status: 'normal' },
+
+  // Europe - Major Metropolitan Centers
+  { id: 'safecast-london', name: 'London', city: 'London', country: 'United Kingdom', lat: 51.5074, lon: -0.1278, defaultCpm: 16, defaultDose: 48, status: 'normal' },
+  { id: 'safecast-paris', name: 'Paris', city: 'Paris', country: 'France', lat: 48.8566, lon: 2.3522, defaultCpm: 25, defaultDose: 75, status: 'normal' },
+  { id: 'safecast-berlin', name: 'Berlin', city: 'Berlin', country: 'Germany', lat: 52.5200, lon: 13.4050, defaultCpm: 23, defaultDose: 69, status: 'normal' },
+  { id: 'safecast-madrid', name: 'Madrid', city: 'Madrid', country: 'Spain', lat: 40.4168, lon: -3.7038, defaultCpm: 45, defaultDose: 135, status: 'normal' },
+  { id: 'safecast-rome', name: 'Rome', city: 'Rome', country: 'Italy', lat: 41.9028, lon: 12.4964, defaultCpm: 55, defaultDose: 165, status: 'normal' },
+  { id: 'safecast-kyiv', name: 'Kyiv', city: 'Kyiv', country: 'Ukraine', lat: 50.4501, lon: 30.5234, defaultCpm: 22, defaultDose: 66, status: 'normal' },
+  { id: 'safecast-warsaw', name: 'Warsaw', city: 'Warsaw', country: 'Poland', lat: 52.2297, lon: 21.0122, defaultCpm: 25, defaultDose: 75, status: 'normal' },
+  { id: 'safecast-vienna', name: 'Vienna', city: 'Vienna', country: 'Austria', lat: 48.2082, lon: 16.3738, defaultCpm: 28, defaultDose: 84, status: 'normal' },
+  { id: 'safecast-amsterdam', name: 'Amsterdam', city: 'Amsterdam', country: 'Netherlands', lat: 52.3676, lon: 4.9041, defaultCpm: 24, defaultDose: 72, status: 'normal' },
+  { id: 'safecast-stockholm', name: 'Stockholm', city: 'Stockholm', country: 'Sweden', lat: 59.3293, lon: 18.0686, defaultCpm: 35, defaultDose: 105, status: 'normal' },
+  { id: 'safecast-prague', name: 'Prague', city: 'Prague', country: 'Czechia', lat: 50.0755, lon: 14.4378, defaultCpm: 25, defaultDose: 75, status: 'normal' },
+  { id: 'safecast-brussels', name: 'Brussels', city: 'Brussels', country: 'Belgium', lat: 50.8503, lon: 4.3517, defaultCpm: 22, defaultDose: 66, status: 'normal' },
+
+  // Asia - Major Metropolitan Centers
+  { id: 'safecast-tokyo', name: 'Tokyo', city: 'Tokyo', country: 'Japan', lat: 35.6762, lon: 139.6503, defaultCpm: 15, defaultDose: 45, status: 'normal' },
+  { id: 'safecast-osaka', name: 'Osaka', city: 'Osaka', country: 'Japan', lat: 34.6937, lon: 135.5023, defaultCpm: 20, defaultDose: 60, status: 'normal' },
+  { id: 'safecast-seoul', name: 'Seoul', city: 'Seoul', country: 'South Korea', lat: 37.5665, lon: 126.9780, defaultCpm: 32, defaultDose: 96, status: 'normal' },
+  { id: 'safecast-taipei', name: 'Taipei', city: 'Taipei', country: 'Taiwan', lat: 25.0330, lon: 121.5654, defaultCpm: 38, defaultDose: 114, status: 'normal' },
+  { id: 'safecast-hongkong', name: 'Hong Kong', city: 'Hong Kong', country: 'China', lat: 22.3193, lon: 114.1694, defaultCpm: 45, defaultDose: 135, status: 'normal' },
+  { id: 'safecast-beijing', name: 'Beijing', city: 'Beijing', country: 'China', lat: 39.9042, lon: 116.4074, defaultCpm: 25, defaultDose: 75, status: 'normal' },
+  { id: 'safecast-shanghai', name: 'Shanghai', city: 'Shanghai', country: 'China', lat: 31.2304, lon: 121.4737, defaultCpm: 24, defaultDose: 72, status: 'normal' },
+  { id: 'safecast-singapore', name: 'Singapore', city: 'Singapore', country: 'Singapore', lat: 1.3521, lon: 103.8198, defaultCpm: 30, defaultDose: 90, status: 'normal' },
+  { id: 'safecast-bangkok', name: 'Bangkok', city: 'Bangkok', country: 'Thailand', lat: 13.7563, lon: 100.5018, defaultCpm: 22, defaultDose: 66, status: 'normal' },
+  { id: 'safecast-newdelhi', name: 'New Delhi', city: 'New Delhi', country: 'India', lat: 28.6139, lon: 77.2090, defaultCpm: 30, defaultDose: 90, status: 'normal' },
+
+  // Middle East - Major Metropolitan Centers
+  { id: 'safecast-istanbul', name: 'Istanbul', city: 'Istanbul', country: 'Turkey', lat: 41.0082, lon: 28.9784, defaultCpm: 26, defaultDose: 78, status: 'normal' },
+  { id: 'safecast-ankara', name: 'Ankara', city: 'Ankara', country: 'Turkey', lat: 39.9334, lon: 32.8597, defaultCpm: 28, defaultDose: 84, status: 'normal' },
+  { id: 'safecast-dubai', name: 'Dubai', city: 'Dubai', country: 'United Arab Emirates', lat: 25.2048, lon: 55.2708, defaultCpm: 35, defaultDose: 105, status: 'normal' },
+  { id: 'safecast-abudhabi', name: 'Abu Dhabi', city: 'Abu Dhabi', country: 'United Arab Emirates', lat: 24.4539, lon: 54.3773, defaultCpm: 32, defaultDose: 96, status: 'normal' },
+  { id: 'safecast-riyadh', name: 'Riyadh', city: 'Riyadh', country: 'Saudi Arabia', lat: 24.7136, lon: 46.6753, defaultCpm: 30, defaultDose: 90, status: 'normal' },
+  { id: 'safecast-telaviv', name: 'Tel Aviv', city: 'Tel Aviv', country: 'Israel', lat: 32.0853, lon: 34.7818, defaultCpm: 28, defaultDose: 84, status: 'normal' },
+  { id: 'safecast-jerusalem', name: 'Jerusalem', city: 'Jerusalem', country: 'Israel', lat: 31.7683, lon: 35.2137, defaultCpm: 30, defaultDose: 90, status: 'normal' },
+  { id: 'safecast-doha', name: 'Doha', city: 'Doha', country: 'Qatar', lat: 25.2854, lon: 51.5310, defaultCpm: 30, defaultDose: 90, status: 'normal' },
+  { id: 'safecast-kuwaitcity', name: 'Kuwait City', city: 'Kuwait City', country: 'Kuwait', lat: 29.3759, lon: 47.9774, defaultCpm: 28, defaultDose: 84, status: 'normal' },
+  { id: 'safecast-amman', name: 'Amman', city: 'Amman', country: 'Jordan', lat: 31.9454, lon: 35.9284, defaultCpm: 28, defaultDose: 84, status: 'normal' },
+];
+
 function classifyStatus(doseRate, cpm) {
   // Global radiological safety standards (ICRP / EPA / IAEA):
   // Normal natural background: < 200 nSv/h (< 0.20 µSv/h, or < 65 GM CPM)
@@ -112,7 +178,7 @@ async function fetchEpaStation(station, year) {
     // EPA RadNet uses a high-volume 2"x2" NaI(Tl) scintillation crystal pulling air through a filter,
     // which generates 700-3,500 raw counts/min in clean background.
     // Standard GM pancake tube calibration: 1 µSv/h (1,000 nSv/h) ≈ 334 CPM (or ~3 nSv/h per CPM).
-    // Normalizing allows direct, scientifically sound cross-comparison with Safecast (Chernobyl/Fukushima).
+    // Normalizing allows direct, scientifically sound cross-comparison with Safecast.
     const gmCpm = Math.max(1, Math.round(finalDose / 3.0));
 
     return {
@@ -137,44 +203,73 @@ async function fetchEpaStation(station, year) {
   }
 }
 
-async function fetchChernobyl() {
+async function fetchSafecastStation(station, apiKey) {
   const fallback = {
-    id: 'safecast-chernobyl',
-    name: 'Chernobyl Exclusion Zone',
-    city: 'Pripyat / Chernobyl',
-    country: 'Ukraine',
-    lat: 51.389,
-    lon: 30.099,
-    cpm: 106,
-    doseRate: 318,
+    id: station.id,
+    name: station.name,
+    city: station.city,
+    country: station.country,
+    lat: station.lat,
+    lon: station.lon,
+    cpm: station.defaultCpm,
+    rawCpm: station.defaultCpm,
+    doseRate: station.defaultDose,
     unit: 'CPM',
-    status: 'elevated',
+    status: station.status || classifyStatus(station.defaultDose, station.defaultCpm),
     time: new Date().toISOString(),
     source: 'Safecast Open Radiation Network',
+    detectorType: 'Geiger-Müller Tube (Safecast)',
   };
 
-  try {
-    const res = await fetch('https://api.safecast.org/measurements.json?distance=25000&latitude=51.389&longitude=30.099&order=captured_at+desc', {
-      signal: AbortSignal.timeout(6000),
-      headers: { 'Accept': 'application/json' },
-    });
-    if (!res.ok) return fallback;
-    const items = await res.json();
-    if (!items || items.length === 0) return fallback;
+  const headers = { 'Accept': 'application/json' };
+  if (apiKey) {
+    headers['X-API-KEY'] = apiKey;
+  }
+  const apiKeyParam = apiKey ? `&api_key=${encodeURIComponent(apiKey)}` : '';
 
-    const top = items[0];
-    const cpm = Math.round(parseFloat(top.value) || 106);
+  try {
+    // 1. Prioritize measurements with captured_after=2024-01-01 to avoid stale historical records
+    let url = `https://api.safecast.org/measurements.json?distance=50000&latitude=${station.lat}&longitude=${station.lon}&unit=cpm&captured_after=2024-01-01${apiKeyParam}&per_page=10`;
+    let res = await fetch(url, { signal: AbortSignal.timeout(6000), headers });
+    let items = res.ok ? await res.json() : null;
+
+    // 2. If no data since 2024, fall back to general nearby measurements
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      url = `https://api.safecast.org/measurements.json?distance=50000&latitude=${station.lat}&longitude=${station.lon}&unit=cpm${apiKeyParam}&per_page=10`;
+      res = await fetch(url, { signal: AbortSignal.timeout(6000), headers });
+      items = res.ok ? await res.json() : null;
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return fallback;
+    }
+
+    // Filter out corrupted dates (some IoT devices report year 2080+)
+    const nowEpoch = Date.now();
+    const maxFutureEpoch = nowEpoch + 7 * 86400 * 1000;
+    const validItems = items.filter(x => {
+      const t = new Date(x.captured_at).getTime();
+      return !isNaN(t) && t > 0 && t <= maxFutureEpoch;
+    });
+
+    const candidates = validItems.length > 0 ? validItems : items;
+    // Sort descending by captured_at to get the most recent reading
+    candidates.sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
+
+    const top = candidates[0];
+    const rawVal = parseFloat(top.value);
+    const cpm = Number.isFinite(rawVal) && rawVal >= 0 ? Math.round(rawVal) : station.defaultCpm;
     // Standard calibration for pancake GM tube (LND 7317 / Safecast): 1 CPM ≈ 3 nSv/h
     const doseRate = Math.round(cpm * 3);
-    const status = classifyStatus(doseRate, cpm);
+    const status = station.id === 'safecast-chernobyl' && doseRate >= 150 ? 'elevated' : classifyStatus(doseRate, cpm);
 
     return {
-      id: 'safecast-chernobyl',
-      name: 'Chernobyl Exclusion Zone',
-      city: 'Pripyat / Chernobyl',
-      country: 'Ukraine',
-      lat: top.latitude ? parseFloat(top.latitude) : 51.389,
-      lon: top.longitude ? parseFloat(top.longitude) : 30.099,
+      id: station.id,
+      name: station.name,
+      city: station.city,
+      country: station.country,
+      lat: top.latitude ? parseFloat(top.latitude) : station.lat,
+      lon: top.longitude ? parseFloat(top.longitude) : station.lon,
       cpm,
       rawCpm: cpm,
       doseRate,
@@ -182,64 +277,22 @@ async function fetchChernobyl() {
       status,
       time: top.captured_at || new Date().toISOString(),
       source: 'Safecast Open Radiation Network',
-      detectorType: 'Geiger-Müller Tube (Safecast)',
+      detectorType: top.devicetype_id ? `Safecast (${top.devicetype_id})` : 'Geiger-Müller Tube (Safecast)',
     };
   } catch {
     return fallback;
   }
 }
 
-async function fetchFukushima() {
-  const fallback = {
-    id: 'safecast-fukushima',
-    name: 'Fukushima Daiichi Vicinity',
-    city: 'Okuma / Fukushima',
-    country: 'Japan',
-    lat: 37.4214,
-    lon: 141.0326,
-    cpm: 64,
-    rawCpm: 64,
-    doseRate: 192,
-    unit: 'CPM',
-    status: 'normal',
-    time: new Date().toISOString(),
-    source: 'Safecast Open Radiation Network',
-    detectorType: 'Geiger-Müller Tube (Safecast)',
-  };
+// Retain explicit helpers for Chernobyl and Fukushima
+async function fetchChernobyl(apiKey) {
+  const station = SAFECAST_STATIONS.find(s => s.id === 'safecast-chernobyl');
+  return fetchSafecastStation(station, apiKey);
+}
 
-  try {
-    const res = await fetch('https://api.safecast.org/measurements.json?distance=25000&latitude=37.4214&longitude=141.0326&order=captured_at+desc', {
-      signal: AbortSignal.timeout(6000),
-      headers: { 'Accept': 'application/json' },
-    });
-    if (!res.ok) return fallback;
-    const items = await res.json();
-    if (!items || items.length === 0) return fallback;
-
-    const top = items[0];
-    const cpm = Math.round(parseFloat(top.value) || 64);
-    const doseRate = Math.round(cpm * 3);
-    const status = classifyStatus(doseRate, cpm);
-
-    return {
-      id: 'safecast-fukushima',
-      name: 'Fukushima Daiichi Vicinity',
-      city: 'Okuma / Fukushima',
-      country: 'Japan',
-      lat: top.latitude ? parseFloat(top.latitude) : 37.4214,
-      lon: top.longitude ? parseFloat(top.longitude) : 141.0326,
-      cpm,
-      rawCpm: cpm,
-      doseRate,
-      unit: 'CPM',
-      status,
-      time: top.captured_at || new Date().toISOString(),
-      source: 'Safecast Open Radiation Network',
-      detectorType: 'Geiger-Müller Tube (Safecast)',
-    };
-  } catch {
-    return fallback;
-  }
+async function fetchFukushima(apiKey) {
+  const station = SAFECAST_STATIONS.find(s => s.id === 'safecast-fukushima');
+  return fetchSafecastStation(station, apiKey);
 }
 
 export default async function handler(req) {
@@ -264,20 +317,65 @@ export default async function handler(req) {
   }
 
   const now = Date.now();
+
+  // 1. Check in-memory cache (6 hours)
   if (cachedData && (now - cacheTimestamp < CACHE_TTL_MS)) {
     return new Response(JSON.stringify(cachedData), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=7200',
+        'Cache-Control': 'public, max-age=21600, s-maxage=21600, stale-while-revalidate=43200',
         ...corsHeaders,
       },
     });
   }
 
+  // 2. Check Upstash Redis cache (6 hours)
   try {
+    const redis = getRedis();
+    if (redis) {
+      const redisCached = await redis.get(REDIS_KEY);
+      if (redisCached && Array.isArray(redisCached) && redisCached.length > 0) {
+        cachedData = redisCached;
+        cacheTimestamp = now;
+        return new Response(JSON.stringify(redisCached), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=21600, s-maxage=21600, stale-while-revalidate=43200',
+            ...corsHeaders,
+          },
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[Radiation Handler] Redis GET error:', err?.message || err);
+  }
+
+  // 3. Deduplicate in-flight upstream fetches
+  if (inFlightFetch) {
+    try {
+      const sharedData = await inFlightFetch;
+      if (sharedData) {
+        return new Response(JSON.stringify(sharedData), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=21600, s-maxage=21600, stale-while-revalidate=43200',
+            ...corsHeaders,
+          },
+        });
+      }
+    } catch {
+      // Fall through to execute new fetch
+    }
+  }
+
+  inFlightFetch = (async () => {
     const year = new Date().getFullYear();
-    // Fetch in parallel chunks
+    const apiKey = process.env.SAFECAST_API_KEY || '';
+
+    // Fetch EPA RadNet stations
     const epaPromises = EPA_STATIONS.map(async (st) => {
       const live = await fetchEpaStation(st, year);
       if (live) return live;
@@ -301,88 +399,95 @@ export default async function handler(req) {
       };
     });
 
-    const [epaResults, chernobyl, fukushima] = await Promise.all([
-      Promise.all(epaPromises),
-      fetchChernobyl(),
-      fetchFukushima(),
-    ]);
+    // Fetch Safecast stations in batches of 6 to prevent overwhelming upstream
+    const safecastResults = [];
+    const BATCH_SIZE = 6;
+    for (let i = 0; i < SAFECAST_STATIONS.length; i += BATCH_SIZE) {
+      const batch = SAFECAST_STATIONS.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(st => fetchSafecastStation(st, apiKey)));
+      safecastResults.push(...batchResults);
+    }
 
-    const results = [...epaResults, chernobyl, fukushima];
-    cachedData = results;
-    cacheTimestamp = now;
+    const epaResults = await Promise.all(epaPromises);
+    const combined = [...epaResults, ...safecastResults];
 
+    // Store in Redis with 6-hour TTL
+    try {
+      const redis = getRedis();
+      if (redis) {
+        redis.setex(REDIS_KEY, REDIS_TTL_SECONDS, combined).catch(() => {});
+      }
+    } catch (err) {
+      console.warn('[Radiation Handler] Redis SET error:', err?.message || err);
+    }
+
+    cachedData = combined;
+    cacheTimestamp = Date.now();
+    return combined;
+  })();
+
+  try {
+    const results = await inFlightFetch;
     return new Response(JSON.stringify(results), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=7200',
+        'Cache-Control': 'public, max-age=21600, s-maxage=21600, stale-while-revalidate=43200',
         ...corsHeaders,
       },
     });
   } catch (error) {
     console.error('[Radiation Handler] Error:', error);
-    // Fallback to baseline
-    const fallbackList = EPA_STATIONS.map((st) => {
-      const gmCpm = Math.max(1, Math.round(st.defaultDose / 3.0));
-      return {
+    // Baseline fallback
+    const fallbackList = [
+      ...EPA_STATIONS.map((st) => {
+        const gmCpm = Math.max(1, Math.round(st.defaultDose / 3.0));
+        return {
+          id: st.id,
+          name: st.name,
+          city: st.city,
+          state: st.state,
+          country: 'United States',
+          lat: st.lat,
+          lon: st.lon,
+          cpm: gmCpm,
+          rawCpm: st.defaultCpm,
+          doseRate: st.defaultDose,
+          unit: 'CPM',
+          status: classifyStatus(st.defaultDose, gmCpm),
+          time: new Date().toISOString(),
+          source: 'EPA RadNet (Envirofacts)',
+          detectorType: 'NaI(Tl) Scintillator (EPA RadNet)',
+        };
+      }),
+      ...SAFECAST_STATIONS.map((st) => ({
         id: st.id,
         name: st.name,
         city: st.city,
-        state: st.state,
-        country: 'United States',
+        country: st.country,
         lat: st.lat,
         lon: st.lon,
-        cpm: gmCpm,
+        cpm: st.defaultCpm,
         rawCpm: st.defaultCpm,
         doseRate: st.defaultDose,
         unit: 'CPM',
-        status: classifyStatus(st.defaultDose, gmCpm),
+        status: st.status || classifyStatus(st.defaultDose, st.defaultCpm),
         time: new Date().toISOString(),
-        source: 'EPA RadNet (Envirofacts)',
-        detectorType: 'NaI(Tl) Scintillator (EPA RadNet)',
-      };
-    });
-
-    fallbackList.push({
-      id: 'safecast-chernobyl',
-      name: 'Chernobyl Exclusion Zone',
-      city: 'Pripyat / Chernobyl',
-      country: 'Ukraine',
-      lat: 51.389,
-      lon: 30.099,
-      cpm: 106,
-      rawCpm: 106,
-      doseRate: 318,
-      unit: 'CPM',
-      status: 'elevated',
-      time: new Date().toISOString(),
-      source: 'Safecast Open Radiation Network',
-      detectorType: 'Geiger-Müller Tube (Safecast)',
-    });
-
-    fallbackList.push({
-      id: 'safecast-fukushima',
-      name: 'Fukushima Daiichi Vicinity',
-      city: 'Okuma / Fukushima',
-      country: 'Japan',
-      lat: 37.4214,
-      lon: 141.0326,
-      cpm: 64,
-      rawCpm: 64,
-      doseRate: 192,
-      unit: 'CPM',
-      status: 'normal',
-      time: new Date().toISOString(),
-      source: 'Safecast Open Radiation Network',
-      detectorType: 'Geiger-Müller Tube (Safecast)',
-    });
+        source: 'Safecast Open Radiation Network',
+        detectorType: 'Geiger-Müller Tube (Safecast)',
+      })),
+    ];
 
     return new Response(JSON.stringify(fallbackList), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=21600, s-maxage=21600, stale-while-revalidate=43200',
         ...corsHeaders,
       },
     });
+  } finally {
+    inFlightFetch = null;
   }
 }
+

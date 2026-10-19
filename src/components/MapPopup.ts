@@ -1423,8 +1423,8 @@ export class MapPopup {
         </div>
         <p class="popup-description" style="margin-top:12px;font-size:11px;line-height:1.5;">
           ${station.source.includes('RadNet')
-            ? '<strong>EPA RadNet Stationary Monitor:</strong> RadNet uses a high-sensitivity 2"×2" NaI(Tl) scintillation crystal pulling air through a filter. Because scintillation crystals have &gt;100× the volume and photon capture sensitivity of handheld Geiger counters (registering 700–3,500 raw counts/min in clean ambient background), the primary CPM is normalized to standard Geiger-Müller (GM/Safecast) tube equivalent (1 CPM ≈ 3 nSv/h) so US cities, Chernobyl, and Fukushima are on the same comparative baseline.'
-            : '<strong>Safecast Open Radiation Network:</strong> Measures ambient environmental gamma radiation using calibrated Geiger-Müller pancake detectors (LND 7317) deployed around nuclear exclusion zones.'}
+            ? '<strong>EPA RadNet Stationary Monitor:</strong> RadNet uses a high-sensitivity 2"×2" NaI(Tl) scintillation crystal pulling air through a filter. Because scintillation crystals have &gt;100× the volume and photon capture sensitivity of handheld Geiger counters (registering 700–3,500 raw counts/min in clean ambient background), the primary CPM is normalized to standard Geiger-Müller (GM/Safecast) tube equivalent (1 CPM ≈ 3 nSv/h) so US cities, Chernobyl, Fukushima, and international capitals are on the same comparative baseline.'
+            : '<strong>Safecast Open Radiation Network:</strong> Measures ambient environmental gamma radiation using calibrated Geiger-Müller pancake detectors (LND 7317) deployed across major metropolitan areas, nuclear facilities, and exclusion zones worldwide.'}
         </p>
       </div>
     `;
