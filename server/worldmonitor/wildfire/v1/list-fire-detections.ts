@@ -21,39 +21,78 @@ import type {
 import { CHROME_UA } from '../../../_shared/constants';
 import { cachedFetchJson } from '../../../_shared/redis';
 
-const REDIS_CACHE_KEY = 'wildfire:fires:v4';
+const REDIS_CACHE_KEY = 'wildfire:fires:v5';
 const REDIS_CACHE_TTL = 3600; // 1h — NASA FIRMS VIIRS NRT updates every ~3 hours
 
 const FIRMS_SOURCE = 'VIIRS_SNPP_NRT';
 
 /** Bounding boxes as west,south,east,north */
 const MONITORED_REGIONS: Record<string, string> = {
+  // Strategic Conflict Zones & High Priority Regions
   'Ukraine': '22,44,40,53',
-  'Russia': '20,50,180,82',
-  'Iran': '44,25,63,40',
-  'Israel/Gaza': '34,29,36,34',
-  'Syria': '35,32,42,37',
+  'Russia & Siberia': '20,45,180,82',
+  'Middle East': '32,12,65,42',
   'Taiwan': '119,21,123,26',
-  'North Korea': '124,37,131,43',
-  'Saudi Arabia': '34,16,56,32',
-  'Turkey': '26,36,45,42',
-  'USA': '-125,24,-66,49',
+  'Korean Peninsula': '124,33,131,43',
+
+  // North America
+  'USA': '-170,18,-65,72',
   'Canada': '-141,41,-52,83',
-  'Western Europe': '-12,35,22,60',
+  'Mexico & Central America': '-118,7,-77,33',
+
+  // South America
+  'South America': '-90,-56,-34,15',
+
+  // Europe
+  'Western & Central Europe': '-12,35,25,60',
+
+  // Africa
+  'Northern Africa': '-18,15,52,38',
+  'Central & Western Africa': '-18,-15,32,15',
+  'Southern & Eastern Africa': '10,-35,52,5',
+
+  // Asia
+  'South Asia': '60,5,98,37',
+  'Southeast Asia': '92,-11,141,28',
+  'East Asia': '98,18,146,54',
+  'Central Asia': '46,35,88,55',
+
+  // Oceania
+  'Australia & Oceania': '110,-48,180,-10',
 };
 
-/** Map VIIRS confidence letters to proto enum values. */
+/** Map VIIRS confidence strings to proto enum values. */
 function mapConfidence(c: string): FireConfidence {
-  switch (c.toLowerCase()) {
-    case 'h':
-      return 'FIRE_CONFIDENCE_HIGH';
-    case 'n':
-      return 'FIRE_CONFIDENCE_NOMINAL';
-    case 'l':
-      return 'FIRE_CONFIDENCE_LOW';
-    default:
-      return 'FIRE_CONFIDENCE_UNSPECIFIED';
+  const lower = (c || '').toLowerCase().trim();
+  if (lower === 'h' || lower === 'high') {
+    return 'FIRE_CONFIDENCE_HIGH';
   }
+  if (lower === 'n' || lower === 'nominal') {
+    return 'FIRE_CONFIDENCE_NOMINAL';
+  }
+  if (lower === 'l' || lower === 'low') {
+    return 'FIRE_CONFIDENCE_LOW';
+  }
+  return 'FIRE_CONFIDENCE_UNSPECIFIED';
+}
+
+/** Determine region name for coordinates, falling back to continental bounds */
+function getRegionName(lat: number, lon: number, regions: Record<string, number[]>): string {
+  for (const [rName, bbox] of Object.entries(regions)) {
+    if (lat >= bbox[1]! && lat <= bbox[3]! && lon >= bbox[0]! && lon <= bbox[2]!) {
+      return rName;
+    }
+  }
+
+  // Geographic continent fallbacks so no global fire detection is discarded
+  if (lat >= -60 && lat <= 15 && lon >= -90 && lon <= -30) return 'South America';
+  if (lat >= -35 && lat <= 38 && lon >= -20 && lon <= 55) return 'Africa';
+  if (lat >= -50 && lat <= -10 && lon >= 110 && lon <= 180) return 'Australia & Oceania';
+  if (lat >= 7 && lat <= 75 && lon >= -170 && lon <= -50) return 'North America';
+  if (lat >= 35 && lat <= 72 && lon >= -15 && lon <= 45) return 'Europe';
+  if (lat >= -10 && lat <= 80 && lon >= 45 && lon <= 180) return 'Asia';
+
+  return 'Global';
 }
 
 function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): { row: Record<string, string>, regionName: string }[] {
@@ -79,22 +118,14 @@ function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): { ro
     
     const lat = parseFloat(latStr);
     const lon = parseFloat(lonStr);
-    
-    let matchedRegion = '';
-    for (const [rName, bbox] of Object.entries(regions)) {
-      if (lat >= bbox[1]! && lat <= bbox[3]! && lon >= bbox[0]! && lon <= bbox[2]!) {
-        matchedRegion = rName;
-        break;
-      }
-    }
-    
-    if (matchedRegion) {
-      const row: Record<string, string> = {};
-      headers.forEach((h, idx) => {
-        row[h] = vals[idx] ? vals[idx].trim() : '';
-      });
-      results.push({ row, regionName: matchedRegion });
-    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+    const matchedRegion = getRegionName(lat, lon, regions);
+    const row: Record<string, string> = {};
+    headers.forEach((h, idx) => {
+      row[h] = vals[idx] ? vals[idx].trim() : '';
+    });
+    results.push({ row, regionName: matchedRegion });
   }
 
   return results;

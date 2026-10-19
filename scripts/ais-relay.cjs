@@ -580,20 +580,14 @@ function getGridKey(lat, lon) {
 }
 
 function isLikelyMilitaryCandidate(meta) {
-  const mmsi = String(meta?.MMSI || '');
   const shipType = Number(meta?.ShipType);
   const name = (meta?.ShipName || '').trim().toUpperCase();
 
-  if (Number.isFinite(shipType) && (shipType === 35 || shipType === 55 || (shipType >= 50 && shipType <= 59))) {
+  if (Number.isFinite(shipType) && (shipType === 35 || shipType === 55)) {
     return true;
   }
 
   if (name && NAVAL_PREFIX_RE.test(name)) return true;
-
-  if (mmsi.length >= 9) {
-    const suffix = mmsi.substring(3);
-    if (suffix.startsWith('00') || suffix.startsWith('99')) return true;
-  }
 
   return false;
 }
@@ -784,17 +778,24 @@ function processPositionReportForSnapshot(data) {
   // Maintain exact chokepoint membership so moving vessels don't get "stuck" in old buckets.
   updateVesselChokepoints(mmsi, lat, lon);
 
-  candidateReports.set(mmsi, {
-    mmsi,
-    name: effectiveShipName,
-    lat,
-    lon,
-    shipType: effectiveShipType,
-    heading: pos.TrueHeading,
-    speed: pos.Sog,
-    course: pos.Cog,
-    timestamp: now,
-  });
+  const candidateMeta = {
+    MMSI: mmsi,
+    ShipName: effectiveShipName,
+    ShipType: effectiveShipType,
+  };
+  if (isLikelyMilitaryCandidate(candidateMeta)) {
+    candidateReports.set(mmsi, {
+      mmsi,
+      name: effectiveShipName,
+      lat,
+      lon,
+      shipType: effectiveShipType,
+      heading: pos.TrueHeading,
+      speed: pos.Sog,
+      course: pos.Cog,
+      timestamp: now,
+    });
+  }
 }
 
 function cleanupAggregates() {

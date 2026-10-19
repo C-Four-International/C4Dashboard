@@ -162,13 +162,6 @@ function analyzeMmsi(mmsi: string): { isPotentialMilitary: boolean; country?: st
     }
   }
 
-  // Check last digits - some patterns indicate warships
-  // Government vessels often have specific MMSI patterns
-  const suffix = mmsi.substring(3);
-  if (suffix.startsWith('00') || suffix.startsWith('99')) {
-    return { isPotentialMilitary: true, country };
-  }
-
   return { isPotentialMilitary: false, country };
 }
 
@@ -281,12 +274,10 @@ function getAisShipTypeName(shipType: number | undefined): string | undefined {
 function getVesselTypeFromAis(shipType: number): MilitaryVesselType | undefined {
   // AIS ship type codes
   // 35 = Military ops
-  // 50-59 = Special craft
-  // 55 = Law enforcement
+  // 55 = Law enforcement (Coast guard, maritime police, patrol)
 
   if (shipType === 35) return 'destroyer'; // Generic military
   if (shipType === 55) return 'patrol'; // Law enforcement/coast guard
-  if (shipType >= 50 && shipType <= 59) return 'special';
 
   return undefined;
 }

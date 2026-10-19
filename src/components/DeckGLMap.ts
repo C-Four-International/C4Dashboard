@@ -1383,6 +1383,11 @@ export class DeckGLMap {
       layers.push(this.createWeatherLayer(filteredWeatherAlerts));
     }
 
+    // Climate anomalies layers
+    if (mapLayers.climate && this.climateAnomalies.length > 0) {
+      layers.push(...this.createClimateLayers());
+    }
+
     // Internet outages layer + ghost for easier picking
     if (mapLayers.outages && filteredOutages.length > 0) {
       layers.push(this.createOutagesLayer(filteredOutages));
@@ -1492,11 +1497,6 @@ export class DeckGLMap {
     // Displacement flows arc layer
     if (mapLayers.displacement && this.displacementFlows.length > 0) {
       layers.push(this.createDisplacementArcsLayer());
-    }
-
-    // Climate anomalies layers
-    if (mapLayers.climate && this.climateAnomalies.length > 0) {
-      layers.push(...this.createClimateLayers());
     }
 
     // Trade routes layer
@@ -3180,7 +3180,8 @@ export class DeckGLMap {
       || this.hasRecentRiot(now)
       || this.hotspots.some(h => h.hasBreaking)
       || this.positiveEvents.some(e => e.count > 10)
-      || this.kindnessPoints.some(p => p.type === 'real');
+      || this.kindnessPoints.some(p => p.type === 'real')
+      || this.climateAnomalies.some(a => a.severity === 'extreme');
   }
 
   private syncPulseAnimation(now = Date.now()): void {
@@ -3588,6 +3589,17 @@ export class DeckGLMap {
         const precipStr = `${precipSign}${a.precipDelta.toFixed(1)}mm`;
         return {
           html: `<div class="deckgl-tooltip"><strong>${icon} ${text(a.zone)}</strong><br/>${t('components.climate.temp')}: <strong>${tempStr}</strong> · ${t('components.climate.precip')}: <strong>${precipStr}</strong><br/><span style="text-transform:uppercase;font-size:10px;opacity:0.85;font-weight:600;">${text(a.severity)} · ${text(a.type)}</span></div>`,
+        };
+      }
+      case 'fires-layer': {
+        const confStr = obj.confidence >= 90 ? 'High' : obj.confidence <= 30 ? 'Low' : 'Nominal';
+        return {
+          html: `<div class="deckgl-tooltip">
+            <strong>🔥 ${text(t('panels.satelliteFires') || 'Active Fire')}</strong><br/>
+            ${text(obj.region)}<br/>
+            Brightness: <strong>${Math.round(obj.brightness || 0)}K</strong> · FRP: <strong>${(obj.frp || 0).toFixed(1)} MW</strong><br/>
+            <span style="opacity:0.8;font-size:10px;">${text(confStr)} confidence · ${text(obj.acq_date || '')}</span>
+          </div>`,
         };
       }
       case 'weather-layer': {

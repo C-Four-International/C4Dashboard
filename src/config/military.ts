@@ -382,7 +382,6 @@ export const MILITARY_VESSEL_PATTERNS: VesselPattern[] = [
   { mmsiPrefix: '369970', operator: 'usn', country: 'USA' },
 
   // UK Royal Navy
-  { mmsiPrefix: '232', operator: 'rn', country: 'UK' },
   { mmsiPrefix: '2320', operator: 'rn', country: 'UK' },
 
   // Note: Many military vessels don't broadcast AIS or use obscured identities
