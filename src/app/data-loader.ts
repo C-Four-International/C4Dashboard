@@ -1664,9 +1664,9 @@ export class DataLoaderManager implements AppModule {
     }
   }
 
-  async loadRadiationData(): Promise<void> {
+  async loadRadiationData(forceRefresh = false): Promise<void> {
     try {
-      const stations = await fetchRadiationData();
+      const stations = await fetchRadiationData(forceRefresh);
       if (stations && stations.length > 0) {
         this.ctx.map?.setRadiation(stations);
       }

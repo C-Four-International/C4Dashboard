@@ -151,16 +151,23 @@ export const BASELINE_RADIATION_STATIONS: RadiationStation[] = [
 ];
 
 const breaker = createCircuitBreaker<RadiationStation[]>({
-  name: 'Radiation:v4',
+  name: 'Radiation:v5',
   cacheTtlMs: 6 * 60 * 60 * 1000, // 6 hours
   persistCache: true,
 });
 
-export async function fetchRadiationData(): Promise<RadiationStation[]> {
+export async function fetchRadiationData(forceRefresh = false): Promise<RadiationStation[]> {
+  if (forceRefresh) {
+    breaker.clearCache();
+  }
   return breaker.execute(async () => {
     try {
-      const response = await fetch('/api/radiation', {
-        headers: { Accept: 'application/json' },
+      const endpoint = forceRefresh ? '/api/radiation?refresh=true' : '/api/radiation';
+      const response = await fetch(endpoint, {
+        headers: {
+          Accept: 'application/json',
+          ...(forceRefresh ? { 'Cache-Control': 'no-cache' } : {}),
+        },
       });
       if (!response.ok) {
         throw new Error(`Radiation API returned HTTP ${response.status}`);
@@ -175,6 +182,15 @@ export async function fetchRadiationData(): Promise<RadiationStation[]> {
       return BASELINE_RADIATION_STATIONS;
     }
   }, BASELINE_RADIATION_STATIONS);
+}
+
+/** Clear radiation cache on client and trigger a live fetch */
+export async function clearRadiationCache(): Promise<RadiationStation[]> {
+  return fetchRadiationData(true);
+}
+
+if (typeof window !== 'undefined') {
+  (window as unknown as { __clearRadiationCache?: typeof clearRadiationCache }).__clearRadiationCache = clearRadiationCache;
 }
 
 export function getRadiationStatus(): string {

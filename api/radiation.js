@@ -26,7 +26,7 @@ function getRedis() {
   return redisClient || null;
 }
 
-const REDIS_KEY = 'wm:radiation:stations:v2';
+const REDIS_KEY = 'wm:radiation:stations:v3';
 const REDIS_TTL_SECONDS = 6 * 60 * 60; // 6 hours
 
 const EPA_STATIONS = [
@@ -316,10 +316,20 @@ export default async function handler(req) {
     });
   }
 
+  const url = new URL(req.url);
+  const bypassCache = url.searchParams.get('refresh') === 'true' ||
+                      url.searchParams.get('clear') === 'true' ||
+                      req.headers.get('cache-control')?.includes('no-cache');
+
+  if (bypassCache) {
+    cachedData = null;
+    cacheTimestamp = 0;
+  }
+
   const now = Date.now();
 
   // 1. Check in-memory cache (6 hours)
-  if (cachedData && (now - cacheTimestamp < CACHE_TTL_MS)) {
+  if (!bypassCache && cachedData && (now - cacheTimestamp < CACHE_TTL_MS)) {
     return new Response(JSON.stringify(cachedData), {
       status: 200,
       headers: {
@@ -331,25 +341,27 @@ export default async function handler(req) {
   }
 
   // 2. Check Upstash Redis cache (6 hours)
-  try {
-    const redis = getRedis();
-    if (redis) {
-      const redisCached = await redis.get(REDIS_KEY);
-      if (redisCached && Array.isArray(redisCached) && redisCached.length > 0) {
-        cachedData = redisCached;
-        cacheTimestamp = now;
-        return new Response(JSON.stringify(redisCached), {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'public, max-age=21600, s-maxage=21600, stale-while-revalidate=43200',
-            ...corsHeaders,
-          },
-        });
+  if (!bypassCache) {
+    try {
+      const redis = getRedis();
+      if (redis) {
+        const redisCached = await redis.get(REDIS_KEY);
+        if (redisCached && Array.isArray(redisCached) && redisCached.length > 0) {
+          cachedData = redisCached;
+          cacheTimestamp = now;
+          return new Response(JSON.stringify(redisCached), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'public, max-age=21600, s-maxage=21600, stale-while-revalidate=43200',
+              ...corsHeaders,
+            },
+          });
+        }
       }
+    } catch (err) {
+      console.warn('[Radiation Handler] Redis GET error:', err?.message || err);
     }
-  } catch (err) {
-    console.warn('[Radiation Handler] Redis GET error:', err?.message || err);
   }
 
   // 3. Deduplicate in-flight upstream fetches
