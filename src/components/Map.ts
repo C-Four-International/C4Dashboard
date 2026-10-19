@@ -2669,7 +2669,8 @@ export class MapComponent {
         dot.style.width = `${size}px`;
         dot.style.height = `${size}px`;
         dot.style.backgroundColor = color;
-        dot.title = `${fire.region} — ${Math.round(fire.brightness)}K, ${fire.frp}MW`;
+        const timeDesc = [fire.acq_date, fire.daynight ? (fire.daynight === 'D' ? 'Day' : 'Night') : ''].filter(Boolean).join(' · ');
+        dot.title = `🔥 ${fire.region || 'Fire'} — ${Math.round(fire.brightness)}K, ${fire.frp}MW (${fire.confidence}% conf)${timeDesc ? ` · ${timeDesc}` : ''}`;
 
         this.overlays.appendChild(dot);
       });

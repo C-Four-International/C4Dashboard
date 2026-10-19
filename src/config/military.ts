@@ -382,7 +382,6 @@ export const MILITARY_VESSEL_PATTERNS: VesselPattern[] = [
   { mmsiPrefix: '369970', operator: 'usn', country: 'USA' },
 
   // UK Royal Navy
-  { mmsiPrefix: '232', operator: 'rn', country: 'UK' },
   { mmsiPrefix: '2320', operator: 'rn', country: 'UK' },
 
   // Note: Many military vessels don't broadcast AIS or use obscured identities
@@ -420,9 +419,9 @@ export const KNOWN_NAVAL_VESSELS: KnownNavalVessel[] = [
   { name: 'HMS Prince of Wales', hullNumber: 'R09', operator: 'rn', country: 'UK', vesselType: 'carrier' },
 
   // Chinese Carriers
-  { name: 'Liaoning', hullNumber: '16', operator: 'plan', country: 'China', vesselType: 'carrier' },
-  { name: 'Shandong', hullNumber: '17', operator: 'plan', country: 'China', vesselType: 'carrier' },
-  { name: 'Fujian', hullNumber: '18', operator: 'plan', country: 'China', vesselType: 'carrier' },
+  { name: 'Liaoning', hullNumber: 'CV-16', operator: 'plan', country: 'China', vesselType: 'carrier' },
+  { name: 'Shandong', hullNumber: 'CV-17', operator: 'plan', country: 'China', vesselType: 'carrier' },
+  { name: 'Fujian', hullNumber: 'CV-18', operator: 'plan', country: 'China', vesselType: 'carrier' },
 
   // Russian Carrier
   { name: 'Admiral Kuznetsov', operator: 'vks', country: 'Russia', vesselType: 'carrier' },

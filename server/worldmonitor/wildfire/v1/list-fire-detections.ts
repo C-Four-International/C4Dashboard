@@ -28,6 +28,7 @@ const FIRMS_SOURCE = 'VIIRS_SNPP_NRT';
 
 /** Bounding boxes as west,south,east,north */
 const MONITORED_REGIONS: Record<string, string> = {
+  // Specific strategic / high-priority regions
   'Ukraine': '22,44,40,53',
   'Russia': '20,50,180,82',
   'Iran': '44,25,63,40',
@@ -37,10 +38,62 @@ const MONITORED_REGIONS: Record<string, string> = {
   'North Korea': '124,37,131,43',
   'Saudi Arabia': '34,16,56,32',
   'Turkey': '26,36,45,42',
+
+  // North America
   'USA': '-125,24,-66,49',
   'Canada': '-141,41,-52,83',
+  'Mexico & Central America': '-118,7,-77,33',
+  'Caribbean': '-85,10,-59,27',
+
+  // South America
+  'South America (Amazon)': '-75,-16,-44,6',
+  'South America (Cerrado/Brazil)': '-58,-25,-35,-5',
+  'South America (Southern Cone)': '-76,-56,-53,-22',
+  'South America (Andes/North)': '-82,-5,-60,13',
+
+  // Europe
   'Western Europe': '-12,35,22,60',
+  'Eastern Europe': '20,44,40,70',
+  'Northern Europe': '4,55,32,72',
+  'Southern Europe': '-10,36,28,45',
+
+  // Africa
+  'North Africa': '-18,15,36,37',
+  'West Africa': '-18,4,15,20',
+  'Central Africa': '8,-5,32,15',
+  'East Africa': '28,-12,52,18',
+  'Southern Africa': '11,-35,41,-10',
+
+  // Asia
+  'Middle East': '34,12,60,42',
+  'Central Asia': '46,35,88,55',
+  'South Asia': '60,5,98,38',
+  'East Asia': '73,18,145,54',
+  'Southeast Asia': '92,-11,141,24',
+  'Siberia': '60,50,180,75',
+
+  // Australia & Oceania
+  'Australia': '112,-44,154,-10',
+  'New Zealand': '166,-48,179,-34',
+  'Oceania & Pacific': '130,-25,-130,25',
+
+  // Antarctica
+  'Antarctica': '-180,-90,180,-60',
 };
+
+/**
+ * Fallback continent classifier for any coordinates outside defined regional bounding boxes.
+ */
+function classifyContinent(lat: number, lon: number): string {
+  if (lat < -60) return 'Antarctica';
+  if (lat >= -56 && lat <= 13 && lon >= -95 && lon <= -30) return 'South America';
+  if (lat >= 7 && lat <= 85 && lon >= -170 && lon <= -30) return 'North America';
+  if (lat >= -35 && lat <= 38 && lon >= -20 && lon <= 55) return 'Africa';
+  if (lat >= 35 && lat <= 75 && lon >= -25 && lon <= 45) return 'Europe';
+  if (lat >= -50 && lat <= 0 && lon >= 110 && lon <= 180) return 'Australia & Oceania';
+  if (lat >= -10 && lat <= 80 && lon >= 45 && lon <= 180) return 'Asia';
+  return 'Global';
+}
 
 /** Map VIIRS confidence letters to proto enum values. */
 function mapConfidence(c: string): FireConfidence {
@@ -88,13 +141,12 @@ function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): { ro
       }
     }
     
-    if (matchedRegion) {
-      const row: Record<string, string> = {};
-      headers.forEach((h, idx) => {
-        row[h] = vals[idx] ? vals[idx].trim() : '';
-      });
-      results.push({ row, regionName: matchedRegion });
-    }
+    const regionName = matchedRegion || classifyContinent(lat, lon);
+    const row: Record<string, string> = {};
+    headers.forEach((h, idx) => {
+      row[h] = vals[idx] ? vals[idx].trim() : '';
+    });
+    results.push({ row, regionName });
   }
 
   return results;

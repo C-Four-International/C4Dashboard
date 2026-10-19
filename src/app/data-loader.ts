@@ -387,10 +387,13 @@ export class DataLoaderManager implements AppModule {
         case 'kindness':
           this.loadKindnessData();
           break;
-        case 'ucdpEvents':
         case 'displacement':
+          await this.loadDisplacement();
+          break;
         case 'climate':
-          await this.loadIntelligenceSignals();
+          await this.loadClimate();
+          break;
+        case 'ucdpEvents':
           break;
       }
     } finally {
@@ -1010,6 +1013,14 @@ export class DataLoaderManager implements AppModule {
 
     tasks.push((async () => {
       try {
+        if (this.ctx.intelligenceCache.military) {
+          const cached = this.ctx.intelligenceCache.military;
+          if (this.ctx.mapLayers.military) {
+            this.ctx.map?.setMilitaryFlights(cached.flights, cached.flightClusters);
+            this.ctx.map?.setMilitaryVessels(cached.vessels, cached.vesselClusters);
+          }
+          return;
+        }
         if (isMilitaryVesselTrackingConfigured()) {
           initMilitaryVesselStream();
         }
@@ -1097,49 +1108,8 @@ export class DataLoaderManager implements AppModule {
     })());
     */
 
-    tasks.push((async () => {
-      try {
-        const unhcrResult = await fetchUnhcrPopulation();
-        if (!unhcrResult.ok) {
-          dataFreshness.recordError('unhcr', 'UNHCR displacement unavailable (retaining prior displacement state)');
-          (this.ctx.panels['displacement'] as DisplacementPanel)?.showError('UNHCR data temporarily unavailable');
-          return;
-        }
-        const data = unhcrResult.data;
-        (this.ctx.panels['displacement'] as DisplacementPanel)?.setData(data);
-        ingestDisplacementForCII(data.countries);
-        if (this.ctx.mapLayers.displacement && data.topFlows) {
-          this.ctx.map?.setDisplacementFlows(data.topFlows);
-        }
-        if (data.countries.length > 0) dataFreshness.recordUpdate('unhcr', data.countries.length);
-      } catch (error) {
-        console.error('[Intelligence] UNHCR displacement fetch failed:', error);
-        dataFreshness.recordError('unhcr', String(error));
-        (this.ctx.panels['displacement'] as DisplacementPanel)?.showError('Failed to load UNHCR data');
-      }
-    })());
-
-    tasks.push((async () => {
-      try {
-        const climateResult = await fetchClimateAnomalies();
-        if (!climateResult.ok) {
-          dataFreshness.recordError('climate', 'Climate anomalies unavailable (retaining prior climate state)');
-          (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.showError('Climate data temporarily unavailable');
-          return;
-        }
-        const anomalies = climateResult.anomalies;
-        (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.setAnomalies(anomalies);
-        ingestClimateForCII(anomalies);
-        if (this.ctx.mapLayers.climate) {
-          this.ctx.map?.setClimateAnomalies(anomalies);
-        }
-        if (anomalies.length > 0) dataFreshness.recordUpdate('climate', anomalies.length);
-      } catch (error) {
-        console.error('[Intelligence] Climate anomalies fetch failed:', error);
-        dataFreshness.recordError('climate', String(error));
-        (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.showError('Failed to load climate data');
-      }
-    })());
+    tasks.push(this.loadDisplacement());
+    tasks.push(this.loadClimate());
 
     await Promise.allSettled(tasks);
 
@@ -1164,6 +1134,50 @@ export class DataLoaderManager implements AppModule {
 
     // (this.ctx.panels['cii'] as CIIPanel)?.refresh();
     console.log('[Intelligence] All signals loaded for CII calculation');
+  }
+
+  async loadClimate(): Promise<void> {
+    try {
+      const climateResult = await fetchClimateAnomalies();
+      if (!climateResult.ok) {
+        dataFreshness.recordError('climate', 'Climate anomalies unavailable (retaining prior climate state)');
+        (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.showError('Climate data temporarily unavailable');
+        return;
+      }
+      const anomalies = climateResult.anomalies;
+      (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.setAnomalies(anomalies);
+      ingestClimateForCII(anomalies);
+      if (this.ctx.mapLayers.climate) {
+        this.ctx.map?.setClimateAnomalies(anomalies);
+      }
+      if (anomalies.length > 0) dataFreshness.recordUpdate('climate', anomalies.length);
+    } catch (error) {
+      console.error('[Intelligence] Climate anomalies fetch failed:', error);
+      dataFreshness.recordError('climate', String(error));
+      (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.showError('Failed to load climate data');
+    }
+  }
+
+  async loadDisplacement(): Promise<void> {
+    try {
+      const unhcrResult = await fetchUnhcrPopulation();
+      if (!unhcrResult.ok) {
+        dataFreshness.recordError('unhcr', 'UNHCR displacement unavailable (retaining prior displacement state)');
+        (this.ctx.panels['displacement'] as DisplacementPanel)?.showError('UNHCR data temporarily unavailable');
+        return;
+      }
+      const data = unhcrResult.data;
+      (this.ctx.panels['displacement'] as DisplacementPanel)?.setData(data);
+      ingestDisplacementForCII(data.countries);
+      if (this.ctx.mapLayers.displacement && data.topFlows) {
+        this.ctx.map?.setDisplacementFlows(data.topFlows);
+      }
+      if (data.countries.length > 0) dataFreshness.recordUpdate('unhcr', data.countries.length);
+    } catch (error) {
+      console.error('[Intelligence] UNHCR displacement fetch failed:', error);
+      dataFreshness.recordError('unhcr', String(error));
+      (this.ctx.panels['displacement'] as DisplacementPanel)?.showError('Failed to load UNHCR data');
+    }
   }
 
   async loadOutages(): Promise<void> {

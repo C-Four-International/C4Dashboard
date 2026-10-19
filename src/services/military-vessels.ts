@@ -162,13 +162,6 @@ function analyzeMmsi(mmsi: string): { isPotentialMilitary: boolean; country?: st
     }
   }
 
-  // Check last digits - some patterns indicate warships
-  // Government vessels often have specific MMSI patterns
-  const suffix = mmsi.substring(3);
-  if (suffix.startsWith('00') || suffix.startsWith('99')) {
-    return { isPotentialMilitary: true, country };
-  }
-
   return { isPotentialMilitary: false, country };
 }
 
@@ -181,16 +174,25 @@ function matchKnownVessel(name: string): typeof KNOWN_NAVAL_VESSELS[number] | un
   const normalized = name.toUpperCase().trim();
 
   for (const vessel of KNOWN_NAVAL_VESSELS) {
-    if (normalized.includes(vessel.name.toUpperCase()) ||
-        (vessel.hullNumber && normalized.includes(vessel.hullNumber))) {
+    if (normalized.includes(vessel.name.toUpperCase())) {
       return vessel;
+    }
+    if (vessel.hullNumber) {
+      const hull = vessel.hullNumber.toUpperCase();
+      // Hull number should match as a distinct token (e.g. "CVN-78", "DDG-1000", "CV-16", "R08")
+      // Avoid loose substring matches where "16" matches any commercial ship name with 16
+      const escaped = hull.replace(/[-\\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const regex = new RegExp(`(?:^|[^A-Z0-9])(?:CV-)?${escaped}(?:[^A-Z0-9]|$)`, 'i');
+      if (regex.test(normalized)) {
+        return vessel;
+      }
     }
   }
 
   // Check for common naval prefixes
-  const navalPrefixes = ['USS', 'HMS', 'HMCS', 'HMAS', 'INS', 'JS', 'ROKS', 'TCG'];
+  const navalPrefixes = ['USS ', 'HMS ', 'HMCS ', 'HMAS ', 'INS ', 'JS ', 'ROKS ', 'TCG '];
   for (const prefix of navalPrefixes) {
-    if (normalized.startsWith(prefix + ' ')) {
+    if (normalized.startsWith(prefix)) {
       // Known pattern but not in our database
       return undefined;
     }
@@ -281,12 +283,9 @@ function getAisShipTypeName(shipType: number | undefined): string | undefined {
 function getVesselTypeFromAis(shipType: number): MilitaryVesselType | undefined {
   // AIS ship type codes
   // 35 = Military ops
-  // 50-59 = Special craft
-  // 55 = Law enforcement
-
-  if (shipType === 35) return 'destroyer'; // Generic military
+  // 55 = Law enforcement (Coast Guard / Patrol)
+  if (shipType === 35) return 'destroyer'; // Generic military ops
   if (shipType === 55) return 'patrol'; // Law enforcement/coast guard
-  if (shipType >= 50 && shipType <= 59) return 'special';
 
   return undefined;
 }

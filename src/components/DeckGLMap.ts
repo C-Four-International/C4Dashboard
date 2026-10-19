@@ -3158,7 +3158,8 @@ export class DeckGLMap {
       || this.hasRecentRiot(now)
       || this.hotspots.some(h => h.hasBreaking)
       || this.positiveEvents.some(e => e.count > 10)
-      || this.kindnessPoints.some(p => p.type === 'real');
+      || this.kindnessPoints.some(p => p.type === 'real')
+      || (Boolean(this.state.layers.climate) && this.climateAnomalies.some(a => a.severity === 'extreme'));
   }
 
   private syncPulseAnimation(now = Date.now()): void {
@@ -3572,6 +3573,31 @@ export class DeckGLMap {
         const areaDesc = typeof obj.areaDesc === 'string' ? obj.areaDesc : '';
         const area = areaDesc ? `<br/><small>${text(areaDesc.slice(0, 50))}${areaDesc.length > 50 ? '...' : ''}</small>` : '';
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.event || t('components.deckgl.layers.weather'))}</strong><br/>${text(obj.severity)}${area}</div>` };
+      }
+      case 'fires-layer': {
+        const fire = obj as {
+          region?: string;
+          brightness?: number;
+          frp?: number;
+          confidence?: number;
+          acq_date?: string;
+          daynight?: string;
+        };
+        const regionStr = text(fire.region || t('components.deckgl.layers.fires'));
+        const brightStr = fire.brightness != null ? `${Math.round(fire.brightness)}K` : '';
+        const frpStr = fire.frp != null ? `${Number(fire.frp).toFixed(1)} MW` : '';
+        const confStr = fire.confidence != null ? `${Math.round(fire.confidence)}%` : '';
+        const timeOfDay = fire.daynight === 'D' ? 'Day' : fire.daynight === 'N' ? 'Night' : '';
+        const details = [
+          brightStr,
+          frpStr,
+          confStr ? `${confStr} conf` : '',
+        ].filter(Boolean).join(' · ');
+        const dateStr = [fire.acq_date, timeOfDay].filter(Boolean).join(' · ');
+
+        return {
+          html: `<div class="deckgl-tooltip"><strong>🔥 ${regionStr}</strong>${details ? `<br/>${details}` : ''}${dateStr ? `<br/><small style="opacity:0.8">${text(dateStr)}</small>` : ''}</div>`,
+        };
       }
       case 'outages-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.asn || t('components.deckgl.tooltip.internetOutage'))}</strong><br/>${text(obj.country)}</div>` };
