@@ -104,7 +104,7 @@ const ALLOWED_ENV_KEYS = new Set([
   'OTX_API_KEY', 'ABUSEIPDB_API_KEY', 'WINGBITS_API_KEY', 'WS_RELAY_URL',
   'VITE_OPENSKY_RELAY_URL', 'OPENSKY_CLIENT_ID', 'OPENSKY_CLIENT_SECRET',
   'AISSTREAM_API_KEY', 'VITE_WS_RELAY_URL', 'FINNHUB_API_KEY', 'NASA_FIRMS_API_KEY',
-  'OLLAMA_API_URL', 'OLLAMA_MODEL', 'WORLDMONITOR_API_KEY', 'WTO_API_KEY',
+  'OLLAMA_API_URL', 'OLLAMA_MODEL', 'WORLDMONITOR_API_KEY', 'WTO_API_KEY', 'AQICN_TOKEN',
 ]);
 
 const CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -449,10 +449,45 @@ async function importHandler(modulePath) {
   }
 }
 
+function parseEnvContent(content) {
+  const result = {};
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const eqIdx = line.indexOf('=');
+    if (eqIdx === -1) continue;
+    const key = line.slice(0, eqIdx).trim();
+    let val = line.slice(eqIdx + 1).trim();
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+    if (key) result[key] = val;
+  }
+  return result;
+}
+
+function loadDotEnv(dir) {
+  if (!dir) return;
+  for (const filename of ['.env', '.env.local']) {
+    const fullPath = path.join(dir, filename);
+    if (!existsSync(fullPath)) continue;
+    try {
+      const vars = parseEnvContent(readFileSync(fullPath, 'utf8'));
+      for (const [k, v] of Object.entries(vars)) {
+        if (process.env[k] === undefined || process.env[k] === '') {
+          process.env[k] = v;
+        }
+      }
+    } catch {}
+  }
+}
+
 function resolveConfig(options = {}) {
+  const resourceDir = String(options.resourceDir ?? process.env.LOCAL_API_RESOURCE_DIR ?? process.cwd());
+  loadDotEnv(resourceDir);
+  loadDotEnv(process.cwd());
   const port = Number(options.port ?? process.env.LOCAL_API_PORT ?? 46123);
   const remoteBase = String(options.remoteBase ?? process.env.LOCAL_API_REMOTE_BASE ?? 'https://worldmonitor.app').replace(/\/$/, '');
-  const resourceDir = String(options.resourceDir ?? process.env.LOCAL_API_RESOURCE_DIR ?? process.cwd());
   const apiDir = options.apiDir
     ? String(options.apiDir)
     : [
@@ -911,6 +946,39 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
   }
 }
 
+function createResponseAdapter() {
+  let statusCode = 200;
+  const headers = new Headers();
+  let resolvePromise;
+  const promise = new Promise((resolve) => { resolvePromise = resolve; });
+
+  const res = {
+    statusCode: 200,
+    setHeader(name, value) {
+      if (Array.isArray(value)) value.forEach(v => headers.append(name, v));
+      else headers.set(name, String(value));
+      return res;
+    },
+    getHeader(name) { return headers.get(name); },
+    status(code) { statusCode = code; res.statusCode = code; return res; },
+    json(data) {
+      headers.set('content-type', 'application/json');
+      resolvePromise(new Response(JSON.stringify(data), { status: statusCode, headers }));
+      return res;
+    },
+    send(body) {
+      resolvePromise(new Response(body, { status: statusCode, headers }));
+      return res;
+    },
+    end(body) {
+      resolvePromise(new Response(body || null, { status: statusCode, headers }));
+      return res;
+    },
+  };
+
+  return { res, promise };
+}
+
 async function dispatch(requestUrl, req, routes, context) {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: makeCorsHeaders(req) });
@@ -943,6 +1011,7 @@ async function dispatch(requestUrl, req, routes, context) {
       remoteBase: context.remoteBase,
       cloudFallback: context.cloudFallback,
       routes: routes.length,
+      configuredKeys: Array.from(ALLOWED_ENV_KEYS).filter(k => Boolean(process.env[k])),
     });
   }
   if (requestUrl.pathname === '/api/local-traffic-log') {
@@ -1124,7 +1193,12 @@ async function dispatch(requestUrl, req, routes, context) {
       body,
     });
 
-    const response = await mod.default(request);
+    const { res: nodeRes, promise: nodePromise } = createResponseAdapter();
+    const result = await mod.default(request, nodeRes);
+    const response = (result instanceof Response) ? result : await Promise.race([
+      nodePromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Handler timed out waiting for response')), 30000)),
+    ]);
     if (!(response instanceof Response)) {
       logOnce(context.logger, requestUrl.pathname, 'handler returned non-Response');
       if (context.cloudFallback) {

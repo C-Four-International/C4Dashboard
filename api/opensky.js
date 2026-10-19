@@ -57,24 +57,37 @@ async function getOpenSkyToken() {
 export default async function handler(req, res) {
   const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');
 
-  // Set CORS headers early
-  for (const [key, value] of Object.entries(corsHeaders)) {
-    res.setHeader(key, value);
+  // Set CORS headers early if res is provided
+  if (res?.setHeader) {
+    for (const [key, value] of Object.entries(corsHeaders)) {
+      res.setHeader(key, value);
+    }
   }
 
   if (isDisallowedOrigin(req)) {
-    return res.status(403).json({ error: 'Origin not allowed' });
+    if (res?.status) return res.status(403).json({ error: 'Origin not allowed' });
+    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
 
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    if (res?.status) return res.status(204).end();
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    if (res?.status) return res.status(405).json({ error: 'Method not allowed' });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
 
   try {
-    const url = new URL(req.url, `http://${req.headers.host}`);
+    const rawUrl = req.url || '/';
+    const host = (req.headers && (req.headers.host || req.headers.get?.('host'))) || 'localhost';
+    const url = new URL(rawUrl, `http://${host}`);
     const query = url.search;
     const upstreamUrl = `https://opensky-network.org/api/states/all${query}`;
     const headers = { 'Accept': 'application/json' };
@@ -83,11 +96,16 @@ export default async function handler(req, res) {
       const token = await getOpenSkyToken();
       
       // Debug route
-      if (req.url.includes('debug=true')) {
-        return res.status(200).json({ 
+      if (rawUrl.includes('debug=true')) {
+        const debugData = { 
           debug: true, 
           token_success: !!token,
           token_prefix: token ? token.substring(0, 15) : null
+        };
+        if (res?.status) return res.status(200).json(debugData);
+        return new Response(JSON.stringify(debugData), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
 
@@ -98,22 +116,37 @@ export default async function handler(req, res) {
 
     const response = await fetch(upstreamUrl, {
       headers,
-      // Give OpenSky 25 seconds to respond before giving up to avoid 504s on large payloads
       signal: AbortSignal.timeout(25000) 
     });
 
-    res.status(response.status);
-    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
-    res.setHeader('Cache-Control', 'public, max-age=15, s-maxage=60, stale-while-revalidate=300');
-
-    // Pipe response body
     const data = await response.json();
-    return res.json(data);
+    if (res?.status) {
+      res.status(response.status);
+      res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
+      res.setHeader('Cache-Control', 'public, max-age=15, s-maxage=60, stale-while-revalidate=300');
+      return res.json(data);
+    }
+
+    return new Response(JSON.stringify(data), {
+      status: response.status,
+      headers: {
+        'Content-Type': response.headers.get('content-type') || 'application/json',
+        'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
+        ...corsHeaders,
+      },
+    });
   } catch (error) {
     const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
-    return res.status(isTimeout ? 504 : 502).json({
+    const status = isTimeout ? 504 : 502;
+    const errorBody = {
       error: isTimeout ? 'OpenSky upstream timeout' : 'OpenSky fetch failed',
       details: error?.message || String(error),
+    };
+    if (res?.status) return res.status(status).json(errorBody);
+    return new Response(JSON.stringify(errorBody), {
+      status,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
 }
+
