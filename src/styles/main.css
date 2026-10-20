@@ -2060,6 +2060,47 @@ canvas,
   color: white;
 }
 
+.webcam-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.webcam-nav-btn {
+  padding: 4px 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 24px;
+}
+
+.webcam-nav-btn:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.webcam-page-indicator {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  user-select: none;
+  min-width: 32px;
+  justify-content: center;
+}
+
 .webcam-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
