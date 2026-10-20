@@ -248,5 +248,7 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
         return null;
       }
     },
+  );
+
   return result || { fireDetections: [], pagination: undefined };
 };
