@@ -36,14 +36,12 @@ export interface MapFire {
   daynight: string;
 }
 
+import { BASELINE_FIRES } from './baseline';
+
 // -- Client --
 
 const client = new WildfireServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 const breaker = createCircuitBreaker<ListFireDetectionsResponse>({ name: 'Wildfires:v5', cacheTtlMs: 5 * 60 * 1000, persistCache: true });
-
-const emptyFallback: ListFireDetectionsResponse = { fireDetections: [] };
-
-import { BASELINE_FIRES } from './baseline';
 
 // -- Public API --
 

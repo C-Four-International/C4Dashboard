@@ -213,9 +213,6 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
   _ctx: ServerContext,
   _req: ListFireDetectionsRequest,
 ): Promise<ListFireDetectionsResponse> => {
-  const apiKey =
-    process.env.NASA_FIRMS_API_KEY || process.env.FIRMS_API_KEY || '';
-
   console.log('[FIRMS] listFireDetections called. Checking cache for key:', REDIS_CACHE_KEY);
 
   const result = await cachedFetchJson<ListFireDetectionsResponse>(
