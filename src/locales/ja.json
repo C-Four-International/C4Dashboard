@@ -765,6 +765,7 @@
         "militaryBases": "軍事基地",
         "nuclearSites": "核施設",
         "gammaIrradiators": "ガンマ線照射施設",
+        "radiation": "放射線検出",
         "spaceports": "宇宙港",
         "pipelines": "パイプライン",
         "militaryActivity": "軍事活動",

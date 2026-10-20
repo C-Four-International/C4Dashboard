@@ -893,6 +893,10 @@ canvas,
   grid-row: span 4 !important;
 }
 
+.panel.span-5 {
+  grid-row: span 5 !important;
+}
+
 .panel.resized {
   min-height: 200px !important;
 }

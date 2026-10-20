@@ -122,6 +122,7 @@ const SAFECAST_STATIONS = [
   // Europe - Major Metropolitan Centers
   { id: 'safecast-london', name: 'London', city: 'London', country: 'United Kingdom', lat: 51.5074, lon: -0.1278, defaultCpm: 16, defaultDose: 48, status: 'normal' },
   { id: 'safecast-paris', name: 'Paris', city: 'Paris', country: 'France', lat: 48.8566, lon: 2.3522, defaultCpm: 25, defaultDose: 75, status: 'normal' },
+  { id: 'safecast-berlin', name: 'Berlin', city: 'Berlin', country: 'Germany', lat: 52.5200, lon: 13.4050, defaultCpm: 25, defaultDose: 75, status: 'normal' },
   { id: 'safecast-madrid', name: 'Madrid', city: 'Madrid', country: 'Spain', lat: 40.4168, lon: -3.7038, defaultCpm: 45, defaultDose: 135, status: 'normal' },
   { id: 'safecast-rome', name: 'Rome', city: 'Rome', country: 'Italy', lat: 41.9028, lon: 12.4964, defaultCpm: 55, defaultDose: 165, status: 'normal' },
   { id: 'safecast-kyiv', name: 'Kyiv', city: 'Kyiv', country: 'Ukraine', lat: 50.4501, lon: 30.5234, defaultCpm: 22, defaultDose: 66, status: 'normal' },
@@ -172,6 +173,26 @@ function classifyStatus(doseRate, cpm) {
   return 'normal';
 }
 
+function normalizeRadiationTimestamp(timeStr) {
+  if (!timeStr) return new Date().toISOString();
+  const trimmed = String(timeStr).trim();
+  // EPA RadNet CSV format: "MM/DD/YYYY HH:mm:ss" in UTC
+  const m = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (m) {
+    const [_, month, day, year, hour, min, sec] = m;
+    const d = new Date(Date.UTC(+year, +month - 1, +day, +hour, +min, sec ? +sec : 0));
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  // If string already has ISO Z or timezone offset
+  if (trimmed.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(trimmed)) {
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  const d = new Date(trimmed + 'Z');
+  if (!isNaN(d.getTime())) return d.toISOString();
+  return new Date().toISOString();
+}
+
 async function fetchEpaStation(station, year) {
   const url = `https://radnet.epa.gov/cdx-radnet-rest/api/rest/csv/${year}/fixed/${station.state}/${encodeURIComponent(station.epaCity)}`;
   try {
@@ -212,8 +233,9 @@ async function fetchEpaStation(station, year) {
       status: classifyStatus(finalDose, gmCpm),
       time: (() => {
         if (!time) return new Date().toISOString();
-        const parsed = new Date(time).getTime();
-        return !isNaN(parsed) && parsed >= Date.now() - 60 * 86400 * 1000 ? time : new Date().toISOString();
+        const iso = normalizeRadiationTimestamp(time);
+        const parsed = new Date(iso).getTime();
+        return !isNaN(parsed) && parsed >= Date.now() - 60 * 86400 * 1000 ? iso : new Date().toISOString();
       })(),
       source: 'EPA RadNet (Envirofacts)',
       detectorType: 'NaI(Tl) Scintillator (EPA RadNet)',
@@ -264,7 +286,7 @@ async function fetchBfsStations() {
           doseRate: valDose,
           unit: 'CPM',
           status: classifyStatus(valDose, gmCpm),
-          time: nearest.properties.end_measure || new Date().toISOString(),
+          time: normalizeRadiationTimestamp(nearest.properties.end_measure),
           source: 'BfS ODL-Messnetz (Germany / EU)',
           detectorType: 'Gamma-ODL Probe (BfS / ODL)',
         });
@@ -352,7 +374,7 @@ async function fetchSafecastStation(station, apiKey) {
       doseRate,
       unit: 'CPM',
       status,
-      time: top.captured_at,
+      time: normalizeRadiationTimestamp(top.captured_at),
       source: 'Safecast Open Radiation Network',
       detectorType: top.devicetype_id ? `Safecast (${top.devicetype_id})` : 'Geiger-Müller Tube (Safecast)',
     };

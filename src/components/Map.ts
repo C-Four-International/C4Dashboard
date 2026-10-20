@@ -339,9 +339,9 @@ export class MapComponent {
       // General Intel
       'alertStatus', 'hotspots', 'threatScore',
       // Infrastructure
-      'pipelines', 'cables', 'datacenters', 'radiation', 'outages', 'bgpAnomalies',
+      'pipelines', 'cables', 'datacenters', 'radiation', 'irradiators', 'outages', 'bgpAnomalies',
       // Military
-      'military', 'conflicts', 'bases', 'nuclear', 'irradiators',
+      'military', 'conflicts', 'bases', 'nuclear',
       // Shipping & Air Traffic
       'ais', 'flights', 'waterways', 'gpsJamming',
       // Natural
@@ -553,6 +553,7 @@ export class MapComponent {
       helpItem(label('underseaCables'), 'infraCablesFull', '&#128268;'),
       helpItem(label('aiDataCenters'), 'infraDatacentersFull', '&#128421;'),
       helpItem(label('radiation'), 'radiationDesc', '&#9762;'),
+      helpItem(label('gammaIrradiators'), 'militaryIrradiators', '&#9888;'),
       helpItem(label('internetOutages'), 'infraOutages', '&#128225;'),
       helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc', '&#128256;'),
     ])}
@@ -561,7 +562,6 @@ export class MapComponent {
       helpItem(label('conflictZones'), 'geoConflicts', '&#9876;'),
       helpItem(label('militaryBases'), 'militaryBases', '&#127963;'),
       helpItem(label('nuclearSites'), 'militaryNuclear', '&#9762;'),
-      helpItem(label('gammaIrradiators'), 'militaryIrradiators', '&#9888;'),
     ])}
         ${helpSection('shippingAir', [
       helpItem(label('shipTraffic'), 'transportShipping', '&#128674;'),
@@ -1456,10 +1456,25 @@ export class MapComponent {
         const rawText = station.rawCpm && station.rawCpm !== station.cpm ? ` · ${station.rawCpm.toLocaleString()} raw NaI` : '';
         const doseText = station.doseRate != null ? ` · ${station.doseRate} nSv/h` : '';
         let timeStr = '';
-        if (station.time) {
-          const d = new Date(station.time);
-          if (!isNaN(d.getTime())) {
-            timeStr = ` · ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+        if (station.time && station.time !== 'Latest Approved' && station.time !== 'Recent Live Measurement') {
+          let d: Date | null = null;
+          const trimmed = station.time.trim();
+          const epaMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+          if (epaMatch && epaMatch[1] && epaMatch[2] && epaMatch[3] && epaMatch[4] && epaMatch[5]) {
+            const month = epaMatch[1];
+            const day = epaMatch[2];
+            const year = epaMatch[3];
+            const hour = epaMatch[4];
+            const min = epaMatch[5];
+            const sec = epaMatch[6] ? +epaMatch[6] : 0;
+            d = new Date(Date.UTC(+year, +month - 1, +day, +hour, +min, sec));
+          } else {
+            d = new Date(trimmed);
+          }
+          if (d && !isNaN(d.getTime())) {
+            const utcTime = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) +
+              ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }) + ' UTC';
+            timeStr = ` · ${utcTime}`;
           }
         }
         div.title = `☢ ${station.name}: ${station.cpm} CPM (GM equiv)${doseText} (${station.status})${rawText}${timeStr} · ${station.source}`;

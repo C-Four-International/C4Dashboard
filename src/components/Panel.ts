@@ -15,37 +15,26 @@ export interface PanelOptions {
 
 const PANEL_SPANS_KEY = 'worldmonitor-panel-spans';
 
-const CUSTOM_SNAP_HEIGHTS = [
-  220, // Compact (1 row)
-  280, // Comfortable Compact
-  340, // Standard
-  420, // Medium / Video
-  500, // Extended
-  600, // Large
-  700, // Extra-Large
-  820, // Full / Cinema
-];
-
+const GRID_ROW_HEIGHT = 200;
+const GRID_GAP = 4;
 const MIN_PANEL_HEIGHT = 200;
-const MAX_PANEL_HEIGHT = 880;
+const MAX_PANEL_HEIGHT = 1016;
 
-function snapToCustomPosition(height: number): number {
-  let closest = CUSTOM_SNAP_HEIGHTS[0]!;
-  let minDiff = Math.abs(height - closest);
-  for (const pos of CUSTOM_SNAP_HEIGHTS) {
-    const diff = Math.abs(height - pos);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closest = pos;
-    }
-  }
-  return closest;
+function spanToHeight(span: number): number {
+  return span * GRID_ROW_HEIGHT + (span - 1) * GRID_GAP;
 }
 
 function heightToSpan(height: number): number {
-  if (height >= 680) return 4;
-  if (height >= 500) return 3;
-  if (height >= 330) return 2;
+  // Exact track heights:
+  // Span 1: 200px
+  // Span 2: 404px (midpoint: 302px)
+  // Span 3: 608px (midpoint: 506px)
+  // Span 4: 812px (midpoint: 710px)
+  // Span 5: 1016px (midpoint: 914px)
+  if (height >= 914) return 5;
+  if (height >= 710) return 4;
+  if (height >= 506) return 3;
+  if (height >= 302) return 2;
   return 1;
 }
 
@@ -58,14 +47,14 @@ function loadPanelSpans(): Record<string, number> {
   }
 }
 
-function savePanelSpan(panelId: string, heightOrSpan: number): void {
+function savePanelSpan(panelId: string, span: number): void {
   const spans = loadPanelSpans();
-  spans[panelId] = heightOrSpan;
+  spans[panelId] = span;
   localStorage.setItem(PANEL_SPANS_KEY, JSON.stringify(spans));
 }
 
 function setSpanClass(element: HTMLElement, span: number): void {
-  element.classList.remove('span-1', 'span-2', 'span-3', 'span-4');
+  element.classList.remove('span-1', 'span-2', 'span-3', 'span-4', 'span-5');
   element.classList.add(`span-${span}`);
   element.classList.add('resized');
 }
@@ -165,19 +154,13 @@ export class Panel {
     this.element.appendChild(this.resizeHandle);
     this.setupResizeHandlers();
 
-    // Restore saved span / custom height
+    // Restore saved span
     const savedSpans = loadPanelSpans();
     const savedVal = savedSpans[this.panelId];
     if (savedVal) {
-      if (savedVal > 10) {
-        const targetHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, savedVal));
-        const span = heightToSpan(targetHeight);
+      const span = savedVal > 10 ? heightToSpan(savedVal) : savedVal;
+      if (span > 1) {
         setSpanClass(this.element, span);
-        this.element.style.height = `${targetHeight}px`;
-      } else if (savedVal > 1) {
-        setSpanClass(this.element, savedVal);
-        const mappedHeight = savedVal === 4 ? 820 : savedVal === 3 ? 600 : 420;
-        this.element.style.height = `${mappedHeight}px`;
       }
     }
 
@@ -239,21 +222,24 @@ export class Panel {
       document.removeEventListener('mouseup', onMouseUp);
 
       const finalHeight = currentDragHeight ?? this.element.getBoundingClientRect().height;
-      const targetHeight = snapToCustomPosition(finalHeight);
-      const span = heightToSpan(targetHeight);
+      const span = heightToSpan(finalHeight);
+      const targetHeight = spanToHeight(span);
 
-      // Smooth lock animation to the chosen custom position
+      // Smooth lock animation to the exact grid track height
       this.element.style.transition = 'height 0.2s cubic-bezier(0.2, 0.9, 0.4, 1)';
       this.element.style.height = `${targetHeight}px`;
       setSpanClass(this.element, span);
 
       setTimeout(() => {
         if (!this.isResizing) {
+          // Clear inline height so panel is natively sized by CSS grid (height: 100%),
+          // guaranteeing the exact 4px border/gap between windows is preserved!
+          this.element.style.height = '';
           this.element.style.transition = '';
         }
       }, 220);
 
-      savePanelSpan(this.panelId, targetHeight);
+      savePanelSpan(this.panelId, span);
       trackPanelResized(this.panelId, span);
     };
 
@@ -312,8 +298,8 @@ export class Panel {
       this.resizeHandle?.classList.remove('active');
 
       const finalHeight = currentDragHeight ?? this.element.getBoundingClientRect().height;
-      const targetHeight = snapToCustomPosition(finalHeight);
-      const span = heightToSpan(targetHeight);
+      const span = heightToSpan(finalHeight);
+      const targetHeight = spanToHeight(span);
 
       this.element.style.transition = 'height 0.2s cubic-bezier(0.2, 0.9, 0.4, 1)';
       this.element.style.height = `${targetHeight}px`;
@@ -321,11 +307,12 @@ export class Panel {
 
       setTimeout(() => {
         if (!this.isResizing) {
+          this.element.style.height = '';
           this.element.style.transition = '';
         }
       }, 220);
 
-      savePanelSpan(this.panelId, targetHeight);
+      savePanelSpan(this.panelId, span);
       trackPanelResized(this.panelId, span);
     };
 

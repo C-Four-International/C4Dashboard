@@ -4156,6 +4156,7 @@ export class DeckGLMap {
                 { key: 'spaceports', label: t('components.deckgl.layers.spaceports'), icon: '&#128640;' },
                 { key: 'datacenters', label: t('components.deckgl.layers.aiDataCenters'), icon: '&#128421;' },
                 { key: 'radiation', label: t('components.deckgl.layers.radiation'), icon: '&#9762;' },
+                { key: 'irradiators', label: t('components.deckgl.layers.gammaIrradiators'), icon: '&#9888;' },
                 { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
                 { key: 'nuclear', label: t('components.deckgl.layers.nuclearSites'), icon: '&#9762;' },
                 { key: 'agriculturalStressASI', label: 'Agricultural Index', icon: '&#127806;' },
@@ -4169,7 +4170,6 @@ export class DeckGLMap {
                 { key: 'military', label: t('components.deckgl.layers.militaryActivity'), icon: '&#9992;' },
                 { key: 'conflicts', label: t('components.deckgl.layers.conflictZones'), icon: '&#9876;' },
                 { key: 'bases', label: t('components.deckgl.layers.militaryBases'), icon: '&#127963;' },
-                { key: 'irradiators', label: t('components.deckgl.layers.gammaIrradiators'), icon: '&#9888;' },
               ],
             },
             {

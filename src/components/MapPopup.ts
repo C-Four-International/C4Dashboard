@@ -1382,18 +1382,44 @@ export class MapPopup {
     const detectorName = station.detectorType || (station.source.includes('BfS') ? 'Gamma-ODL Probe (BfS / ODL)' : station.source.includes('RadNet') ? '2"×2" NaI(Tl) Scintillation Detector' : 'LND 7317 Pancake GM Tube');
 
     let timeFormatted = station.time;
-    if (station.time) {
-      const d = new Date(station.time);
-      if (!isNaN(d.getTime())) {
-        timeFormatted = d.toLocaleString(undefined, {
+    if (station.time && station.time !== 'Latest Approved' && station.time !== 'Recent Live Measurement') {
+      let d: Date | null = null;
+      const trimmed = station.time.trim();
+      const epaMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+      if (epaMatch && epaMatch[1] && epaMatch[2] && epaMatch[3] && epaMatch[4] && epaMatch[5]) {
+        const month = epaMatch[1];
+        const day = epaMatch[2];
+        const year = epaMatch[3];
+        const hour = epaMatch[4];
+        const min = epaMatch[5];
+        const sec = epaMatch[6] ? +epaMatch[6] : 0;
+        d = new Date(Date.UTC(+year, +month - 1, +day, +hour, +min, sec));
+      } else {
+        d = new Date(trimmed);
+      }
+
+      if (d && !isNaN(d.getTime())) {
+        const utcDateStr = d.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
           year: 'numeric',
+          timeZone: 'UTC',
+        });
+        const utcTimeStr = d.toLocaleTimeString('en-US', {
           hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: 'UTC',
+        });
+        const localTimeStr = d.toLocaleTimeString(undefined, {
+          hour: 'numeric',
           minute: '2-digit',
           timeZoneName: 'short',
         });
+        timeFormatted = `${utcDateStr} ${utcTimeStr} UTC (${localTimeStr})`;
       }
+    } else if (station.time === 'Latest Approved' || station.time === 'Recent Live Measurement') {
+      timeFormatted = `${station.time} (Active Baseline)`;
     }
 
     const sourceDesc = station.source.includes('BfS')

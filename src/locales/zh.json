@@ -765,6 +765,7 @@
         "militaryBases": "军事基地",
         "nuclearSites": "核设施",
         "gammaIrradiators": "伽马辐照器",
+        "radiation": "辐射监测",
         "spaceports": "航天发射场",
         "pipelines": "管道",
         "militaryActivity": "军事活动",
