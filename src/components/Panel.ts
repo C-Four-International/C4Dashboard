@@ -15,6 +15,40 @@ export interface PanelOptions {
 
 const PANEL_SPANS_KEY = 'worldmonitor-panel-spans';
 
+const CUSTOM_SNAP_HEIGHTS = [
+  220, // Compact (1 row)
+  280, // Comfortable Compact
+  340, // Standard
+  420, // Medium / Video
+  500, // Extended
+  600, // Large
+  700, // Extra-Large
+  820, // Full / Cinema
+];
+
+const MIN_PANEL_HEIGHT = 200;
+const MAX_PANEL_HEIGHT = 880;
+
+function snapToCustomPosition(height: number): number {
+  let closest = CUSTOM_SNAP_HEIGHTS[0]!;
+  let minDiff = Math.abs(height - closest);
+  for (const pos of CUSTOM_SNAP_HEIGHTS) {
+    const diff = Math.abs(height - pos);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = pos;
+    }
+  }
+  return closest;
+}
+
+function heightToSpan(height: number): number {
+  if (height >= 680) return 4;
+  if (height >= 500) return 3;
+  if (height >= 330) return 2;
+  return 1;
+}
+
 function loadPanelSpans(): Record<string, number> {
   try {
     const stored = localStorage.getItem(PANEL_SPANS_KEY);
@@ -24,22 +58,10 @@ function loadPanelSpans(): Record<string, number> {
   }
 }
 
-function savePanelSpan(panelId: string, span: number): void {
+function savePanelSpan(panelId: string, heightOrSpan: number): void {
   const spans = loadPanelSpans();
-  spans[panelId] = span;
+  spans[panelId] = heightOrSpan;
   localStorage.setItem(PANEL_SPANS_KEY, JSON.stringify(spans));
-}
-
-function heightToSpan(height: number): number {
-  // Much lower thresholds for responsive resizing
-  // Start at 200px, so:
-  // - 50px drag → span 2 (250px)
-  // - 150px drag → span 3 (350px)
-  // - 300px drag → span 4 (500px)
-  if (height >= 500) return 4;
-  if (height >= 350) return 3;
-  if (height >= 250) return 2;
-  return 1;
 }
 
 function setSpanClass(element: HTMLElement, span: number): void {
@@ -143,11 +165,20 @@ export class Panel {
     this.element.appendChild(this.resizeHandle);
     this.setupResizeHandlers();
 
-    // Restore saved span
+    // Restore saved span / custom height
     const savedSpans = loadPanelSpans();
-    const savedSpan = savedSpans[this.panelId];
-    if (savedSpan && savedSpan > 1) {
-      setSpanClass(this.element, savedSpan);
+    const savedVal = savedSpans[this.panelId];
+    if (savedVal) {
+      if (savedVal > 10) {
+        const targetHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, savedVal));
+        const span = heightToSpan(targetHeight);
+        setSpanClass(this.element, span);
+        this.element.style.height = `${targetHeight}px`;
+      } else if (savedVal > 1) {
+        setSpanClass(this.element, savedVal);
+        const mappedHeight = savedVal === 4 ? 820 : savedVal === 3 ? 600 : 420;
+        this.element.style.height = `${mappedHeight}px`;
+      }
     }
 
     this.showLoading();
@@ -156,14 +187,22 @@ export class Panel {
   private setupResizeHandlers(): void {
     if (!this.resizeHandle) return;
 
+    let rafId: number | null = null;
+    let pendingHeight: number | null = null;
+    let currentDragHeight: number | null = null;
+
     const onMouseDown = (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       this.isResizing = true;
       this.startY = e.clientY;
       this.startHeight = this.element.getBoundingClientRect().height;
+      currentDragHeight = this.startHeight;
       this.element.classList.add('resizing');
+      this.element.dataset.resizing = 'true';
+      this.element.style.transition = 'none';
       this.resizeHandle?.classList.add('active');
+      document.body.style.cursor = 'ns-resize';
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
     };
@@ -171,32 +210,54 @@ export class Panel {
     const onMouseMove = (e: MouseEvent) => {
       if (!this.isResizing) return;
       const deltaY = e.clientY - this.startY;
-      const newHeight = Math.max(200, this.startHeight + deltaY);
-      const span = heightToSpan(newHeight);
-      setSpanClass(this.element, span);
+      const newHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, this.startHeight + deltaY));
+      pendingHeight = newHeight;
+      currentDragHeight = newHeight;
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          if (this.isResizing && pendingHeight !== null) {
+            this.element.style.height = `${pendingHeight}px`;
+          }
+          rafId = null;
+        });
+      }
     };
 
     const onMouseUp = () => {
       if (!this.isResizing) return;
       this.isResizing = false;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       this.element.classList.remove('resizing');
+      delete this.element.dataset.resizing;
       this.resizeHandle?.classList.remove('active');
+      document.body.style.cursor = '';
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
 
-      const currentSpan = this.element.classList.contains('span-4') ? 4 :
-        this.element.classList.contains('span-3') ? 3 :
-          this.element.classList.contains('span-2') ? 2 : 1;
-      savePanelSpan(this.panelId, currentSpan);
-      trackPanelResized(this.panelId, currentSpan);
+      const finalHeight = currentDragHeight ?? this.element.getBoundingClientRect().height;
+      const targetHeight = snapToCustomPosition(finalHeight);
+      const span = heightToSpan(targetHeight);
+
+      // Smooth lock animation to the chosen custom position
+      this.element.style.transition = 'height 0.2s cubic-bezier(0.2, 0.9, 0.4, 1)';
+      this.element.style.height = `${targetHeight}px`;
+      setSpanClass(this.element, span);
+
+      setTimeout(() => {
+        if (!this.isResizing) {
+          this.element.style.transition = '';
+        }
+      }, 220);
+
+      savePanelSpan(this.panelId, targetHeight);
+      trackPanelResized(this.panelId, span);
     };
 
     this.resizeHandle.addEventListener('mousedown', onMouseDown);
-
-    // Mark element as resizing for external listeners
-    this.resizeHandle.addEventListener('mousedown', () => {
-      this.element.dataset.resizing = 'true';
-    });
 
     // Double-click to reset
     this.resizeHandle.addEventListener('dblclick', () => {
@@ -212,8 +273,10 @@ export class Panel {
       this.isResizing = true;
       this.startY = touch.clientY;
       this.startHeight = this.element.getBoundingClientRect().height;
+      currentDragHeight = this.startHeight;
       this.element.classList.add('resizing');
       this.element.dataset.resizing = 'true';
+      this.element.style.transition = 'none';
       this.resizeHandle?.classList.add('active');
     }, { passive: false });
 
@@ -223,22 +286,47 @@ export class Panel {
       const touch = e.touches[0];
       if (!touch) return;
       const deltaY = touch.clientY - this.startY;
-      const newHeight = Math.max(200, this.startHeight + deltaY);
-      const span = heightToSpan(newHeight);
-      setSpanClass(this.element, span);
+      const newHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, this.startHeight + deltaY));
+      pendingHeight = newHeight;
+      currentDragHeight = newHeight;
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          if (this.isResizing && pendingHeight !== null) {
+            this.element.style.height = `${pendingHeight}px`;
+          }
+          rafId = null;
+        });
+      }
     };
 
     this.onTouchEnd = () => {
       if (!this.isResizing) return;
       this.isResizing = false;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       this.element.classList.remove('resizing');
       delete this.element.dataset.resizing;
       this.resizeHandle?.classList.remove('active');
-      const currentSpan = this.element.classList.contains('span-4') ? 4 :
-        this.element.classList.contains('span-3') ? 3 :
-          this.element.classList.contains('span-2') ? 2 : 1;
-      savePanelSpan(this.panelId, currentSpan);
-      trackPanelResized(this.panelId, currentSpan);
+
+      const finalHeight = currentDragHeight ?? this.element.getBoundingClientRect().height;
+      const targetHeight = snapToCustomPosition(finalHeight);
+      const span = heightToSpan(targetHeight);
+
+      this.element.style.transition = 'height 0.2s cubic-bezier(0.2, 0.9, 0.4, 1)';
+      this.element.style.height = `${targetHeight}px`;
+      setSpanClass(this.element, span);
+
+      setTimeout(() => {
+        if (!this.isResizing) {
+          this.element.style.transition = '';
+        }
+      }, 220);
+
+      savePanelSpan(this.panelId, targetHeight);
+      trackPanelResized(this.panelId, span);
     };
 
     this.onDocMouseUp = () => {
@@ -417,6 +505,8 @@ export class Panel {
    */
   public resetHeight(): void {
     this.element.classList.remove('resized', 'span-1', 'span-2', 'span-3', 'span-4');
+    this.element.style.height = '';
+    this.element.style.transition = '';
     const spans = loadPanelSpans();
     delete spans[this.panelId];
     localStorage.setItem(PANEL_SPANS_KEY, JSON.stringify(spans));

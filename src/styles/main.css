@@ -879,22 +879,22 @@ canvas,
 /* Row span classes for resizable panels */
 .panel.span-1 {
   grid-row: span 1 !important;
-  min-height: 200px !important;
 }
 
 .panel.span-2 {
   grid-row: span 2 !important;
-  min-height: 400px !important;
 }
 
 .panel.span-3 {
   grid-row: span 3 !important;
-  min-height: 600px !important;
 }
 
 .panel.span-4 {
   grid-row: span 4 !important;
-  min-height: 800px !important;
+}
+
+.panel.resized {
+  min-height: 200px !important;
 }
 
 .panel-resize-handle {
@@ -934,8 +934,10 @@ canvas,
 }
 
 .panel.resizing {
-  cursor: ns-resize;
-  user-select: none;
+  cursor: ns-resize !important;
+  user-select: none !important;
+  transition: none !important;
+  z-index: 50 !important;
 }
 
 .panel:active {
@@ -2168,6 +2170,7 @@ canvas,
   flex: 1;
   background: #000;
   aspect-ratio: 16 / 9;
+  min-height: 0;
 }
 
 .webcam-single .webcam-iframe {
@@ -2177,7 +2180,7 @@ canvas,
 .webcam-switcher {
   display: flex;
   gap: 4px;
-  padding: 6px 8px;
+  padding: 6px 8px 26px 8px;
   background: var(--darken-heavy);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
