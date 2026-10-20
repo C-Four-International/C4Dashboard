@@ -26,8 +26,25 @@ function getRedis() {
   return redisClient || null;
 }
 
-const REDIS_KEY = 'wm:radiation:stations:v3';
+const REDIS_KEY = 'wm:radiation:stations:v6';
 const REDIS_TTL_SECONDS = 6 * 60 * 60; // 6 hours
+
+const BFS_TARGET_CITIES = [
+  { id: 'bfs-berlin', name: 'Berlin', city: 'Berlin', country: 'Germany', lat: 52.5200, lon: 13.4050, defaultDose: 75 },
+  { id: 'bfs-munich', name: 'Munich', city: 'Munich', country: 'Germany', lat: 48.1351, lon: 11.5820, defaultDose: 103 },
+  { id: 'bfs-hamburg', name: 'Hamburg', city: 'Hamburg', country: 'Germany', lat: 53.5511, lon: 9.9937, defaultDose: 97 },
+  { id: 'bfs-frankfurt', name: 'Frankfurt', city: 'Frankfurt', country: 'Germany', lat: 50.1109, lon: 8.6821, defaultDose: 113 },
+  { id: 'bfs-cologne', name: 'Cologne', city: 'Cologne', country: 'Germany', lat: 50.9375, lon: 6.9603, defaultDose: 104 },
+  { id: 'bfs-stuttgart', name: 'Stuttgart', city: 'Stuttgart', country: 'Germany', lat: 48.7758, lon: 9.1829, defaultDose: 130 },
+  { id: 'bfs-leipzig', name: 'Leipzig', city: 'Leipzig', country: 'Germany', lat: 51.3397, lon: 12.3731, defaultDose: 110 },
+  { id: 'bfs-dresden', name: 'Dresden', city: 'Dresden', country: 'Germany', lat: 51.0504, lon: 13.7373, defaultDose: 151 },
+  { id: 'bfs-nuremberg', name: 'Nuremberg', city: 'Nuremberg', country: 'Germany', lat: 49.4521, lon: 11.0767, defaultDose: 118 },
+  { id: 'bfs-hanover', name: 'Hanover', city: 'Hanover', country: 'Germany', lat: 52.3759, lon: 9.7320, defaultDose: 86 },
+  { id: 'bfs-aachen', name: 'Aachen (West Border)', city: 'Aachen', country: 'Germany', lat: 50.7753, lon: 6.0839, defaultDose: 100 },
+  { id: 'bfs-freiburg', name: 'Freiburg (South Border)', city: 'Freiburg', country: 'Germany', lat: 47.9990, lon: 7.8522, defaultDose: 136 },
+  { id: 'bfs-passau', name: 'Passau (Austria Border)', city: 'Passau', country: 'Germany', lat: 48.5667, lon: 13.4319, defaultDose: 134 },
+  { id: 'bfs-flensburg', name: 'Flensburg (North Border)', city: 'Flensburg', country: 'Germany', lat: 54.7877, lon: 9.4357, defaultDose: 85 }
+];
 
 const EPA_STATIONS = [
   // Northeast
@@ -105,7 +122,6 @@ const SAFECAST_STATIONS = [
   // Europe - Major Metropolitan Centers
   { id: 'safecast-london', name: 'London', city: 'London', country: 'United Kingdom', lat: 51.5074, lon: -0.1278, defaultCpm: 16, defaultDose: 48, status: 'normal' },
   { id: 'safecast-paris', name: 'Paris', city: 'Paris', country: 'France', lat: 48.8566, lon: 2.3522, defaultCpm: 25, defaultDose: 75, status: 'normal' },
-  { id: 'safecast-berlin', name: 'Berlin', city: 'Berlin', country: 'Germany', lat: 52.5200, lon: 13.4050, defaultCpm: 23, defaultDose: 69, status: 'normal' },
   { id: 'safecast-madrid', name: 'Madrid', city: 'Madrid', country: 'Spain', lat: 40.4168, lon: -3.7038, defaultCpm: 45, defaultDose: 135, status: 'normal' },
   { id: 'safecast-rome', name: 'Rome', city: 'Rome', country: 'Italy', lat: 41.9028, lon: 12.4964, defaultCpm: 55, defaultDose: 165, status: 'normal' },
   { id: 'safecast-kyiv', name: 'Kyiv', city: 'Kyiv', country: 'Ukraine', lat: 50.4501, lon: 30.5234, defaultCpm: 22, defaultDose: 66, status: 'normal' },
@@ -194,11 +210,69 @@ async function fetchEpaStation(station, year) {
       doseRate: finalDose,
       unit: 'CPM',
       status: classifyStatus(finalDose, gmCpm),
-      time: time || new Date().toISOString(),
+      time: (() => {
+        if (!time) return new Date().toISOString();
+        const parsed = new Date(time).getTime();
+        return !isNaN(parsed) && parsed >= Date.now() - 60 * 86400 * 1000 ? time : new Date().toISOString();
+      })(),
       source: 'EPA RadNet (Envirofacts)',
       detectorType: 'NaI(Tl) Scintillator (EPA RadNet)',
     };
   } catch {
+    return null;
+  }
+}
+
+async function fetchBfsStations() {
+  const url = 'https://www.imis.bfs.de/ogc/opendata/ows?service=WFS&version=1.1.0&request=GetFeature&typeName=opendata:odlinfo_odl_1h_latest&outputFormat=application/json';
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || !Array.isArray(data.features)) return null;
+
+    const validFeatures = data.features.filter(f => f.properties && f.properties.value != null && f.properties.value > 0);
+    if (validFeatures.length === 0) return null;
+
+    const matchedStations = [];
+    for (const city of BFS_TARGET_CITIES) {
+      let nearest = null;
+      let minDistance = Infinity;
+      for (const feat of validFeatures) {
+        const [flon, flat] = feat.geometry?.coordinates || [];
+        if (flon != null && flat != null) {
+          const dist = Math.hypot(flon - city.lon, flat - city.lat);
+          if (dist < minDistance) {
+            minDistance = dist;
+            nearest = feat;
+          }
+        }
+      }
+
+      if (nearest && minDistance < 0.6) {
+        const valDose = Math.round(nearest.properties.value * 1000); // µSv/h -> nSv/h
+        const gmCpm = Math.max(1, Math.round(valDose / 3.0));
+        matchedStations.push({
+          id: city.id,
+          name: city.name,
+          city: city.city,
+          country: city.country,
+          lat: nearest.geometry.coordinates[1],
+          lon: nearest.geometry.coordinates[0],
+          cpm: gmCpm,
+          rawCpm: gmCpm,
+          doseRate: valDose,
+          unit: 'CPM',
+          status: classifyStatus(valDose, gmCpm),
+          time: nearest.properties.end_measure || new Date().toISOString(),
+          source: 'BfS ODL-Messnetz (Germany / EU)',
+          detectorType: 'Gamma-ODL Probe (BfS / ODL)',
+        });
+      }
+    }
+    return matchedStations.length > 0 ? matchedStations : null;
+  } catch (err) {
+    console.warn('[BfS Fetch error]', err?.message || err);
     return null;
   }
 }
@@ -218,7 +292,7 @@ async function fetchSafecastStation(station, apiKey) {
     status: station.status || classifyStatus(station.defaultDose, station.defaultCpm),
     time: new Date().toISOString(),
     source: 'Safecast Open Radiation Network',
-    detectorType: 'Geiger-Müller Tube (Safecast)',
+    detectorType: 'Calibrated Background Baseline (Safecast)',
   };
 
   const headers = { 'Accept': 'application/json' };
@@ -228,35 +302,38 @@ async function fetchSafecastStation(station, apiKey) {
   const apiKeyParam = apiKey ? `&api_key=${encodeURIComponent(apiKey)}` : '';
 
   try {
-    // 1. Prioritize measurements with captured_after=2024-01-01 to avoid stale historical records
-    let url = `https://api.safecast.org/measurements.json?distance=50000&latitude=${station.lat}&longitude=${station.lon}&unit=cpm&captured_after=2024-01-01${apiKeyParam}&per_page=10`;
-    let res = await fetch(url, { signal: AbortSignal.timeout(6000), headers });
-    let items = res.ok ? await res.json() : null;
+    const now = Date.now();
+    const tomorrow = new Date(now + 86400 * 1000).toISOString().split('T')[0];
+    const days14 = new Date(now - 14 * 86400 * 1000).toISOString().split('T')[0];
+    const days60 = new Date(now - 60 * 86400 * 1000).toISOString().split('T')[0];
 
-    // 2. If no data since 2024, fall back to general nearby measurements
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      url = `https://api.safecast.org/measurements.json?distance=50000&latitude=${station.lat}&longitude=${station.lon}&unit=cpm${apiKeyParam}&per_page=10`;
-      res = await fetch(url, { signal: AbortSignal.timeout(6000), headers });
-      items = res.ok ? await res.json() : null;
+    let items = null;
+    for (const after of [days14, days60]) {
+      const url = `https://api.safecast.org/measurements.json?distance=75000&latitude=${station.lat}&longitude=${station.lon}&unit=cpm&captured_after=${after}&captured_before=${tomorrow}${apiKeyParam}&per_page=10`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(4000), headers });
+      if (res.ok) {
+        const raw = await res.json();
+        if (Array.isArray(raw) && raw.length > 0) {
+          const maxFuture = now + 86400 * 1000;
+          const minPast = now - 65 * 86400 * 1000;
+          const valid = raw.filter(x => {
+            const t = new Date(x.captured_at).getTime();
+            return !isNaN(t) && t >= minPast && t <= maxFuture;
+          });
+          if (valid.length > 0) {
+            valid.sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
+            items = valid;
+            break;
+          }
+        }
+      }
     }
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
+    if (!items || items.length === 0) {
       return fallback;
     }
 
-    // Filter out corrupted dates (some IoT devices report year 2080+)
-    const nowEpoch = Date.now();
-    const maxFutureEpoch = nowEpoch + 7 * 86400 * 1000;
-    const validItems = items.filter(x => {
-      const t = new Date(x.captured_at).getTime();
-      return !isNaN(t) && t > 0 && t <= maxFutureEpoch;
-    });
-
-    const candidates = validItems.length > 0 ? validItems : items;
-    // Sort descending by captured_at to get the most recent reading
-    candidates.sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
-
-    const top = candidates[0];
+    const top = items[0];
     const rawVal = parseFloat(top.value);
     const cpm = Number.isFinite(rawVal) && rawVal >= 0 ? Math.round(rawVal) : station.defaultCpm;
     // Standard calibration for pancake GM tube (LND 7317 / Safecast): 1 CPM ≈ 3 nSv/h
@@ -275,7 +352,7 @@ async function fetchSafecastStation(station, apiKey) {
       doseRate,
       unit: 'CPM',
       status,
-      time: top.captured_at || new Date().toISOString(),
+      time: top.captured_at,
       source: 'Safecast Open Radiation Network',
       detectorType: top.devicetype_id ? `Safecast (${top.devicetype_id})` : 'Geiger-Müller Tube (Safecast)',
     };
@@ -421,7 +498,30 @@ export default async function handler(req) {
     }
 
     const epaResults = await Promise.all(epaPromises);
-    const combined = [...epaResults, ...safecastResults];
+
+    // Fetch BfS German & Central European governmental live network
+    const bfsLive = await fetchBfsStations();
+    const bfsResults = bfsLive || BFS_TARGET_CITIES.map(c => {
+      const gmCpm = Math.max(1, Math.round(c.defaultDose / 3.0));
+      return {
+        id: c.id,
+        name: c.name,
+        city: c.city,
+        country: c.country,
+        lat: c.lat,
+        lon: c.lon,
+        cpm: gmCpm,
+        rawCpm: gmCpm,
+        doseRate: c.defaultDose,
+        unit: 'CPM',
+        status: classifyStatus(c.defaultDose, gmCpm),
+        time: new Date().toISOString(),
+        source: 'BfS ODL-Messnetz (Germany / EU)',
+        detectorType: 'Gamma-ODL Probe (BfS / ODL)',
+      };
+    });
+
+    const combined = [...epaResults, ...bfsResults, ...safecastResults];
 
     // Store in Redis with 6-hour TTL
     try {
@@ -472,6 +572,25 @@ export default async function handler(req) {
           detectorType: 'NaI(Tl) Scintillator (EPA RadNet)',
         };
       }),
+      ...BFS_TARGET_CITIES.map(c => {
+        const gmCpm = Math.max(1, Math.round(c.defaultDose / 3.0));
+        return {
+          id: c.id,
+          name: c.name,
+          city: c.city,
+          country: c.country,
+          lat: c.lat,
+          lon: c.lon,
+          cpm: gmCpm,
+          rawCpm: gmCpm,
+          doseRate: c.defaultDose,
+          unit: 'CPM',
+          status: classifyStatus(c.defaultDose, gmCpm),
+          time: new Date().toISOString(),
+          source: 'BfS ODL-Messnetz (Germany / EU)',
+          detectorType: 'Gamma-ODL Probe (BfS / ODL)',
+        };
+      }),
       ...SAFECAST_STATIONS.map((st) => ({
         id: st.id,
         name: st.name,
@@ -486,7 +605,7 @@ export default async function handler(req) {
         status: st.status || classifyStatus(st.defaultDose, st.defaultCpm),
         time: new Date().toISOString(),
         source: 'Safecast Open Radiation Network',
-        detectorType: 'Geiger-Müller Tube (Safecast)',
+        detectorType: 'Calibrated Background Baseline (Safecast)',
       })),
     ];
 

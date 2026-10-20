@@ -1455,7 +1455,14 @@ export class MapComponent {
         div.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="${color}"><circle cx="12" cy="12" r="8" fill-opacity="0.3"/><circle cx="12" cy="12" r="4"/><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" fill-opacity="0.8"/></svg>`;
         const rawText = station.rawCpm && station.rawCpm !== station.cpm ? ` · ${station.rawCpm.toLocaleString()} raw NaI` : '';
         const doseText = station.doseRate != null ? ` · ${station.doseRate} nSv/h` : '';
-        div.title = `☢ ${station.name}: ${station.cpm} CPM (GM equiv)${doseText} (${station.status})${rawText}`;
+        let timeStr = '';
+        if (station.time) {
+          const d = new Date(station.time);
+          if (!isNaN(d.getTime())) {
+            timeStr = ` · ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+          }
+        }
+        div.title = `☢ ${station.name}: ${station.cpm} CPM (GM equiv)${doseText} (${station.status})${rawText}${timeStr} · ${station.source}`;
 
         div.addEventListener('click', (e) => {
           e.stopPropagation();

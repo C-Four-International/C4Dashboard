@@ -1379,7 +1379,28 @@ export class MapPopup {
     const badgeClass = station.status === 'high' ? 'critical' : station.status === 'elevated' ? 'elevated' : 'normal';
     const doseText = station.doseRate != null ? `${station.doseRate} nSv/h (${(station.doseRate / 1000).toFixed(3)} µSv/h)` : 'N/A';
     const hasRaw = station.rawCpm != null && station.rawCpm !== station.cpm;
-    const detectorName = station.detectorType || (station.source.includes('RadNet') ? '2"×2" NaI(Tl) Scintillation Detector' : 'LND 7317 Pancake GM Tube');
+    const detectorName = station.detectorType || (station.source.includes('BfS') ? 'Gamma-ODL Probe (BfS / ODL)' : station.source.includes('RadNet') ? '2"×2" NaI(Tl) Scintillation Detector' : 'LND 7317 Pancake GM Tube');
+
+    let timeFormatted = station.time;
+    if (station.time) {
+      const d = new Date(station.time);
+      if (!isNaN(d.getTime())) {
+        timeFormatted = d.toLocaleString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZoneName: 'short',
+        });
+      }
+    }
+
+    const sourceDesc = station.source.includes('BfS')
+      ? '<strong>BfS ODL-Messnetz:</strong> Continuous governmental gamma environmental radiation monitoring network operated by the German Federal Office for Radiation Protection, measuring ambient gamma dose rates across Germany and Central Europe with hourly validation.'
+      : station.source.includes('RadNet')
+        ? '<strong>EPA RadNet Stationary Monitor:</strong> RadNet uses a high-sensitivity 2"×2" NaI(Tl) scintillation crystal pulling air through a filter. Because scintillation crystals have &gt;100× the volume and photon capture sensitivity of handheld Geiger counters (registering 700–3,500 raw counts/min in clean ambient background), the primary CPM is normalized to standard Geiger-Müller (GM/Safecast) tube equivalent (1 CPM ≈ 3 nSv/h) so US cities, Chernobyl, Fukushima, and international capitals are on the same comparative baseline.'
+        : '<strong>Safecast Open Radiation Network:</strong> Measures ambient environmental gamma radiation using calibrated Geiger-Müller pancake detectors (LND 7317) deployed across major metropolitan areas, nuclear facilities, and exclusion zones worldwide.';
 
     return `
       <div class="popup-header radiation">
@@ -1388,7 +1409,7 @@ export class MapPopup {
         <button class="popup-close">×</button>
       </div>
       <div class="popup-body">
-        <div class="popup-subtitle">Environmental Radiation Monitoring</div>
+        <div class="popup-subtitle">Environmental Gamma Radiation Detection</div>
         <div class="popup-stats">
           <div class="popup-stat">
             <span class="stat-label">Geiger Equiv. (CPM)</span>
@@ -1414,7 +1435,7 @@ export class MapPopup {
           </div>
           <div class="popup-stat">
             <span class="stat-label">Sample Time</span>
-            <span class="stat-value">${escapeHtml(station.time)}</span>
+            <span class="stat-value">${escapeHtml(timeFormatted)}</span>
           </div>
           <div class="popup-stat">
             <span class="stat-label">Coordinates</span>
@@ -1422,9 +1443,7 @@ export class MapPopup {
           </div>
         </div>
         <p class="popup-description" style="margin-top:12px;font-size:11px;line-height:1.5;">
-          ${station.source.includes('RadNet')
-            ? '<strong>EPA RadNet Stationary Monitor:</strong> RadNet uses a high-sensitivity 2"×2" NaI(Tl) scintillation crystal pulling air through a filter. Because scintillation crystals have &gt;100× the volume and photon capture sensitivity of handheld Geiger counters (registering 700–3,500 raw counts/min in clean ambient background), the primary CPM is normalized to standard Geiger-Müller (GM/Safecast) tube equivalent (1 CPM ≈ 3 nSv/h) so US cities, Chernobyl, Fukushima, and international capitals are on the same comparative baseline.'
-            : '<strong>Safecast Open Radiation Network:</strong> Measures ambient environmental gamma radiation using calibrated Geiger-Müller pancake detectors (LND 7317) deployed across major metropolitan areas, nuclear facilities, and exclusion zones worldwide.'}
+          ${sourceDesc}
         </p>
       </div>
     `;

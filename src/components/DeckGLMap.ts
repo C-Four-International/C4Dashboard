@@ -3593,8 +3593,17 @@ export class DeckGLMap {
         const statusBadge = `<span style="color:${statusColor};font-weight:700;text-transform:uppercase">${text(st.status)}</span>`;
         const doseStr = st.doseRate != null ? `${st.doseRate} nSv/h · ` : '';
         const rawNote = st.rawCpm != null && st.rawCpm !== st.cpm ? `<br/><small style="opacity:0.85">Raw NaI: ${st.rawCpm.toLocaleString()} CPM (EPA Scintillator)</small>` : '';
+        let timeStr = '';
+        if (st.time) {
+          const d = new Date(st.time);
+          if (!isNaN(d.getTime())) {
+            timeStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          } else {
+            timeStr = st.time;
+          }
+        }
         return {
-          html: `<div class="deckgl-tooltip"><strong>☢ ${text(st.name)}</strong><br/><strong>${st.cpm.toLocaleString()} CPM</strong> <small style="opacity:0.85">(GM equiv)</small> · ${doseStr}${statusBadge}${rawNote}<br/><small style="opacity:0.75">${text(st.source)}</small></div>`,
+          html: `<div class="deckgl-tooltip"><strong>☢ ${text(st.name)}</strong><br/><strong>${st.cpm.toLocaleString()} CPM</strong> <small style="opacity:0.85">(GM equiv)</small> · ${doseStr}${statusBadge}${rawNote}<br/><small style="opacity:0.75">${text(st.source)}${timeStr ? ` · ${text(timeStr)}` : ''}</small></div>`,
         };
       }
       case 'spaceports-layer':
