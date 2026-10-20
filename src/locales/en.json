@@ -823,6 +823,7 @@
         "weatherRadar": "Weather Radar",
         "gpsJamming": "GPS Jamming",
         "bgpAnomalies": "BGP Routing Anomalies",
+        "internetOutages": "Internet Outages",
         "agriculturalStressDI": "Drought Intensity (DI)",
         "agriculturalStressASI": "Agricultural Stress Index (ASI)",
         "agriculturalStressVCI": "Vegetation Condition Index (VCI)",

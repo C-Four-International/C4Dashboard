@@ -164,11 +164,8 @@ const VIEW_PRESETS: Record<DeckMapView, { longitude: number; latitude: number; z
 const MAP_INTERACTION_MODE: MapInteractionMode =
   import.meta.env.VITE_MAP_INTERACTION_MODE === 'flat' ? 'flat' : '3d';
 
-// Theme-aware basemap vector style URLs (English labels, no local scripts)
-// Happy variant uses self-hosted warm styles; default uses CARTO CDN
-const DARK_STYLE = SITE_VARIANT === 'happy'
-  ? '/map-styles/happy-dark.json'
-  : 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+// Basemap vector style URLs (English labels, no local scripts)
+// The map stays in light style (CARTO Voyager / happy-light)
 const LIGHT_STYLE = SITE_VARIANT === 'happy'
   ? '/map-styles/happy-light.json'
   : 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
@@ -194,9 +191,9 @@ export { LAYER_ZOOM_THRESHOLDS };
 const AGRICULTURAL_LAYER_OPACITY = 0.3;
 const VEGETATION_LAYER_OPACITY = 0.3;
 
-// Theme-aware overlay color function
+// Theme-aware overlay color function (calibrated for light basemap)
 function getOverlayColors() {
-  const isLight = getCurrentTheme() === 'light';
+  const isLight = true;
   return {
     // Threat dots: IDENTICAL in both modes (user locked decision)
     hotspotHigh: [255, 68, 68, 200] as [number, number, number, number],
@@ -263,12 +260,26 @@ const MARKER_ICONS = {
   diamond: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><polygon points="16,2 30,16 16,30 2,16" fill="white"/></svg>`),
   // Triangle up - for military bases
   triangleUp: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><polygon points="16,2 30,28 2,28" fill="white"/></svg>`),
+  // Triangle down - for gamma irradiators
+  triangleDown: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><polygon points="2,4 30,4 16,30" fill="white"/></svg>`),
   // Hexagon - for nuclear
   hexagon: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><polygon points="16,2 28,9 28,23 16,30 4,23 4,9" fill="white"/></svg>`),
+  // Pentagon - for critical minerals
+  pentagon: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><polygon points="16,2 30,12 25,29 7,29 2,12" fill="white"/></svg>`),
   // Circle - fallback
   circle: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="white"/></svg>`),
-  // Star - for special markers
+  // Star - for spaceports & special markers
   star: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><polygon points="16,2 20,12 30,12 22,19 25,30 16,23 7,30 10,19 2,12 12,12" fill="white"/></svg>`),
+  // Ring - for radiation detection
+  ring: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="white" stroke-width="4"/><circle cx="16" cy="16" r="4" fill="white"/></svg>`),
+  // Cross - for internet outages
+  cross: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M7 4 L4 7 L13 16 L4 25 L7 28 L16 19 L25 28 L28 25 L19 16 L28 7 L25 4 L16 13 Z" fill="white"/></svg>`),
+  // Shield - for cyber threats
+  shield: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M16 2 L28 6 V15 C28 22.5 22 28.5 16 31 C10 28.5 4 22.5 4 15 V6 Z" fill="white"/></svg>`),
+  // Octagon - for regional threat score
+  octagon: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><polygon points="10,2 22,2 30,10 30,22 22,30 10,30 2,22 2,10" fill="white"/></svg>`),
+  // Delta Arrow - for military flights and naval combatants
+  delta: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><polygon points="16,2 29,28 16,22 3,28" fill="white"/></svg>`),
 };
 
 export class DeckGLMap {
@@ -297,6 +308,8 @@ export class DeckGLMap {
   private repairShips: RepairShip[] = [];
   private weatherTimeBar: HTMLElement | null = null;
   private waterTempLegend: HTMLElement | null = null;
+  private legendElement: HTMLElement | null = null;
+  private isLegendOpen = false;
   private healthByCableId: Record<string, CableHealthRecord> = {};
   private protests: SocialUnrestEvent[] = [];
   private militaryFlights: MilitaryFlight[] = [];
@@ -480,11 +493,10 @@ export class DeckGLMap {
 
   private initMapLibre(): void {
     const preset = VIEW_PRESETS[this.state.view];
-    const initialTheme = getCurrentTheme();
 
     const mapOptions = {
       container: 'deckgl-basemap',
-      style: initialTheme === 'light' ? LIGHT_STYLE : DARK_STYLE,
+      style: LIGHT_STYLE,
       center: [preset.longitude, preset.latitude] as [number, number],
       zoom: preset.zoom,
       renderWorldCopies: false as false,
@@ -1350,6 +1362,7 @@ export class DeckGLMap {
     // Gamma irradiators layer — hidden at low zoom
     if (mapLayers.irradiators && this.isLayerVisible('irradiators')) {
       layers.push(this.createIrradiatorsLayer());
+      layers.push(this.createGhostLayer('irradiators-layer', GAMMA_IRRADIATORS, d => [d.lon, d.lat], { radiusMinPixels: 12 }));
     }
 
     // Environmental Radiation monitoring layer (EPA RadNet + Chernobyl & Fukushima)
@@ -1361,6 +1374,7 @@ export class DeckGLMap {
     // Spaceports layer — hidden at low zoom
     if (mapLayers.spaceports && this.isLayerVisible('spaceports')) {
       layers.push(this.createSpaceportsLayer());
+      layers.push(this.createGhostLayer('spaceports-layer', SPACEPORTS, d => [d.lon, d.lat], { radiusMinPixels: 12 }));
     }
 
     // Hotspots layer (all hotspots including high/breaking, with pulse + ghost)
@@ -1454,6 +1468,7 @@ export class DeckGLMap {
     // Military vessels layer
     if (mapLayers.military && filteredMilitaryVessels.length > 0) {
       layers.push(this.createMilitaryVesselsLayer(filteredMilitaryVessels));
+      layers.push(this.createGhostLayer('military-vessels-layer', filteredMilitaryVessels, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
     }
 
     // Military vessel clusters layer
@@ -1464,6 +1479,7 @@ export class DeckGLMap {
     // Military flights layer
     if (mapLayers.military && filteredMilitaryFlights.length > 0) {
       layers.push(this.createMilitaryFlightsLayer(filteredMilitaryFlights));
+      layers.push(this.createGhostLayer('military-flights-layer', filteredMilitaryFlights, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
     }
 
     // Military flight clusters layer
@@ -1498,6 +1514,7 @@ export class DeckGLMap {
     // Critical minerals layer
     if (mapLayers.minerals) {
       layers.push(this.createMineralsLayer());
+      layers.push(this.createGhostLayer('minerals-layer', CRITICAL_MINERALS, d => [d.lon, d.lat], { radiusMinPixels: 12 }));
     }
 
     // UCDP georeferenced events layer
@@ -1579,11 +1596,8 @@ export class DeckGLMap {
 
     // Threat Score Layer
     if (mapLayers.threatScore) {
-      console.log(`[ThreatScore] Checking layers... news length: ${this.news.length}, newsLocations length: ${this.newsLocations.length}`);
       if (this.news.length > 0 || this.newsLocations.length > 0) {
-        layers.push(this.createThreatScoreLayer());
-      } else {
-        console.warn(`[ThreatScore] Layer active but NO NEWS OR LOCATIONS DATA EXISTS!`);
+        layers.push(...this.createThreatScoreLayer());
       }
     }
 
@@ -1601,6 +1615,8 @@ export class DeckGLMap {
     const collidableResult = result.map((layer: any) => {
       const type = layer?.constructor?.layerName;
       if (type === 'IconLayer' || type === 'TextLayer') {
+        const isExempt = layer.id === 'military-flights-layer' || layer.id === 'military-vessels-layer' || layer.id === 'threat-score-layer';
+        if (isExempt) return layer;
         return layer.clone({
           extensions: [...(layer.props.extensions || []), collisionExt],
           collisionEnabled: true,
@@ -1895,49 +1911,46 @@ export class DeckGLMap {
   }
 
   // Layer creation methods
-  private createThreatScoreLayer(): ScatterplotLayer {
+  private createThreatScoreLayer(): Layer[] {
     const regionalThreats = calculateRegionalThreats(this.newsLocations);
-    console.log(`[ThreatScore] calculated regionalThreats count: ${regionalThreats.length}`);
-    if (regionalThreats.length > 0) {
-      console.log('[ThreatScore] Data hook payload:', regionalThreats.slice(0, 5));
-    }
+    if (regionalThreats.length === 0) return [];
 
-    return new ScatterplotLayer<RegionalThreat>({
+    const iconLayer = new IconLayer<RegionalThreat>({
       id: 'threat-score-layer',
       data: regionalThreats,
       getPosition: (d: RegionalThreat) => [d.lon, d.lat],
-      getFillColor: (d: RegionalThreat) => {
+      getIcon: () => 'octagon',
+      iconAtlas: MARKER_ICONS.octagon,
+      iconMapping: { octagon: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: (d: RegionalThreat) => {
+        return Math.max(14, Math.min(32, 14 + d.threatScore * 6));
+      },
+      getColor: (d: RegionalThreat) => {
         const t = d.threatScore;
-        if (t < 0.5) return [64, 200, 120, 200]; // Low: Green
-        if (t < 1.0) return [255, 204, 0, 200];  // Medium: Yellow
-        if (t < 1.5) return [255, 140, 0, 210];  // High: Orange
-        if (t < 3.0) return [255, 50, 50, 220];  // Critical: Red
-        return [180, 0, 40, 230];                // Extreme: Dark Crimson
+        if (t < 0.5) return [34, 197, 94, 220];   // Low: Green
+        if (t < 1.0) return [234, 179, 8, 225];   // Medium: Yellow
+        if (t < 1.5) return [249, 115, 22, 230];  // High: Orange
+        if (t < 3.0) return [239, 68, 68, 240];   // Critical: Red
+        return [185, 28, 28, 245];                // Extreme: Deep Crimson
       },
-      getRadius: (d: RegionalThreat) => {
-        // Larger base radius so it's visible globally
-        return Math.max(25000, 35000 + (d.threatScore * 10000));
-      },
-      radiusUnits: 'meters',
-      radiusMinPixels: 6,
-      radiusMaxPixels: 80,
-      stroked: true,
-      getLineColor: (d: RegionalThreat) => {
-        const t = d.threatScore;
-        if (t < 0.5) return [64, 255, 120, 255];
-        if (t < 1.0) return [255, 255, 0, 255];
-        if (t < 1.5) return [255, 180, 0, 255];
-        if (t < 3.0) return [255, 100, 100, 255];
-        return [255, 50, 80, 255];
-      },
-      lineWidthMinPixels: 1,
+      sizeScale: 1,
+      sizeMinPixels: 10,
+      sizeMaxPixels: 36,
       pickable: true,
       updateTriggers: {
-        // Tie to something stable like news lengths and decay timer ID so it redraws on interval
-        getFillColor: [this.newsLocations.length, Date.now()],
-        getRadius: [this.newsLocations.length, Date.now()]
+        getColor: [this.newsLocations.length, Date.now()],
+        getSize: [this.newsLocations.length, Date.now()]
       }
     });
+
+    const ghostLayer = this.createGhostLayer(
+      'threat-score-layer',
+      regionalThreats,
+      (d: RegionalThreat) => [d.lon, d.lat],
+      { radiusMinPixels: 16 }
+    );
+
+    return [iconLayer, ghostLayer];
   }
 
   private createCablesLayer(): PathLayer {
@@ -2218,56 +2231,61 @@ export class DeckGLMap {
     });
   }
 
-  private createIrradiatorsLayer(): ScatterplotLayer {
-    return new ScatterplotLayer({
+  private createIrradiatorsLayer(): IconLayer {
+    return new IconLayer({
       id: 'irradiators-layer',
       data: GAMMA_IRRADIATORS,
       getPosition: (d) => [d.lon, d.lat],
-      getRadius: 6000,
-      getFillColor: [255, 100, 255, 180] as [number, number, number, number], // Magenta
-      radiusMinPixels: 4,
-      radiusMaxPixels: 10,
+      getIcon: () => 'triangleDown',
+      iconAtlas: MARKER_ICONS.triangleDown,
+      iconMapping: { triangleDown: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: 11,
+      getColor: [255, 100, 255, 210] as [number, number, number, number], // Magenta
+      sizeScale: 1,
+      sizeMinPixels: 6,
+      sizeMaxPixels: 14,
       pickable: true,
     });
   }
 
-  private createRadiationLayer(stations: RadiationStation[]): ScatterplotLayer {
-    return new ScatterplotLayer({
+  private createRadiationLayer(stations: RadiationStation[]): IconLayer {
+    return new IconLayer({
       id: 'radiation-layer',
       data: stations,
       getPosition: (d: RadiationStation) => [d.lon, d.lat],
-      getRadius: (d: RadiationStation) => {
-        if (d.status === 'high') return 24000;
-        if (d.status === 'elevated') return 16000;
-        return 10000;
+      getIcon: () => 'ring',
+      iconAtlas: MARKER_ICONS.ring,
+      iconMapping: { ring: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: (d: RadiationStation) => {
+        if (d.status === 'high') return 16;
+        if (d.status === 'elevated') return 13;
+        return 10;
       },
-      getFillColor: (d: RadiationStation) => {
-        if (d.status === 'high') return [255, 40, 40, 220] as [number, number, number, number];
-        if (d.status === 'elevated') return [255, 170, 0, 200] as [number, number, number, number];
-        return [0, 230, 180, 190] as [number, number, number, number];
+      getColor: (d: RadiationStation) => {
+        if (d.status === 'high') return [255, 40, 40, 230] as [number, number, number, number];
+        if (d.status === 'elevated') return [255, 170, 0, 220] as [number, number, number, number];
+        return [0, 230, 180, 200] as [number, number, number, number];
       },
-      getLineColor: (d: RadiationStation) => {
-        if (d.status === 'high') return [255, 100, 100, 255] as [number, number, number, number];
-        if (d.status === 'elevated') return [255, 230, 100, 255] as [number, number, number, number];
-        return [140, 255, 225, 255] as [number, number, number, number];
-      },
-      stroked: true,
-      lineWidthMinPixels: 1.5,
-      radiusMinPixels: 5,
-      radiusMaxPixels: 16,
+      sizeScale: 1,
+      sizeMinPixels: 6,
+      sizeMaxPixels: 17,
       pickable: true,
     });
   }
 
-  private createSpaceportsLayer(): ScatterplotLayer {
-    return new ScatterplotLayer({
+  private createSpaceportsLayer(): IconLayer {
+    return new IconLayer({
       id: 'spaceports-layer',
       data: SPACEPORTS,
       getPosition: (d) => [d.lon, d.lat],
-      getRadius: 10000,
-      getFillColor: [200, 100, 255, 200] as [number, number, number, number], // Purple
-      radiusMinPixels: 5,
-      radiusMaxPixels: 12,
+      getIcon: () => 'star',
+      iconAtlas: MARKER_ICONS.star,
+      iconMapping: { star: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: 13,
+      getColor: [200, 100, 255, 220] as [number, number, number, number], // Purple
+      sizeScale: 1,
+      sizeMinPixels: 7,
+      sizeMaxPixels: 15,
       pickable: true,
     });
   }
@@ -2435,46 +2453,51 @@ export class DeckGLMap {
     });
   }
 
-  private createOutagesLayer(outages: InternetOutage[]): ScatterplotLayer {
-    return new ScatterplotLayer({
+  private createOutagesLayer(outages: InternetOutage[]): IconLayer {
+    return new IconLayer({
       id: 'outages-layer',
       data: outages,
       getPosition: (d) => [d.lon, d.lat],
-      getRadius: 20000,
-      getFillColor: COLORS.outage,
-      radiusMinPixels: 6,
-      radiusMaxPixels: 18,
+      getIcon: () => 'cross',
+      iconAtlas: MARKER_ICONS.cross,
+      iconMapping: { cross: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: 12,
+      getColor: COLORS.outage,
+      sizeScale: 1,
+      sizeMinPixels: 7,
+      sizeMaxPixels: 16,
       pickable: true,
     });
   }
 
-  private createCyberThreatsLayer(threats: CyberThreat[]): ScatterplotLayer<CyberThreat> {
-    return new ScatterplotLayer<CyberThreat>({
+  private createCyberThreatsLayer(threats: CyberThreat[]): IconLayer<CyberThreat> {
+    return new IconLayer<CyberThreat>({
       id: 'cyber-threats-layer',
       data: threats,
       getPosition: (d) => [d.lon, d.lat],
-      getRadius: (d) => {
+      getIcon: () => 'shield',
+      iconAtlas: MARKER_ICONS.shield,
+      iconMapping: { shield: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: (d) => {
         switch (d.severity) {
-          case 'critical': return 22000;
-          case 'high': return 17000;
-          case 'medium': return 13000;
-          default: return 9000;
+          case 'critical': return 15;
+          case 'high': return 13;
+          case 'medium': return 11;
+          default: return 9;
         }
       },
-      getFillColor: (d) => {
+      getColor: (d) => {
         switch (d.severity) {
-          case 'critical': return [255, 61, 0, 225] as [number, number, number, number];
-          case 'high': return [255, 102, 0, 205] as [number, number, number, number];
-          case 'medium': return [255, 176, 0, 185] as [number, number, number, number];
-          default: return [255, 235, 59, 170] as [number, number, number, number];
+          case 'critical': return [255, 61, 0, 230] as [number, number, number, number];
+          case 'high': return [255, 102, 0, 215] as [number, number, number, number];
+          case 'medium': return [255, 176, 0, 200] as [number, number, number, number];
+          default: return [255, 235, 59, 185] as [number, number, number, number];
         }
       },
-      radiusMinPixels: 6,
-      radiusMaxPixels: 18,
+      sizeScale: 1,
+      sizeMinPixels: 6,
+      sizeMaxPixels: 17,
       pickable: true,
-      stroked: true,
-      getLineColor: [255, 255, 255, 160] as [number, number, number, number],
-      lineWidthMinPixels: 1,
     });
   }
 
@@ -2654,25 +2677,24 @@ export class DeckGLMap {
     });
   }
 
-  private createMilitaryVesselsLayer(vessels: MilitaryVessel[]): ScatterplotLayer {
-    return new ScatterplotLayer({
+  private createMilitaryVesselsLayer(vessels: MilitaryVessel[]): IconLayer<MilitaryVessel> {
+    return new IconLayer<MilitaryVessel>({
       id: 'military-vessels-layer',
       data: vessels,
-      getPosition: (d) => [d.lon, d.lat],
-      getRadius: 6000,
-      getFillColor: (d) => {
-        if (d.usniSource) return [255, 160, 60, 160] as [number, number, number, number]; // Orange, lower alpha for USNI-only
+      getPosition: (d: MilitaryVessel) => [d.lon, d.lat],
+      getIcon: () => 'delta',
+      iconAtlas: MARKER_ICONS.delta,
+      iconMapping: { delta: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: 13,
+      getColor: (d: MilitaryVessel) => {
+        if (d.usniSource) return [255, 160, 60, 220] as [number, number, number, number]; // Orange for USNI Fleet tracker
         return COLORS.vesselMilitary;
       },
-      radiusMinPixels: 4,
-      radiusMaxPixels: 10,
+      getAngle: (d: MilitaryVessel) => (typeof d.heading === 'number' && !isNaN(d.heading) ? d.heading : 0),
+      sizeScale: 1,
+      sizeMinPixels: 8,
+      sizeMaxPixels: 18,
       pickable: true,
-      stroked: true,
-      getLineColor: (d) => {
-        if (d.usniSource) return [255, 180, 80, 200] as [number, number, number, number]; // Orange outline
-        return [0, 0, 0, 0] as [number, number, number, number]; // No outline for AIS
-      },
-      lineWidthMinPixels: 2,
     });
   }
 
@@ -2695,15 +2717,20 @@ export class DeckGLMap {
     });
   }
 
-  private createMilitaryFlightsLayer(flights: MilitaryFlight[]): ScatterplotLayer {
-    return new ScatterplotLayer({
+  private createMilitaryFlightsLayer(flights: MilitaryFlight[]): IconLayer<MilitaryFlight> {
+    return new IconLayer<MilitaryFlight>({
       id: 'military-flights-layer',
       data: flights,
-      getPosition: (d) => [d.lon, d.lat],
-      getRadius: 8000,
-      getFillColor: COLORS.flightMilitary,
-      radiusMinPixels: 4,
-      radiusMaxPixels: 12,
+      getPosition: (d: MilitaryFlight) => [d.lon, d.lat],
+      getIcon: () => 'delta',
+      iconAtlas: MARKER_ICONS.delta,
+      iconMapping: { delta: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: 13,
+      getColor: COLORS.flightMilitary,
+      getAngle: (d: MilitaryFlight) => (typeof d.heading === 'number' && !isNaN(d.heading) ? d.heading : 0),
+      sizeScale: 1,
+      sizeMinPixels: 8,
+      sizeMaxPixels: 18,
       pickable: true,
     });
   }
@@ -2820,25 +2847,29 @@ export class DeckGLMap {
     });
   }
 
-  private createMineralsLayer(): ScatterplotLayer {
+  private createMineralsLayer(): IconLayer {
     // Critical minerals projects
-    return new ScatterplotLayer({
+    return new IconLayer({
       id: 'minerals-layer',
       data: CRITICAL_MINERALS,
       getPosition: (d) => [d.lon, d.lat],
-      getRadius: 8000,
-      getFillColor: (d) => {
+      getIcon: () => 'pentagon',
+      iconAtlas: MARKER_ICONS.pentagon,
+      iconMapping: { pentagon: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: 11,
+      getColor: (d) => {
         // Color by mineral type
         switch (d.mineral) {
-          case 'Lithium': return [0, 200, 255, 200] as [number, number, number, number]; // Cyan
-          case 'Cobalt': return [100, 100, 255, 200] as [number, number, number, number]; // Blue
-          case 'Rare Earths': return [255, 100, 200, 200] as [number, number, number, number]; // Pink
-          case 'Nickel': return [100, 255, 100, 200] as [number, number, number, number]; // Green
-          default: return [200, 200, 200, 200] as [number, number, number, number]; // Gray
+          case 'Lithium': return [0, 210, 255, 220] as [number, number, number, number]; // Cyan
+          case 'Cobalt': return [100, 120, 255, 220] as [number, number, number, number]; // Blue
+          case 'Rare Earths': return [255, 100, 200, 220] as [number, number, number, number]; // Pink
+          case 'Nickel': return [100, 255, 100, 220] as [number, number, number, number]; // Green
+          default: return [200, 200, 200, 220] as [number, number, number, number]; // Gray
         }
       },
-      radiusMinPixels: 5,
-      radiusMaxPixels: 12,
+      sizeScale: 1,
+      sizeMinPixels: 6,
+      sizeMaxPixels: 14,
       pickable: true,
     });
   }
@@ -3103,28 +3134,28 @@ export class DeckGLMap {
     const baseOpacity = zoom < 2.5 ? 0.5 : zoom < 4 ? 0.7 : 1.0;
     const layers: Layer[] = [];
 
-    layers.push(new ScatterplotLayer({
+    layers.push(new IconLayer({
       id: 'hotspots-layer',
       data: this.hotspots,
       getPosition: (d) => [d.lon, d.lat],
-      getRadius: (d) => {
+      getIcon: () => 'diamond',
+      iconAtlas: MARKER_ICONS.diamond,
+      iconMapping: { diamond: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: (d) => {
         const score = d.escalationScore || 1;
-        return 10000 + score * 5000;
+        return d.hasBreaking ? 16 : 9 + score * 2;
       },
-      getFillColor: (d) => {
+      getColor: (d) => {
         const score = d.escalationScore || 1;
-        const a = Math.round((score >= 4 ? 200 : score >= 2 ? 200 : 180) * baseOpacity);
-        if (score >= 4) return [255, 68, 68, a] as [number, number, number, number];
+        const a = Math.round((score >= 4 ? 220 : score >= 2 ? 210 : 190) * baseOpacity);
+        if (score >= 4 || d.hasBreaking) return [255, 68, 68, a] as [number, number, number, number];
         if (score >= 2) return [255, 165, 0, a] as [number, number, number, number];
-        return [255, 255, 0, a] as [number, number, number, number];
+        return [255, 220, 0, a] as [number, number, number, number];
       },
-      radiusMinPixels: 4,
-      radiusMaxPixels: maxPx,
+      sizeScale: 1,
+      sizeMinPixels: 6,
+      sizeMaxPixels: Math.max(14, maxPx),
       pickable: true,
-      stroked: true,
-      getLineColor: (d) =>
-        d.hasBreaking ? [255, 255, 255, 255] as [number, number, number, number] : [0, 0, 0, 0] as [number, number, number, number],
-      lineWidthMinPixels: 2,
     }));
 
     layers.push(this.createGhostLayer('hotspots-layer', this.hotspots, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
@@ -3495,6 +3526,13 @@ export class DeckGLMap {
     const text = (value: unknown): string => escapeHtml(String(value ?? ''));
 
     switch (layerId) {
+      case 'threat-score-layer': {
+        const score = typeof obj.threatScore === 'number' ? obj.threatScore.toFixed(2) : '0.00';
+        const levelLabel = obj.threatScore < 0.5 ? 'Low' : obj.threatScore < 1.0 ? 'Medium' : obj.threatScore < 1.5 ? 'High' : obj.threatScore < 3.0 ? 'Critical' : 'Extreme';
+        return {
+          html: `<div class="deckgl-tooltip"><strong>${text(obj.locationName || 'Regional Threat Alert')}</strong><br/>Threat Score: <strong>${score}</strong> (${levelLabel})<br/>Events Analyzed: ${obj.eventCount || 1}</div>`
+        };
+      }
       case 'alert-status-layer':
         if (!obj.properties) return null;
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.properties.alertName)}</strong><br/>${text(obj.properties.alertStatusText)}</div>` };
@@ -4504,58 +4542,449 @@ export class DeckGLMap {
   private createLegend(): void {
     const legend = document.createElement('div');
     legend.className = 'map-legend deckgl-legend';
+    this.legendElement = legend;
 
-    // SVG shapes for different marker types
-    const shapes = {
-      circle: (color: string) => `<svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="${color}"/></svg>`,
-      triangle: (color: string) => `<svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,10 1,10" fill="${color}"/></svg>`,
-      square: (color: string) => `<svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" rx="1" fill="${color}"/></svg>`,
-      hexagon: (color: string) => `<svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 10.5,3.5 10.5,8.5 6,11 1.5,8.5 1.5,3.5" fill="${color}"/></svg>`,
-    };
+    this.renderLegend();
+    this.container.appendChild(legend);
+
+    window.addEventListener('theme-changed', () => {
+      if (this.legendElement) {
+        this.renderLegend();
+      }
+    });
+  }
+
+  private renderLegend(): void {
+    if (!this.legendElement) return;
 
     const isLight = getCurrentTheme() === 'light';
-    const legendItems = SITE_VARIANT === 'tech'
-      ? [
-        { shape: shapes.circle(isLight ? 'rgb(22, 163, 74)' : 'rgb(0, 255, 150)'), label: t('components.deckgl.legend.startupHub') },
-        { shape: shapes.circle('rgb(100, 200, 255)'), label: t('components.deckgl.legend.techHQ') },
-        { shape: shapes.circle(isLight ? 'rgb(180, 120, 0)' : 'rgb(255, 200, 0)'), label: t('components.deckgl.legend.accelerator') },
-        { shape: shapes.circle('rgb(150, 100, 255)'), label: t('components.deckgl.legend.cloudRegion') },
-        { shape: shapes.square('rgb(136, 68, 255)'), label: t('components.deckgl.legend.datacenter') },
-      ]
-      : SITE_VARIANT === 'finance'
-        ? [
-          { shape: shapes.circle('rgb(255, 215, 80)'), label: t('components.deckgl.legend.stockExchange') },
-          { shape: shapes.circle('rgb(0, 220, 150)'), label: t('components.deckgl.legend.financialCenter') },
-          { shape: shapes.hexagon('rgb(255, 210, 80)'), label: t('components.deckgl.legend.centralBank') },
-          { shape: shapes.square('rgb(255, 150, 80)'), label: t('components.deckgl.legend.commodityHub') },
-          { shape: shapes.triangle('rgb(80, 170, 255)'), label: t('components.deckgl.legend.waterway') },
-        ]
-        : SITE_VARIANT === 'happy'
-          ? [
-            { shape: shapes.circle('rgb(34, 197, 94)'), label: 'Positive Event' },
-            { shape: shapes.circle('rgb(234, 179, 8)'), label: 'Breakthrough' },
-            { shape: shapes.circle('rgb(74, 222, 128)'), label: 'Act of Kindness' },
-            { shape: shapes.circle('rgb(255, 100, 50)'), label: 'Natural Event' },
-            { shape: shapes.square('rgb(34, 180, 100)'), label: 'Happy Country' },
-            { shape: shapes.circle('rgb(74, 222, 128)'), label: 'Species Recovery Zone' },
-            { shape: shapes.circle('rgb(255, 200, 50)'), label: 'Renewable Installation' },
-          ]
-          : [
-            { shape: shapes.circle('rgb(255, 68, 68)'), label: t('components.deckgl.legend.highAlert') },
-            { shape: shapes.circle('rgb(255, 165, 0)'), label: t('components.deckgl.legend.elevated') },
-            { shape: shapes.circle(isLight ? 'rgb(180, 120, 0)' : 'rgb(255, 255, 0)'), label: t('components.deckgl.legend.monitoring') },
-            { shape: shapes.triangle('rgb(68, 136, 255)'), label: t('components.deckgl.legend.base') },
-            { shape: shapes.hexagon(isLight ? 'rgb(180, 120, 0)' : 'rgb(255, 220, 0)'), label: t('components.deckgl.legend.nuclear') },
-            { shape: shapes.square('rgb(136, 68, 255)'), label: t('components.deckgl.legend.datacenter') },
-          ];
+    const isOpen = this.isLegendOpen;
 
-    legend.innerHTML = `
-      <span class="legend-label-title">${t('components.deckgl.legend.title')}</span>
-      ${legendItems.map(({ shape, label }) => `<span class="legend-item">${shape}<span class="legend-label">${label}</span></span>`).join('')}
+    const shapes = {
+      circle: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><circle cx="7" cy="7" r="5.5" fill="${color}"/></svg>`,
+      diamond: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><polygon points="7,1 13,7 7,13 1,7" fill="${color}"/></svg>`,
+      triangleUp: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><polygon points="7,1 13,12 1,12" fill="${color}"/></svg>`,
+      triangleDown: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><polygon points="1,2 13,2 7,13" fill="${color}"/></svg>`,
+      square: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><rect x="2" y="2" width="10" height="10" rx="1.5" fill="${color}"/></svg>`,
+      hexagon: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><polygon points="7,1 12.5,4 12.5,10 7,13 1.5,10 1.5,4" fill="${color}"/></svg>`,
+      pentagon: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><polygon points="7,1 13,5.5 11,12.5 3,12.5 1,5.5" fill="${color}"/></svg>`,
+      star: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><polygon points="7,1 8.8,5.2 13.2,5.2 9.7,8.2 11,12.5 7,9.8 3,12.5 4.3,8.2 0.8,5.2 5.2,5.2" fill="${color}"/></svg>`,
+      ring: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><circle cx="7" cy="7" r="5.5" fill="none" stroke="${color}" stroke-width="2"/><circle cx="7" cy="7" r="2" fill="${color}"/></svg>`,
+      cross: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><path d="M3 2 L2 3 L5.5 7 L2 11 L3 12 L7 8.5 L11 12 L12 11 L8.5 7 L12 3 L11 2 L7 5.5 Z" fill="${color}"/></svg>`,
+      shield: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><path d="M7 1 L12 2.8 V6.6 C12 9.8 9.5 12.5 7 13.5 C4.5 12.5 2 9.8 2 6.6 V2.8 Z" fill="${color}"/></svg>`,
+      line: (color: string) => `<svg width="16" height="14" viewBox="0 0 16 14" class="legend-shape-svg"><line x1="1" y1="7" x2="15" y2="7" stroke="${color}" stroke-width="3" stroke-linecap="round"/></svg>`,
+      octagon: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><polygon points="4.5,1 9.5,1 13,4.5 13,9.5 9.5,13 4.5,13 1,9.5 1,4.5" fill="${color}"/></svg>`,
+      delta: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><polygon points="7,1 13,12.5 7,10 1,12.5" fill="${color}"/></svg>`,
+      heatmap: () => `<svg width="18" height="14" viewBox="0 0 18 14" class="legend-shape-svg"><defs><linearGradient id="legendGpsHeatGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ffffb2"/><stop offset="35%" stop-color="#fecc5c"/><stop offset="70%" stop-color="#fd8d3c"/><stop offset="100%" stop-color="#bd0026"/></linearGradient></defs><rect x="1" y="2" width="16" height="10" rx="2" fill="url(#legendGpsHeatGrad)"/></svg>`,
+      sstHeatmap: () => `<svg width="18" height="14" viewBox="0 0 18 14" class="legend-shape-svg"><defs><linearGradient id="legendSstHeatGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#40004b"/><stop offset="15%" stop-color="#2166ac"/><stop offset="32%" stop-color="#4393c3"/><stop offset="50%" stop-color="#92c5de"/><stop offset="68%" stop-color="#fee090"/><stop offset="85%" stop-color="#d6604d"/><stop offset="100%" stop-color="#67001f"/></linearGradient></defs><rect x="1" y="2" width="16" height="10" rx="2" fill="url(#legendSstHeatGrad)"/></svg>`,
+    };
+
+    interface LegendCategoryDef {
+      title: string;
+      items: Array<{
+        shape: string;
+        badge: string;
+        name: string;
+        desc: string;
+        subswatches?: Array<{ color: string; label: string }>;
+      }>;
+    }
+
+    let categories: LegendCategoryDef[] = [];
+
+    if (SITE_VARIANT === 'tech') {
+      categories = [
+        {
+          title: 'Tech Ecosystem',
+          items: [
+            { shape: shapes.circle(isLight ? '#16a34a' : '#22c55e'), badge: 'Circle', name: t('components.deckgl.layers.startupHubs'), desc: 'Major startup capitals & venture ecosystems (Silicon Valley, Tel Aviv, Tokyo, etc.).' },
+            { shape: shapes.circle('#38bdf8'), badge: 'Circle', name: t('components.deckgl.layers.techHQs'), desc: 'Headquarters of public technology leaders and prominent unicorns.' },
+            { shape: shapes.circle(isLight ? '#d97706' : '#f59e0b'), badge: 'Circle', name: t('components.deckgl.layers.accelerators'), desc: 'Premier startup incubators and global accelerator campuses.' },
+            { shape: shapes.circle('#a855f7'), badge: 'Circle', name: t('components.deckgl.layers.cloudRegions'), desc: 'AWS, Azure, and Google Cloud global availability zone regions.' },
+            { shape: shapes.circle('#ec4899'), badge: 'Circle', name: t('components.deckgl.layers.techEvents'), desc: 'Global technology developer summits, hacker conventions, and conferences.' },
+          ],
+        },
+        {
+          title: 'Infrastructure',
+          items: [
+            { shape: shapes.square('#a855f7'), badge: 'Square', name: t('components.deckgl.layers.aiDataCenters'), desc: 'Hyperscale AI compute facilities with ≥10,000 GPUs.' },
+            { shape: shapes.line('#38bdf8'), badge: 'Line Path', name: t('components.deckgl.layers.underseaCables'), desc: 'Transoceanic high-bandwidth fiber optic submarine routes.' },
+            {
+              shape: shapes.ring('#14b8a6'),
+              badge: 'Concentric Ring',
+              name: t('components.deckgl.layers.radiation'),
+              desc: 'Continuous radiation detection stations with normalized CPM dose levels.',
+              subswatches: [
+                { color: '#14b8a6', label: 'Normal' },
+                { color: '#f97316', label: 'Elevated' },
+                { color: '#ef4444', label: 'High' },
+              ],
+            },
+          ],
+        },
+        {
+          title: 'Aviation & Natural',
+          items: [
+            { shape: shapes.circle('#f59e0b'), badge: 'Dot', name: t('components.deckgl.layers.flightDelays'), desc: 'Commercial airport ground stops and FAA delay advisories.' },
+            { shape: shapes.circle('#ef4444'), badge: 'Thermal Dot', name: t('components.deckgl.layers.fires'), desc: 'NASA FIRMS active wildfire and industrial heat detections.' },
+            { shape: shapes.circle('#06b6d4'), badge: 'Beacon', name: t('components.deckgl.layers.naturalEvents'), desc: 'Seismic events and severe weather alerts near tech clusters.' },
+          ],
+        },
+      ];
+    } else if (SITE_VARIANT === 'finance') {
+      categories = [
+        {
+          title: 'Financial Markets',
+          items: [
+            { shape: shapes.circle('#facc15'), badge: 'Circle', name: t('components.deckgl.layers.stockExchanges'), desc: 'Equities and derivatives exchanges categorized by market tier.' },
+            { shape: shapes.circle('#22c55e'), badge: 'Circle', name: t('components.deckgl.layers.financialCenters'), desc: 'Global and regional banking, capital market, and liquidity capitals.' },
+            { shape: shapes.hexagon('#facc15'), badge: 'Hexagon', name: t('components.deckgl.layers.centralBanks'), desc: 'Monetary policy institutions and federal reserve systems worldwide.' },
+            { shape: shapes.square('#f97316'), badge: 'Square', name: t('components.deckgl.layers.commodityHubs'), desc: 'Key energy, metals, and agricultural storage and trade depots.' },
+            { shape: shapes.circle('#ec4899'), badge: 'Circle', name: t('components.deckgl.layers.gulfInvestments'), desc: 'GCC sovereign wealth fund mega-investments and strategic FDI flows.' },
+          ],
+        },
+        {
+          title: 'Infrastructure & Trade',
+          items: [
+            { shape: shapes.line('#06b6d4'), badge: 'Shipping Lane', name: t('components.deckgl.layers.tradeRoutes'), desc: 'Primary international container shipping lanes connecting trade hubs.' },
+            { shape: shapes.line('#38bdf8'), badge: 'Line Path', name: t('components.deckgl.layers.underseaCables'), desc: 'Low-latency submarine fiber routes linking financial centers.' },
+            { shape: shapes.line('#f59e0b'), badge: 'Pipeline', name: t('components.deckgl.layers.pipelines'), desc: 'Strategic crude oil and natural gas energy pipelines.' },
+            { shape: shapes.triangleUp('#38bdf8'), badge: 'Triangle', name: t('components.deckgl.layers.strategicWaterways'), desc: 'Strategic maritime chokepoints and canals (Suez, Panama, Hormuz).' },
+          ],
+        },
+      ];
+    } else if (SITE_VARIANT === 'happy') {
+      categories = [
+        {
+          title: 'Well-being & Kindness',
+          items: [
+            { shape: shapes.circle('#22c55e'), badge: 'Circle', name: 'Positive Events', desc: 'Global scientific breakthroughs, peaceful diplomacy, and recovery milestones.' },
+            { shape: shapes.circle('#4ade80'), badge: 'Circle', name: 'Acts of Kindness', desc: 'Verified community support, humanitarian aid, and mutual assistance.' },
+            { shape: shapes.square('#22c55e'), badge: 'Square', name: 'World Happiness', desc: 'Top ranked countries from the annual World Happiness Report.' },
+            { shape: shapes.circle('#38bdf8'), badge: 'Circle', name: 'Species Recovery', desc: 'Endangered wildlife restoration and protected marine reserves.' },
+            { shape: shapes.circle('#facc15'), badge: 'Circle', name: 'Clean Energy', desc: 'Major solar, wind, and battery grid storage installations.' },
+          ],
+        },
+        {
+          title: 'Natural Environment',
+          items: [
+            { shape: shapes.circle('#06b6d4'), badge: 'Circle', name: 'Natural Events', desc: 'Monitored seismic events, storm cycles, and climate patterns.' },
+          ],
+        },
+      ];
+    } else {
+      // Geopolitical (Default)
+      categories = [
+        {
+          title: 'Infrastructure',
+          items: [
+            {
+              shape: shapes.hexagon(isLight ? '#d97706' : '#eab308'),
+              badge: 'Hexagon',
+              name: t('components.deckgl.layers.nuclearSites'),
+              desc: 'Civilian nuclear power reactors, research facilities, and uranium fuel enrichment sites.',
+              subswatches: [
+                { color: isLight ? '#d97706' : '#eab308', label: 'Operational' },
+                { color: '#ef4444', label: 'Contested' },
+              ],
+            },
+            {
+              shape: shapes.square('#a855f7'),
+              badge: 'Square',
+              name: t('components.deckgl.layers.aiDataCenters'),
+              desc: 'Hyperscale AI compute clusters, sovereign GPU campuses, and training facilities operating ≥10,000 chips.',
+            },
+            {
+              shape: shapes.star('#c084fc'),
+              badge: 'Star',
+              name: t('components.deckgl.layers.spaceports'),
+              desc: 'Orbital and suborbital space launch complexes, military rocket ranges, and commercial spaceports.',
+            },
+            {
+              shape: shapes.ring('#14b8a6'),
+              badge: 'Concentric Ring',
+              name: t('components.deckgl.layers.radiation'),
+              desc: 'Real-time gamma radiation stations (EPA RadNet, Chernobyl, Safecast) with ambient dose rates.',
+              subswatches: [
+                { color: '#14b8a6', label: 'Normal' },
+                { color: '#f97316', label: 'Elevated' },
+                { color: '#ef4444', label: 'High Alert' },
+              ],
+            },
+            {
+              shape: shapes.triangleDown('#ec4899'),
+              badge: 'Down Triangle',
+              name: t('components.deckgl.layers.gammaIrradiators'),
+              desc: 'Industrial high-activity gamma sterilization and phytosanitary processing units using Cobalt-60 / Cesium-137.',
+            },
+            {
+              shape: shapes.pentagon('#06b6d4'),
+              badge: 'Pentagon',
+              name: t('components.deckgl.layers.criticalMinerals'),
+              desc: 'Strategic mine sites and refining facilities essential for defense, energy, and electronics supply chains.',
+              subswatches: [
+                { color: '#06b6d4', label: 'Lithium' },
+                { color: '#6366f1', label: 'Cobalt' },
+                { color: '#ec4899', label: 'Rare Earths' },
+                { color: '#22c55e', label: 'Nickel' },
+              ],
+            },
+            {
+              shape: shapes.line('#38bdf8'),
+              badge: 'Path Line',
+              name: t('components.deckgl.layers.underseaCables'),
+              desc: 'Transoceanic submarine fiber optic cables carrying intercontinental internet traffic and landing stations.',
+            },
+            {
+              shape: shapes.line('#f59e0b'),
+              badge: 'Path Line',
+              name: t('components.deckgl.layers.pipelines'),
+              desc: 'Strategic transnational crude oil, refined petroleum, and natural gas transmission pipelines.',
+            },
+          ],
+        },
+        {
+          title: 'Military & Geopolitical',
+          items: [
+            {
+              shape: shapes.triangleUp('#3b82f6'),
+              badge: 'Up Triangle',
+              name: t('components.deckgl.layers.militaryBases'),
+              desc: 'Strategic airfields, naval stations, radar installations, and joint operational headquarters (150+ sites).',
+              subswatches: [
+                { color: '#3b82f6', label: 'US/NATO' },
+                { color: '#ef4444', label: 'Russia' },
+                { color: '#f97316', label: 'China' },
+                { color: '#06b6d4', label: 'UK' },
+                { color: '#0055a4', label: 'France' },
+                { color: '#f59e0b', label: 'India' },
+                { color: '#bc002d', label: 'Japan' },
+              ],
+            },
+            {
+              shape: shapes.delta('#ef4444'),
+              badge: 'Delta Arrow',
+              name: t('components.deckgl.layers.militaryActivity'),
+              desc: 'Live airborne reconnaissance (AWACS), combat patrols, and active naval combatants oriented along heading.',
+              subswatches: [
+                { color: '#ef4444', label: 'Airborne Patrol' },
+                { color: '#f97316', label: 'Naval Combatant' },
+              ],
+            },
+            {
+              shape: shapes.octagon('#ef4444'),
+              badge: 'Octagon',
+              name: t('components.deckgl.layers.threatScore') || 'Threat Score',
+              desc: 'Dynamic composite threat severity index calculated from breaking intelligence, source credibility, and temporal decay.',
+              subswatches: [
+                { color: '#22c55e', label: 'Low (<0.5)' },
+                { color: '#eab308', label: 'Medium (0.5-1.0)' },
+                { color: '#f97316', label: 'High (1.0-1.5)' },
+                { color: '#ef4444', label: 'Critical (1.5-3.0)' },
+                { color: '#b91c1c', label: 'Extreme (≥3.0)' },
+              ],
+            },
+            {
+              shape: shapes.diamond('#ef4444'),
+              badge: 'Diamond',
+              name: t('components.deckgl.layers.intelHotspots'),
+              desc: 'Geopolitical tension regions, crisis flashpoints, and active conflict zones with escalation severity.',
+              subswatches: [
+                { color: '#ef4444', label: 'High / Breaking' },
+                { color: '#f97316', label: 'Elevated' },
+                { color: isLight ? '#d97706' : '#eab308', label: 'Monitoring' },
+              ],
+            },
+            {
+              shape: shapes.line('#ef4444'),
+              badge: 'Zone',
+              name: t('components.deckgl.layers.conflictZones'),
+              desc: 'Active war theaters, contested borders, and military frontlines.',
+            },
+          ],
+        },
+        {
+          title: 'Electronic Warfare & Signals',
+          items: [
+            {
+              shape: shapes.heatmap(),
+              badge: 'Heatmap',
+              name: t('components.deckgl.layers.gpsJamming') || 'GPS Jamming',
+              desc: 'Real-time satellite navigation interference and aircraft GPS/GNSS signal degradation detected via crowdsourced flight telemetry.',
+              subswatches: [
+                { color: '#bd0026', label: 'Severe (≥10%)' },
+                { color: '#fd8d3c', label: 'Moderate (2-10%)' },
+                { color: '#ffffb2', label: 'Low (<2%)' },
+              ],
+            },
+            {
+              shape: shapes.line('#a855f7'),
+              badge: 'Route Anomaly',
+              name: t('components.deckgl.layers.bgpAnomalies'),
+              desc: 'Global BGP route leaks, origin hijacks, and suspicious traffic redirection detected via Cloudflare Radar.',
+            },
+          ],
+        },
+        {
+          title: 'Natural',
+          items: [
+            {
+              shape: shapes.circle('#f97316'),
+              badge: 'Seismic Ring',
+              name: t('components.deckgl.layers.naturalEvents'),
+              desc: 'Real-time seismic earthquakes from USGS scaled by magnitude and depth, plus volcanic and storm events.',
+            },
+            {
+              shape: shapes.circle('#ef4444'),
+              badge: 'Thermal Dot',
+              name: t('components.deckgl.layers.fires'),
+              desc: 'Active thermal infrared anomaly detections and wildfires from NASA FIRMS (VIIRS / MODIS satellites).',
+            },
+            {
+              shape: shapes.circle('#06b6d4'),
+              badge: 'Weather Alert',
+              name: t('components.deckgl.layers.weather'),
+              desc: 'Severe weather alerts, gale bulletins, and flood warnings from national meteorological services.',
+            },
+            {
+              shape: shapes.sstHeatmap(),
+              badge: 'SST Heatmap',
+              name: t('components.deckgl.layers.waterTemperature') || 'Water Surface Temp',
+              desc: 'Global high-resolution sea surface temperature analysis from NASA GHRSST (MUR L4).',
+              subswatches: [
+                { color: '#2166ac', label: 'Polar (-2°C)' },
+                { color: '#4393c3', label: 'Cool (8°C)' },
+                { color: '#fee090', label: 'Mild (18°C)' },
+                { color: '#d6604d', label: 'Warm (26°C)' },
+                { color: '#67001f', label: 'Tropical (35°C)' },
+              ],
+            },
+          ],
+        },
+      ];
+    }
+
+    const categoriesHtml = categories.map(cat => `
+      <div class="legend-category-section">
+        <div class="legend-category-title">${escapeHtml(cat.title)}</div>
+        <div class="legend-category-items">
+          ${cat.items.map(item => `
+            <div class="legend-item-row">
+              <div class="legend-shape-preview">${item.shape}</div>
+              <div class="legend-item-details">
+                <div class="legend-item-header">
+                  <span class="legend-item-name">${escapeHtml(item.name)}</span>
+                  <span class="legend-item-badge">${escapeHtml(item.badge)}</span>
+                </div>
+                <div class="legend-item-desc">${escapeHtml(item.desc)}</div>
+                ${item.subswatches && item.subswatches.length > 0 ? `
+                  <div class="legend-subswatches">
+                    ${item.subswatches.map(sw => `
+                      <span class="legend-subswatch">
+                        <span class="legend-subswatch-dot" style="background:${sw.color}"></span>
+                        <span>${escapeHtml(sw.label)}</span>
+                      </span>
+                    `).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+
+    this.legendElement.innerHTML = `
+      <button type="button" class="legend-trigger-btn ${isOpen ? 'active' : ''}" aria-expanded="${isOpen ? 'true' : 'false'}" aria-haspopup="true" title="View layer descriptions and map shapes">
+        <span class="legend-trigger-preview">
+          ${shapes.diamond('#ef4444')}
+          ${shapes.triangleUp('#3b82f6')}
+          ${shapes.hexagon(isLight ? '#d97706' : '#eab308')}
+          ${shapes.square('#a855f7')}
+          ${shapes.ring('#14b8a6')}
+        </span>
+        <span class="legend-trigger-label">${t('components.deckgl.legend.title') || 'LEGEND'}</span>
+        <span class="legend-trigger-chevron">&#9650;</span>
+      </button>
+      <div class="legend-menu-popup ${isOpen ? 'open' : ''}" aria-hidden="${isOpen ? 'false' : 'true'}">
+        <div class="legend-menu-header">
+          <div class="legend-menu-header-text">
+            <span class="legend-menu-title">MAP DATAPOINT TYPES</span>
+            <span class="legend-menu-subtitle">Distinguishable shapes and layer classifications</span>
+          </div>
+          <button type="button" class="legend-menu-close" aria-label="Close legend">&times;</button>
+        </div>
+        <div class="legend-menu-body">
+          ${categoriesHtml}
+        </div>
+      </div>
     `;
 
-    this.container.appendChild(legend);
+    const triggerBtn = this.legendElement.querySelector('.legend-trigger-btn');
+    const closeBtn = this.legendElement.querySelector('.legend-menu-close');
+    const menuBody = this.legendElement.querySelector('.legend-menu-body');
+
+    triggerBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleLegend();
+    });
+
+    closeBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.closeLegend();
+    });
+
+    if (menuBody) {
+      menuBody.addEventListener('wheel', (e) => e.stopPropagation(), { passive: false });
+      menuBody.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: false });
+    }
   }
+
+  private toggleLegend(): void {
+    if (this.isLegendOpen) {
+      this.closeLegend();
+    } else {
+      this.openLegend();
+    }
+  }
+
+  private openLegend(): void {
+    this.isLegendOpen = true;
+    const triggerBtn = this.legendElement?.querySelector('.legend-trigger-btn');
+    const popup = this.legendElement?.querySelector('.legend-menu-popup');
+    triggerBtn?.classList.add('active');
+    triggerBtn?.setAttribute('aria-expanded', 'true');
+    popup?.classList.add('open');
+    popup?.setAttribute('aria-hidden', 'false');
+
+    document.addEventListener('click', this.handleLegendOutsideClick);
+    document.addEventListener('keydown', this.handleLegendKeydown);
+  }
+
+  private closeLegend(): void {
+    this.isLegendOpen = false;
+    const triggerBtn = this.legendElement?.querySelector('.legend-trigger-btn');
+    const popup = this.legendElement?.querySelector('.legend-menu-popup');
+    triggerBtn?.classList.remove('active');
+    triggerBtn?.setAttribute('aria-expanded', 'false');
+    popup?.classList.remove('open');
+    popup?.setAttribute('aria-hidden', 'true');
+
+    document.removeEventListener('click', this.handleLegendOutsideClick);
+    document.removeEventListener('keydown', this.handleLegendKeydown);
+  }
+
+  private handleLegendOutsideClick = (e: MouseEvent): void => {
+    if (!this.legendElement?.contains(e.target as Node)) {
+      this.closeLegend();
+    }
+  };
+
+  private handleLegendKeydown = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') {
+      this.closeLegend();
+    }
+  };
 
   private createWaterTempLegend(): void {
     this.waterTempLegend = document.createElement('div');
@@ -5612,11 +6041,15 @@ export class DeckGLMap {
       try {
         if (name && name !== hoveredName) {
           hoveredName = name;
-          map.setFilter('country-hover-fill', ['==', ['get', 'name'], name]);
+          if (map.getLayer('country-hover-fill')) {
+            map.setFilter('country-hover-fill', ['==', ['get', 'name'], name]);
+          }
           map.getCanvas().style.cursor = 'pointer';
         } else if (!name && hoveredName) {
           hoveredName = null;
-          map.setFilter('country-hover-fill', ['==', ['get', 'name'], '']);
+          if (map.getLayer('country-hover-fill')) {
+            map.setFilter('country-hover-fill', ['==', ['get', 'name'], '']);
+          }
           map.getCanvas().style.cursor = '';
         }
       } catch { /* style not done loading during theme switch */ }
@@ -5626,7 +6059,9 @@ export class DeckGLMap {
       if (hoveredName) {
         hoveredName = null;
         try {
-          map.setFilter('country-hover-fill', ['==', ['get', 'name'], '']);
+          if (map.getLayer('country-hover-fill')) {
+            map.setFilter('country-hover-fill', ['==', ['get', 'name'], '']);
+          }
         } catch { /* style not done loading */ }
         map.getCanvas().style.cursor = '';
       }
@@ -5638,8 +6073,12 @@ export class DeckGLMap {
     if (!this.maplibreMap || !this.countryGeoJsonLoaded) return;
     const filter = ['==', ['get', 'ISO3166-1-Alpha-2'], code] as maplibregl.FilterSpecification;
     try {
-      this.maplibreMap.setFilter('country-highlight-fill', filter);
-      this.maplibreMap.setFilter('country-highlight-border', filter);
+      if (this.maplibreMap.getLayer('country-highlight-fill')) {
+        this.maplibreMap.setFilter('country-highlight-fill', filter);
+      }
+      if (this.maplibreMap.getLayer('country-highlight-border')) {
+        this.maplibreMap.setFilter('country-highlight-border', filter);
+      }
     } catch { /* layer not ready yet */ }
   }
 
@@ -5648,35 +6087,32 @@ export class DeckGLMap {
     if (!this.maplibreMap) return;
     const noMatch = ['==', ['get', 'ISO3166-1-Alpha-2'], ''] as maplibregl.FilterSpecification;
     try {
-      this.maplibreMap.setFilter('country-highlight-fill', noMatch);
-      this.maplibreMap.setFilter('country-highlight-border', noMatch);
+      if (this.maplibreMap.getLayer('country-highlight-fill')) {
+        this.maplibreMap.setFilter('country-highlight-fill', noMatch);
+      }
+      if (this.maplibreMap.getLayer('country-highlight-border')) {
+        this.maplibreMap.setFilter('country-highlight-border', noMatch);
+      }
     } catch { /* layer not ready */ }
   }
 
-  private switchBasemap(theme: 'dark' | 'light'): void {
+  private switchBasemap(_theme: 'dark' | 'light'): void {
     if (!this.maplibreMap) return;
-    this.maplibreMap.setStyle(theme === 'light' ? LIGHT_STYLE : DARK_STYLE);
-    // setStyle() replaces all sources/layers — reset guard so country layers are re-added
-    this.countryGeoJsonLoaded = false;
-    this.maplibreMap.once('style.load', () => {
-      this.loadCountryBoundaries();
-      this.updateCountryLayerPaint(theme);
-
-      // Restore map layers (like weather radar) that are lost during setStyle
-      this.setLayers(this.state.layers);
-      // Re-render deck.gl overlay after style swap — interleaved layers need
-      // the new MapLibre style to be loaded before they can re-insert.
-      this.render();
-    });
+    // Map stays on the light style (Voyager)
+    this.updateCountryLayerPaint('light');
   }
 
-  private updateCountryLayerPaint(theme: 'dark' | 'light'): void {
+  private updateCountryLayerPaint(_theme?: 'dark' | 'light'): void {
     if (!this.maplibreMap || !this.countryGeoJsonLoaded) return;
-    const hoverOpacity = theme === 'light' ? 0.10 : 0.06;
-    const highlightOpacity = theme === 'light' ? 0.18 : 0.12;
+    const hoverOpacity = 0.10;
+    const highlightOpacity = 0.18;
     try {
-      this.maplibreMap.setPaintProperty('country-hover-fill', 'fill-opacity', hoverOpacity);
-      this.maplibreMap.setPaintProperty('country-highlight-fill', 'fill-opacity', highlightOpacity);
+      if (this.maplibreMap.getLayer('country-hover-fill')) {
+        this.maplibreMap.setPaintProperty('country-hover-fill', 'fill-opacity', hoverOpacity);
+      }
+      if (this.maplibreMap.getLayer('country-highlight-fill')) {
+        this.maplibreMap.setPaintProperty('country-highlight-fill', 'fill-opacity', highlightOpacity);
+      }
     } catch { /* layers may not be ready */ }
   }
 
@@ -5701,6 +6137,8 @@ export class DeckGLMap {
     this.maplibreMap?.remove();
     this.maplibreMap = null;
 
+    this.closeLegend();
+    this.legendElement = null;
     this.waterTempLegend = null;
     this.container.innerHTML = '';
   }

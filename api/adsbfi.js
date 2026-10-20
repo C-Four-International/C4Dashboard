@@ -10,28 +10,45 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 export default async function handler(req, res) {
   const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');
 
-  // Set CORS headers early
-  for (const [key, value] of Object.entries(corsHeaders)) {
-    res.setHeader(key, value);
-  }
+  const send = (status, data, extraHeaders = {}) => {
+    const allHeaders = { ...corsHeaders, ...extraHeaders };
+    if (res && typeof res.setHeader === 'function') {
+      res.statusCode = status;
+      for (const [k, v] of Object.entries(allHeaders)) {
+        res.setHeader(k, v);
+      }
+      if (typeof res.json === 'function') {
+        return res.json(data);
+      }
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(data !== undefined && data !== null ? JSON.stringify(data) : '');
+    }
+    return new Response(data !== undefined && data !== null ? JSON.stringify(data) : null, {
+      status,
+      headers: {
+        'Content-Type': 'application/json',
+        ...allHeaders,
+      },
+    });
+  };
 
   if (isDisallowedOrigin(req)) {
-    return res.status(403).json({ error: 'Origin not allowed' });
+    return send(403, { error: 'Origin not allowed' });
   }
 
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    return send(204, null);
   }
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return send(405, { error: 'Method not allowed' });
   }
 
   const now = Date.now();
   if (cachedData && (now - cacheTimestamp < CACHE_TTL_MS)) {
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'public, max-age=900, s-maxage=900, stale-while-revalidate=300');
-    res.setHeader('X-Cache', 'HIT');
-    return res.json(cachedData);
+    return send(200, cachedData, {
+      'Cache-Control': 'public, max-age=900, s-maxage=900, stale-while-revalidate=300',
+      'X-Cache': 'HIT',
+    });
   }
 
   try {
@@ -48,34 +65,31 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       if (cachedData) {
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
-        res.setHeader('X-Cache', 'STALE');
-        return res.json(cachedData);
+        return send(200, cachedData, {
+          'Cache-Control': 'public, max-age=300, s-maxage=300',
+          'X-Cache': 'STALE',
+        });
       }
-      return res.status(response.status).json({ error: `ADSB.lol returned ${response.status}` });
+      return send(response.status, { error: `ADSB.lol returned ${response.status}` });
     }
 
     const data = await response.json();
     cachedData = data;
     cacheTimestamp = Date.now();
 
-    res.status(200);
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'public, max-age=900, s-maxage=900, stale-while-revalidate=300');
-    res.setHeader('X-Cache', 'MISS');
-
-    // Pipe response body
-    return res.json(data);
+    return send(200, data, {
+      'Cache-Control': 'public, max-age=900, s-maxage=900, stale-while-revalidate=300',
+      'X-Cache': 'MISS',
+    });
   } catch (error) {
     if (cachedData) {
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
-      res.setHeader('X-Cache', 'STALE-ERROR');
-      return res.json(cachedData);
+      return send(200, cachedData, {
+        'Cache-Control': 'public, max-age=300, s-maxage=300',
+        'X-Cache': 'STALE-ERROR',
+      });
     }
     const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
-    return res.status(isTimeout ? 504 : 502).json({
+    return send(isTimeout ? 504 : 502, {
       error: isTimeout ? 'ADSB.lol upstream timeout' : 'ADSB.lol fetch failed',
       details: error?.message || String(error),
     });
