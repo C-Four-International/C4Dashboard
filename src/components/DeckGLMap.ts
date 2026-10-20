@@ -83,6 +83,7 @@ import type { GulfInvestment } from '@/types';
 import * as topojson from 'topojson-client';
 import { AlertStatusService } from '@/services/alert-status';
 import { resolveTradeRouteSegments, TRADE_ROUTES as TRADE_ROUTES_LIST, type TradeRouteSegment } from '@/config/trade-routes';
+import { getMilitaryCountryColor } from '@/config/military';
 import { MapPopup, type PopupType } from './MapPopup';
 import {
   updateHotspotEscalation,
@@ -278,9 +279,21 @@ const MARKER_ICONS = {
   shield: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M16 2 L28 6 V15 C28 22.5 22 28.5 16 31 C10 28.5 4 22.5 4 15 V6 Z" fill="white"/></svg>`),
   // Octagon - for regional threat score
   octagon: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><polygon points="10,2 22,2 30,10 30,22 22,30 10,30 2,22 2,10" fill="white"/></svg>`),
-  // Delta Arrow - for military flights and naval combatants
+  // Delta Arrow - for military flights
   delta: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><polygon points="16,2 29,28 16,22 3,28" fill="white"/></svg>`),
+  // Warship Hull - for military vessels / naval combatants (sharp pointed bow, straight beam, flat transom stern)
+  warship: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M16 2 L26 11 L25 28 L7 28 L6 11 Z" fill="white"/></svg>`),
 };
+
+export interface MapMilitaryClusterItem {
+  id: string;
+  lat: number;
+  lon: number;
+  count: number;
+  type: 'air' | 'naval';
+  country?: string;
+  items: (MilitaryFlight | MilitaryVessel)[];
+}
 
 export class DeckGLMap {
   private static readonly MAX_CLUSTER_LEAVES = 200;
@@ -379,6 +392,10 @@ export class DeckGLMap {
   private techHQSC: Supercluster | null = null;
   private techEventSC: Supercluster | null = null;
   private datacenterSC: Supercluster | null = null;
+  private militaryFlightSC: Supercluster | null = null;
+  private militaryVesselSC: Supercluster | null = null;
+  private militaryFlightSuperclusterSource: MilitaryFlight[] = [];
+  private militaryVesselSuperclusterSource: MilitaryVessel[] = [];
   private protestClusters: MapProtestCluster[] = [];
   private techHQClusters: MapTechHQCluster[] = [];
   private techEventClusters: MapTechEventCluster[] = [];
@@ -678,6 +695,10 @@ export class DeckGLMap {
 
     this.maplibreMap.addControl(this.deckOverlay as unknown as maplibregl.IControl);
 
+    this.maplibreMap.on('zoom', () => {
+      this.rafUpdateLayers();
+    });
+
     this.maplibreMap.on('movestart', () => {
       if (this.moveTimeoutId) {
         clearTimeout(this.moveTimeoutId);
@@ -780,7 +801,7 @@ export class DeckGLMap {
     return this.filterByTime(this.protests, (event) => event.time);
   }
 
-  private filterMilitaryFlightClustersByTime(clusters: MilitaryFlightCluster[]): MilitaryFlightCluster[] {
+  public filterMilitaryFlightClustersByTime(clusters: MilitaryFlightCluster[]): MilitaryFlightCluster[] {
     return clusters
       .map((cluster) => {
         const flights = this.filterByTime(cluster.flights ?? [], (flight) => flight.lastSeen);
@@ -794,7 +815,7 @@ export class DeckGLMap {
       .filter((cluster): cluster is MilitaryFlightCluster => cluster !== null);
   }
 
-  private filterMilitaryVesselClustersByTime(clusters: MilitaryVesselCluster[]): MilitaryVesselCluster[] {
+  public filterMilitaryVesselClustersByTime(clusters: MilitaryVesselCluster[]): MilitaryVesselCluster[] {
     return clusters
       .map((cluster) => {
         const vessels = this.filterByTime(cluster.vessels ?? [], (vessel) => vessel.lastAisUpdate);
@@ -953,6 +974,120 @@ export class DeckGLMap {
     });
     this.datacenterSC.load(points);
     this.lastSCZoom = -1;
+  }
+
+  private rebuildMilitaryFlightSupercluster(source: MilitaryFlight[] = this.militaryFlights): void {
+    this.militaryFlightSuperclusterSource = source;
+    const points = source.map((f, i) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [f.lon, f.lat] as [number, number] },
+      properties: {
+        index: i,
+        country: f.operatorCountry || '',
+        operator: f.operator || '',
+      },
+    }));
+    this.militaryFlightSC = new Supercluster({
+      radius: 65,
+      maxZoom: 7,
+      map: (props: Record<string, unknown>) => ({
+        country: String(props.country ?? ''),
+      }),
+      reduce: (acc: Record<string, unknown>, props: Record<string, unknown>) => {
+        if (!acc.country && props.country) acc.country = props.country;
+      },
+    });
+    this.militaryFlightSC.load(points);
+  }
+
+  private rebuildMilitaryVesselSupercluster(source: MilitaryVessel[] = this.militaryVessels): void {
+    this.militaryVesselSuperclusterSource = source;
+    const points = source.map((v, i) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [v.lon, v.lat] as [number, number] },
+      properties: {
+        index: i,
+        country: v.operatorCountry || (v.operator === 'usn' ? 'USA' : ''),
+        operator: v.operator || '',
+      },
+    }));
+    this.militaryVesselSC = new Supercluster({
+      radius: 65,
+      maxZoom: 7,
+      map: (props: Record<string, unknown>) => ({
+        country: String(props.country ?? ''),
+      }),
+      reduce: (acc: Record<string, unknown>, props: Record<string, unknown>) => {
+        if (!acc.country && props.country) acc.country = props.country;
+      },
+    });
+    this.militaryVesselSC.load(points);
+  }
+
+  private getDynamicMilitaryFlightClusters(zoom: number): MapMilitaryClusterItem[] {
+    if (!this.militaryFlightSC || this.militaryFlightSuperclusterSource.length === 0) return [];
+    const scZoom = Math.max(0, Math.min(7, Math.floor(zoom)));
+    const clusters = this.militaryFlightSC.getClusters([-180, -85, 180, 85], scZoom);
+    return clusters.map(f => {
+      const coords = f.geometry.coordinates as [number, number];
+      if (f.properties.cluster) {
+        const clusterId = f.properties.cluster_id!;
+        const leaves = this.militaryFlightSC!.getLeaves(clusterId, 100);
+        const items = leaves.map(l => this.militaryFlightSuperclusterSource[l.properties.index]).filter((x): x is MilitaryFlight => !!x);
+        return {
+          id: `mfc-${clusterId}`,
+          lat: coords[1],
+          lon: coords[0],
+          count: Number(f.properties.point_count || items.length),
+          type: 'air' as const,
+          country: items[0]?.operatorCountry,
+          items,
+        };
+      }
+      const item = this.militaryFlightSuperclusterSource[f.properties.index]!;
+      return {
+        id: `mfp-${f.properties.index}`,
+        lat: item.lat,
+        lon: item.lon,
+        count: 1,
+        type: 'air' as const,
+        country: item.operatorCountry,
+        items: [item],
+      };
+    });
+  }
+
+  private getDynamicMilitaryVesselClusters(zoom: number): MapMilitaryClusterItem[] {
+    if (!this.militaryVesselSC || this.militaryVesselSuperclusterSource.length === 0) return [];
+    const scZoom = Math.max(0, Math.min(7, Math.floor(zoom)));
+    const clusters = this.militaryVesselSC.getClusters([-180, -85, 180, 85], scZoom);
+    return clusters.map(f => {
+      const coords = f.geometry.coordinates as [number, number];
+      if (f.properties.cluster) {
+        const clusterId = f.properties.cluster_id!;
+        const leaves = this.militaryVesselSC!.getLeaves(clusterId, 100);
+        const items = leaves.map(l => this.militaryVesselSuperclusterSource[l.properties.index]).filter((x): x is MilitaryVessel => !!x);
+        return {
+          id: `mvc-${clusterId}`,
+          lat: coords[1],
+          lon: coords[0],
+          count: Number(f.properties.point_count || items.length),
+          type: 'naval' as const,
+          country: items[0]?.operatorCountry,
+          items,
+        };
+      }
+      const item = this.militaryVesselSuperclusterSource[f.properties.index]!;
+      return {
+        id: `mvp-${f.properties.index}`,
+        lat: item.lat,
+        lon: item.lon,
+        count: 1,
+        type: 'naval' as const,
+        country: item.operatorCountry,
+        items: [item],
+      };
+    });
   }
 
   private updateClusterData(): void {
@@ -1291,8 +1426,6 @@ export class DeckGLMap {
     const filteredFlightDelays = this.filterByTime(this.flightDelays, (delay) => delay.updatedAt);
     const filteredMilitaryFlights = this.filterByTime(this.militaryFlights, (flight) => flight.lastSeen);
     const filteredMilitaryVessels = this.filterByTime(this.militaryVessels, (vessel) => vessel.lastAisUpdate);
-    const filteredMilitaryFlightClusters = this.filterMilitaryFlightClustersByTime(this.militaryFlightClusters);
-    const filteredMilitaryVesselClusters = this.filterMilitaryVesselClustersByTime(this.militaryVesselClusters);
     const filteredUcdpEvents = this.filterByTime(this.ucdpEvents, (event) => event.date_start);
     const filteredCyberThreats = this.filterByTime(this.cyberThreats, (threat) => threat.lastSeen || threat.firstSeen);
     const filteredFires = this.filterByTime(this.firmsFireData, (fire) => fire.acq_date);
@@ -1465,26 +1598,40 @@ export class DeckGLMap {
       layers.push(...this.createProtestClusterLayers());
     }
 
-    // Military vessels layer
-    if (mapLayers.military && filteredMilitaryVessels.length > 0) {
-      layers.push(this.createMilitaryVesselsLayer(filteredMilitaryVessels));
-      layers.push(this.createGhostLayer('military-vessels-layer', filteredMilitaryVessels, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
-    }
+    // Military activity layers (vessels and flights) with wide-zoom grouping & seamless cross-fade
+    if (mapLayers.military) {
+      const currentZoom = this.maplibreMap?.getZoom() ?? this.state.zoom ?? 3;
+      // Cross-fade between zoom 4.0 and 5.2
+      // At zoom <= 4.0: clusterOpacity = 1.0, assetOpacity = 0.0 (clean translucent circles with counts)
+      // At zoom >= 5.2: clusterOpacity = 0.0, assetOpacity = 1.0 (individual delta flights and warship hulls)
+      // Between 4.0 and 5.2: smooth transition
+      const clusterOpacity = Math.max(0, Math.min(1, (5.2 - currentZoom) / 1.2));
+      const assetOpacity = Math.max(0, Math.min(1, (currentZoom - 4.0) / 1.2));
 
-    // Military vessel clusters layer
-    if (mapLayers.military && filteredMilitaryVesselClusters.length > 0) {
-      layers.push(this.createMilitaryVesselClustersLayer(filteredMilitaryVesselClusters));
-    }
+      // 1. Wide-zoom grouped circles
+      if (clusterOpacity > 0.01) {
+        if (this.militaryFlightSuperclusterSource !== filteredMilitaryFlights) {
+          this.rebuildMilitaryFlightSupercluster(filteredMilitaryFlights);
+        }
+        if (this.militaryVesselSuperclusterSource !== filteredMilitaryVessels) {
+          this.rebuildMilitaryVesselSupercluster(filteredMilitaryVessels);
+        }
+        const flightClusters = this.getDynamicMilitaryFlightClusters(currentZoom);
+        const vesselClusters = this.getDynamicMilitaryVesselClusters(currentZoom);
+        layers.push(...this.createMilitaryClusterLayers(flightClusters, vesselClusters, clusterOpacity));
+      }
 
-    // Military flights layer
-    if (mapLayers.military && filteredMilitaryFlights.length > 0) {
-      layers.push(this.createMilitaryFlightsLayer(filteredMilitaryFlights));
-      layers.push(this.createGhostLayer('military-flights-layer', filteredMilitaryFlights, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
-    }
-
-    // Military flight clusters layer
-    if (mapLayers.military && filteredMilitaryFlightClusters.length > 0) {
-      layers.push(this.createMilitaryFlightClustersLayer(filteredMilitaryFlightClusters));
+      // 2. Individual asset points (fade in smoothly as user zooms in)
+      if (assetOpacity > 0.01) {
+        if (filteredMilitaryVessels.length > 0) {
+          layers.push(this.createMilitaryVesselsLayer(filteredMilitaryVessels, assetOpacity));
+          layers.push(this.createGhostLayer('military-vessels-layer', filteredMilitaryVessels, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
+        }
+        if (filteredMilitaryFlights.length > 0) {
+          layers.push(this.createMilitaryFlightsLayer(filteredMilitaryFlights, assetOpacity));
+          layers.push(this.createGhostLayer('military-flights-layer', filteredMilitaryFlights, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
+        }
+      }
     }
 
     // Strategic waterways layer
@@ -1615,7 +1762,7 @@ export class DeckGLMap {
     const collidableResult = result.map((layer: any) => {
       const type = layer?.constructor?.layerName;
       if (type === 'IconLayer' || type === 'TextLayer') {
-        const isExempt = layer.id === 'military-flights-layer' || layer.id === 'military-vessels-layer' || layer.id === 'threat-score-layer';
+        const isExempt = layer.id === 'military-flights-layer' || layer.id === 'military-vessels-layer' || layer.id === 'threat-score-layer' || layer.id === 'military-clusters-badge';
         if (isExempt) return layer;
         return layer.clone({
           extensions: [...(layer.props.extensions || []), collisionExt],
@@ -2677,28 +2824,26 @@ export class DeckGLMap {
     });
   }
 
-  private createMilitaryVesselsLayer(vessels: MilitaryVessel[]): IconLayer<MilitaryVessel> {
+  private createMilitaryVesselsLayer(vessels: MilitaryVessel[], opacity = 1): IconLayer<MilitaryVessel> {
     return new IconLayer<MilitaryVessel>({
       id: 'military-vessels-layer',
       data: vessels,
       getPosition: (d: MilitaryVessel) => [d.lon, d.lat],
-      getIcon: () => 'delta',
-      iconAtlas: MARKER_ICONS.delta,
-      iconMapping: { delta: { x: 0, y: 0, width: 32, height: 32, mask: true } },
-      getSize: 13,
-      getColor: (d: MilitaryVessel) => {
-        if (d.usniSource) return [255, 160, 60, 220] as [number, number, number, number]; // Orange for USNI Fleet tracker
-        return COLORS.vesselMilitary;
-      },
+      getIcon: () => 'warship',
+      iconAtlas: MARKER_ICONS.warship,
+      iconMapping: { warship: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: 14,
+      getColor: (d: MilitaryVessel) => getMilitaryCountryColor(d.operatorCountry, d.operator),
+      opacity,
       getAngle: (d: MilitaryVessel) => (typeof d.heading === 'number' && !isNaN(d.heading) ? d.heading : 0),
       sizeScale: 1,
-      sizeMinPixels: 8,
-      sizeMaxPixels: 18,
-      pickable: true,
+      sizeMinPixels: 9,
+      sizeMaxPixels: 20,
+      pickable: opacity > 0.1,
     });
   }
 
-  private createMilitaryVesselClustersLayer(clusters: MilitaryVesselCluster[]): ScatterplotLayer {
+  public createMilitaryVesselClustersLayer(clusters: MilitaryVesselCluster[]): ScatterplotLayer {
     return new ScatterplotLayer({
       id: 'military-vessel-clusters-layer',
       data: clusters,
@@ -2717,7 +2862,7 @@ export class DeckGLMap {
     });
   }
 
-  private createMilitaryFlightsLayer(flights: MilitaryFlight[]): IconLayer<MilitaryFlight> {
+  private createMilitaryFlightsLayer(flights: MilitaryFlight[], opacity = 1): IconLayer<MilitaryFlight> {
     return new IconLayer<MilitaryFlight>({
       id: 'military-flights-layer',
       data: flights,
@@ -2726,16 +2871,17 @@ export class DeckGLMap {
       iconAtlas: MARKER_ICONS.delta,
       iconMapping: { delta: { x: 0, y: 0, width: 32, height: 32, mask: true } },
       getSize: 13,
-      getColor: COLORS.flightMilitary,
+      getColor: (d: MilitaryFlight) => getMilitaryCountryColor(d.operatorCountry, d.operator),
+      opacity,
       getAngle: (d: MilitaryFlight) => (typeof d.heading === 'number' && !isNaN(d.heading) ? d.heading : 0),
       sizeScale: 1,
       sizeMinPixels: 8,
       sizeMaxPixels: 18,
-      pickable: true,
+      pickable: opacity > 0.1,
     });
   }
 
-  private createMilitaryFlightClustersLayer(clusters: MilitaryFlightCluster[]): ScatterplotLayer {
+  public createMilitaryFlightClustersLayer(clusters: MilitaryFlightCluster[]): ScatterplotLayer {
     return new ScatterplotLayer({
       id: 'military-flight-clusters-layer',
       data: clusters,
@@ -2751,6 +2897,72 @@ export class DeckGLMap {
       radiusMaxPixels: 25,
       pickable: true,
     });
+  }
+
+  private createMilitaryClusterLayers(
+    flightClusters: MapMilitaryClusterItem[],
+    vesselClusters: MapMilitaryClusterItem[],
+    opacity: number
+  ): Layer[] {
+    const layers: Layer[] = [];
+    if (opacity <= 0.01) return layers;
+
+    const allClusters = [...flightClusters, ...vesselClusters];
+    if (allClusters.length === 0) return layers;
+
+    // 1. Translucent circles:
+    // Large enough to group assets cleanly, transparent enough for map to remain clearly visible through them
+    layers.push(new ScatterplotLayer<MapMilitaryClusterItem>({
+      id: 'military-clusters-layer',
+      data: allClusters,
+      getPosition: d => [d.lon, d.lat],
+      getRadius: d => (d.count > 1 ? 32000 + Math.min(60000, d.count * 8000) : 18000),
+      radiusMinPixels: 7,
+      radiusMaxPixels: 34,
+      getFillColor: d => {
+        if (d.type === 'naval') {
+          return [14, 165, 233, Math.round(50 * opacity)] as [number, number, number, number];
+        }
+        return [59, 130, 246, Math.round(45 * opacity)] as [number, number, number, number];
+      },
+      getLineColor: d => {
+        if (d.type === 'naval') {
+          return [56, 189, 248, Math.round(210 * opacity)] as [number, number, number, number];
+        }
+        return [96, 165, 250, Math.round(210 * opacity)] as [number, number, number, number];
+      },
+      stroked: true,
+      filled: true,
+      lineWidthMinPixels: 1.5,
+      pickable: true,
+      opacity: 1,
+    }));
+
+    // Ghost pickable layer for mobile and easy clicking
+    layers.push(this.createGhostLayer('military-clusters-layer', allClusters, d => [d.lon, d.lat], { radiusMinPixels: 16 }));
+
+    // 2. Count badges for clusters with count > 1
+    const multiClusters = allClusters.filter(c => c.count > 1);
+    if (multiClusters.length > 0) {
+      layers.push(new TextLayer<MapMilitaryClusterItem>({
+        id: 'military-clusters-badge',
+        data: multiClusters,
+        getText: d => String(d.count),
+        getPosition: d => [d.lon, d.lat],
+        getColor: [255, 255, 255, Math.round(245 * opacity)],
+        getSize: 12,
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontWeight: 700,
+        getTextAnchor: 'middle',
+        getAlignmentBaseline: 'center',
+        background: true,
+        getBackgroundColor: [15, 23, 42, Math.round(180 * opacity)],
+        backgroundPadding: [4, 2, 4, 2],
+        pickable: false,
+      }));
+    }
+
+    return layers;
   }
 
   private createWaterwaysLayer(): ScatterplotLayer {
@@ -3540,14 +3752,50 @@ export class DeckGLMap {
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.subtext)}</div>` };
       case 'earthquakes-layer':
         return { html: `<div class="deckgl-tooltip"><strong>M${(obj.magnitude || 0).toFixed(1)} ${t('components.deckgl.tooltip.earthquake')}</strong><br/>${text(obj.place)}</div>` };
-      case 'military-vessels-layer':
-        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.operatorCountry)}</div>` };
-      case 'military-flights-layer':
-        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.callsign || obj.registration || t('components.deckgl.tooltip.militaryAircraft'))}</strong><br/>${text(obj.type)}</div>` };
+      case 'military-vessels-layer': {
+        const country = obj.operatorCountry || (obj.operator === 'usn' ? 'USA' : '');
+        const op = obj.operator && obj.operator !== 'other' ? String(obj.operator).toUpperCase() : '';
+        const origin = country && op ? `${country} (${op})` : country || op || 'Naval Contact';
+        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(origin)}</div>` };
+      }
+      case 'military-flights-layer': {
+        const country = obj.operatorCountry && obj.operatorCountry !== 'Unknown' ? obj.operatorCountry : '';
+        const op = obj.operator && obj.operator !== 'other' && obj.operator !== 'unknown' ? String(obj.operator).toUpperCase() : '';
+        const origin = country && op ? `${country} (${op})` : country || op;
+        const typeStr = obj.aircraftModel || obj.aircraftType || obj.type || 'Airborne Contact';
+        return {
+          html: `<div class="deckgl-tooltip"><strong>${text(obj.callsign || obj.registration || t('components.deckgl.tooltip.militaryAircraft'))}</strong><br/>${origin ? `${text(origin)} &bull; ` : ''}${text(typeStr)}</div>`
+        };
+      }
       case 'military-vessel-clusters-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name || t('components.deckgl.tooltip.vesselCluster'))}</strong><br/>${obj.vesselCount || 0} ${t('components.deckgl.tooltip.vessels')}<br/>${text(obj.activityType)}</div>` };
       case 'military-flight-clusters-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name || t('components.deckgl.tooltip.flightCluster'))}</strong><br/>${obj.flightCount || 0} ${t('components.deckgl.tooltip.aircraft')}<br/>${text(obj.activityType)}</div>` };
+      case 'military-clusters-layer': {
+        const cluster = obj as MapMilitaryClusterItem;
+        if (cluster.count === 1) {
+          const item = (cluster.items?.[0] || obj) as any;
+          if (cluster.type === 'naval') {
+            const country = item?.operatorCountry || (item?.operator === 'usn' ? 'USA' : '');
+            const op = item?.operator && item.operator !== 'other' ? String(item.operator).toUpperCase() : '';
+            const origin = country && op ? `${country} (${op})` : country || op || 'Naval Contact';
+            return { html: `<div class="deckgl-tooltip"><strong>${text(item?.name || 'Naval Vessel')}</strong><br/>${text(origin)}</div>` };
+          } else {
+            const country = item?.operatorCountry && item.operatorCountry !== 'Unknown' ? item.operatorCountry : '';
+            const op = item?.operator && item.operator !== 'other' && item.operator !== 'unknown' ? String(item.operator).toUpperCase() : '';
+            const origin = country && op ? `${country} (${op})` : country || op;
+            const typeStr = item?.aircraftModel || item?.aircraftType || item?.type || 'Airborne Contact';
+            return {
+              html: `<div class="deckgl-tooltip"><strong>${text(item?.callsign || item?.registration || t('components.deckgl.tooltip.militaryAircraft'))}</strong><br/>${origin ? `${text(origin)} &bull; ` : ''}${text(typeStr)}</div>`
+            };
+          }
+        }
+        const label = cluster.type === 'naval' ? 'Naval Task Group' : 'Tactical Air Group';
+        const assetNoun = cluster.type === 'naval' ? 'combatant vessels' : 'military aircraft';
+        return {
+          html: `<div class="deckgl-tooltip"><strong>${label}</strong><br/>${cluster.count} ${assetNoun}<br/><small style="opacity:0.85">Click to zoom in</small></div>`
+        };
+      }
       case 'protests-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.title)}</strong><br/>${text(obj.country)}</div>` };
       case 'protest-clusters-layer':
@@ -3893,6 +4141,28 @@ export class DeckGLMap {
           x: info.x,
           y: info.y,
         });
+      }
+      return;
+    }
+
+    if (layerId === 'military-clusters-layer') {
+      const cluster = info.object as MapMilitaryClusterItem;
+      if (cluster.count === 1 && cluster.items[0]) {
+        const item = cluster.items[0];
+        if (cluster.type === 'naval') {
+          this.popup.show({ type: 'militaryVessel', data: item, x: info.x, y: info.y });
+        } else {
+          this.popup.show({ type: 'militaryFlight', data: item, x: info.x, y: info.y });
+        }
+      } else {
+        if (this.maplibreMap) {
+          const targetZoom = Math.min(10, Math.max(5.5, (this.maplibreMap.getZoom() || 3) + 2.5));
+          this.maplibreMap.easeTo({
+            center: [cluster.lon, cluster.lat],
+            zoom: targetZoom,
+            duration: 800,
+          });
+        }
       }
       return;
     }
@@ -4575,6 +4845,8 @@ export class DeckGLMap {
       line: (color: string) => `<svg width="16" height="14" viewBox="0 0 16 14" class="legend-shape-svg"><line x1="1" y1="7" x2="15" y2="7" stroke="${color}" stroke-width="3" stroke-linecap="round"/></svg>`,
       octagon: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><polygon points="4.5,1 9.5,1 13,4.5 13,9.5 9.5,13 4.5,13 1,9.5 1,4.5" fill="${color}"/></svg>`,
       delta: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><polygon points="7,1 13,12.5 7,10 1,12.5" fill="${color}"/></svg>`,
+      warship: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><path d="M7 1 L11.5 5 L11 12.5 L3 12.5 L2.5 5 Z" fill="${color}"/></svg>`,
+      tacticalCircle: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><circle cx="7" cy="7" r="5.5" fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="1.5"/><circle cx="7" cy="7" r="1.5" fill="${color}"/></svg>`,
       heatmap: () => `<svg width="18" height="14" viewBox="0 0 18 14" class="legend-shape-svg"><defs><linearGradient id="legendGpsHeatGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ffffb2"/><stop offset="35%" stop-color="#fecc5c"/><stop offset="70%" stop-color="#fd8d3c"/><stop offset="100%" stop-color="#bd0026"/></linearGradient></defs><rect x="1" y="2" width="16" height="10" rx="2" fill="url(#legendGpsHeatGrad)"/></svg>`,
       sstHeatmap: () => `<svg width="18" height="14" viewBox="0 0 18 14" class="legend-shape-svg"><defs><linearGradient id="legendSstHeatGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#40004b"/><stop offset="15%" stop-color="#2166ac"/><stop offset="32%" stop-color="#4393c3"/><stop offset="50%" stop-color="#92c5de"/><stop offset="68%" stop-color="#fee090"/><stop offset="85%" stop-color="#d6604d"/><stop offset="100%" stop-color="#67001f"/></linearGradient></defs><rect x="1" y="2" width="16" height="10" rx="2" fill="url(#legendSstHeatGrad)"/></svg>`,
     };
@@ -4762,14 +5034,39 @@ export class DeckGLMap {
               ],
             },
             {
-              shape: shapes.delta('#ef4444'),
+              shape: shapes.delta('#3b82f6'),
               badge: 'Delta Arrow',
-              name: t('components.deckgl.layers.militaryActivity'),
-              desc: 'Live airborne reconnaissance (AWACS), combat patrols, and active naval combatants oriented along heading.',
+              name: 'Military Aircraft',
+              desc: 'Live airborne reconnaissance (AWACS), tankers, tactical transports, and combat patrols oriented along heading vector. Color-coded by nation.',
               subswatches: [
-                { color: '#ef4444', label: 'Airborne Patrol' },
-                { color: '#f97316', label: 'Naval Combatant' },
+                { color: '#3b82f6', label: 'USA' },
+                { color: '#38bdf8', label: 'UK' },
+                { color: '#2563eb', label: 'France' },
+                { color: '#eab308', label: 'Germany' },
+                { color: '#06b6d4', label: 'Israel' },
+                { color: '#10b981', label: 'Australia / Allies' },
+                { color: '#94a3b8', label: 'Other' },
               ],
+            },
+            {
+              shape: shapes.warship('#3b82f6'),
+              badge: 'Warship Hull',
+              name: 'Naval Combatants',
+              desc: 'Active carrier strike groups, amphibious ready groups, and surface combatants oriented along heading. Color-coded by nation.',
+              subswatches: [
+                { color: '#3b82f6', label: 'USA / USNI' },
+                { color: '#38bdf8', label: 'UK' },
+                { color: '#2563eb', label: 'France' },
+                { color: '#10b981', label: 'Australia / Allies' },
+                { color: '#ff3b30', label: 'China' },
+                { color: '#94a3b8', label: 'Other' },
+              ],
+            },
+            {
+              shape: shapes.tacticalCircle('#3b82f6'),
+              badge: 'Translucent Circle',
+              name: 'Tactical Grouping (Wide Zoom)',
+              desc: 'At wider zoom levels (zoom < 4.5), air and naval assets are grouped into transparent tactical circles with asset counts to eliminate map clutter, seamlessly fading into individual asset points as you zoom in.',
             },
             {
               shape: shapes.octagon('#ef4444'),
@@ -5456,12 +5753,14 @@ export class DeckGLMap {
   public setMilitaryFlights(flights: MilitaryFlight[], clusters: MilitaryFlightCluster[] = []): void {
     this.militaryFlights = flights;
     this.militaryFlightClusters = clusters;
+    this.rebuildMilitaryFlightSupercluster(flights);
     this.render();
   }
 
   public setMilitaryVessels(vessels: MilitaryVessel[], clusters: MilitaryVesselCluster[] = []): void {
     this.militaryVessels = vessels;
     this.militaryVesselClusters = clusters;
+    this.rebuildMilitaryVesselSupercluster(vessels);
     this.render();
   }
 

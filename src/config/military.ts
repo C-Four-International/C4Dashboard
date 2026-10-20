@@ -359,6 +359,24 @@ export const MILITARY_HEX_RANGES: { start: string; end: string; operator: Milita
   // Norway Military
   { start: '478000', end: '47FFFF', operator: 'other', country: 'Norway' },
 
+  // Belgium Military
+  { start: '448000', end: '44FFFF', operator: 'other', country: 'Belgium' },
+
+  // Denmark Military
+  { start: '458000', end: '45FFFF', operator: 'other', country: 'Denmark' },
+
+  // Finland Military
+  { start: '460000', end: '467FFF', operator: 'other', country: 'Finland' },
+
+  // Portugal Military
+  { start: '490000', end: '497FFF', operator: 'other', country: 'Portugal' },
+
+  // Czechia Military
+  { start: '498000', end: '49FFFF', operator: 'other', country: 'Czechia' },
+
+  // Switzerland Military
+  { start: '4B0000', end: '4B7FFF', operator: 'other', country: 'Switzerland' },
+
   // Singapore Military
   { start: '768000', end: '76FFFF', operator: 'other', country: 'Singapore' },
 ];
@@ -635,3 +653,90 @@ export function getNearbyHotspot(lat: number, lon: number): typeof MILITARY_HOTS
   }
   return undefined;
 }
+
+/**
+ * Return RGBA color for military aircraft / vessels based on country and operator.
+ * Curated, high-contrast modern colors for military assets on both dark and light map styles.
+ */
+export function getMilitaryCountryColor(country?: string, operator?: string): [number, number, number, number] {
+  const c = country?.toLowerCase().trim() || '';
+  const op = operator?.toLowerCase().trim() || '';
+
+  // United States
+  if (c.includes('united states') || c === 'usa' || c === 'us' || ['usaf', 'usn', 'usa', 'usmc', 'uscg'].includes(op)) {
+    return [59, 130, 246, 230]; // Royal blue #3b82f6
+  }
+  // United Kingdom
+  if (c.includes('united kingdom') || c === 'uk' || c === 'gb' || ['raf', 'rn'].includes(op)) {
+    return [56, 189, 248, 230]; // Sky blue #38bdf8
+  }
+  // France
+  if (c.includes('france') || op === 'faf') {
+    return [37, 99, 235, 230]; // Deep blue #2563eb
+  }
+  // Germany
+  if (c.includes('germany') || op === 'gaf') {
+    return [234, 179, 8, 230]; // Gold #eab308
+  }
+  // Israel
+  if (c.includes('israel') || op === 'iaf') {
+    return [6, 182, 212, 230]; // Cyan #06b6d4
+  }
+  // Australia
+  if (c.includes('australia')) {
+    return [16, 185, 129, 230]; // Emerald #10b981
+  }
+  // Japan
+  if (c.includes('japan')) {
+    return [225, 29, 72, 230]; // Rose red #e11d48
+  }
+  // Canada
+  if (c.includes('canada')) {
+    return [239, 68, 68, 230]; // Red #ef4444
+  }
+  // Italy
+  if (c.includes('italy')) {
+    return [34, 197, 94, 230]; // Green #22c55e
+  }
+  // Spain
+  if (c.includes('spain')) {
+    return [249, 115, 22, 230]; // Orange #f97316
+  }
+  // Netherlands
+  if (c.includes('netherlands')) {
+    return [245, 158, 11, 230]; // Amber #f59e0b
+  }
+  // Turkey
+  if (c.includes('turkey') || c.includes('türkiye')) {
+    return [220, 38, 38, 230]; // Crimson #dc2626
+  }
+  // Gulf Allies (Saudi Arabia, UAE, Qatar, Kuwait)
+  if (c.includes('saudi') || c.includes('uae') || c.includes('emirates') || c.includes('qatar') || c.includes('kuwait')) {
+    return [217, 119, 6, 230]; // Sand amber #d97706
+  }
+  // NATO
+  if (c.includes('nato') || op === 'nato') {
+    return [99, 102, 241, 230]; // Indigo #6366f1
+  }
+  // Russia
+  if (c.includes('russia') || op === 'vks') {
+    return [185, 28, 28, 230]; // Dark red #b91c1c
+  }
+  // China
+  if (c.includes('china') || op === 'plaaf' || op === 'plan') {
+    return [255, 59, 48, 230]; // Scarlet red #ff3b30
+  }
+  // Default / Other Allied
+  return [148, 163, 184, 230]; // Slate blue #94a3b8
+}
+
+export const MILITARY_COUNTRY_LEGEND = [
+  { name: 'United States', color: '#3b82f6' },
+  { name: 'United Kingdom', color: '#38bdf8' },
+  { name: 'France', color: '#2563eb' },
+  { name: 'Germany', color: '#eab308' },
+  { name: 'Israel', color: '#06b6d4' },
+  { name: 'Australia / Allies', color: '#10b981' },
+  { name: 'China', color: '#ff3b30' },
+  { name: 'Other Allied / International', color: '#94a3b8' },
+];

@@ -78,19 +78,28 @@ function determineAircraftInfo(
   originCountry?: string,
   typeCode?: string
 ): { type: MilitaryAircraftType; operator: MilitaryOperator; country: string; confidence: 'high' | 'medium' | 'low' } {
-  // Check callsign first (highest confidence)
+  // Check hex code range
+  const hexMatch = isKnownMilitaryHex(icao24);
+
+  // Check callsign first (highest confidence for aircraft role/type)
   const callsignMatch = identifyByCallsign(callsign, originCountry);
   if (callsignMatch) {
+    let country = getCountryFromOperator(callsignMatch.operator);
+    if (country === 'Unknown' && hexMatch?.country) {
+      country = hexMatch.country;
+    }
+    if (country === 'Unknown' && originCountry) {
+      country = originCountry;
+    }
     return {
       type: callsignMatch.aircraftType || 'unknown',
-      operator: callsignMatch.operator,
-      country: getCountryFromOperator(callsignMatch.operator),
+      operator: callsignMatch.operator !== 'other' ? callsignMatch.operator : (hexMatch?.operator || 'other'),
+      country,
       confidence: 'high',
     };
   }
 
   // Check hex code range
-  const hexMatch = isKnownMilitaryHex(icao24);
   if (hexMatch) {
     return {
       type: 'unknown',
@@ -107,7 +116,7 @@ function determineAircraftInfo(
       return {
         type: typeMatch.type,
         operator: 'other',
-        country: 'Unknown',
+        country: originCountry || 'Unknown',
         confidence: 'low',
       };
     }
@@ -117,7 +126,7 @@ function determineAircraftInfo(
   return {
     type: 'unknown',
     operator: 'other',
-    country: 'Unknown',
+    country: originCountry || 'Unknown',
     confidence: 'low',
   };
 }
