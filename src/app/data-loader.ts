@@ -51,14 +51,15 @@ import { ingestProtests, ingestFlights, ingestVessels, ingestEarthquakes, detect
 import { inferGeoHubsFromTitle } from '@/services/geo-hub-index';
 import { signalAggregator } from '@/services/signal-aggregator';
 import { updateAndCheck } from '@/services/temporal-baseline';
-import { fetchAllFires, flattenFires, computeRegionStats, toMapFires } from '@/services/wildfires';
+import { fetchAllFires, flattenFires, computeRegionStats, toMapFires, getInstantFires } from '@/services/wildfires';
 import { analyzeFlightsForSurge, surgeAlertToSignal, detectForeignMilitaryPresence, foreignPresenceToSignal, type TheaterPostureSummary } from '@/services/military-surge';
 import { fetchCachedTheaterPosture } from '@/services/cached-theater-posture';
 import { ingestProtestsForCII, ingestMilitaryForCII, ingestNewsForCII, ingestOutagesForCII, ingestDisplacementForCII, ingestClimateForCII, isInLearningMode } from '@/services/country-instability';
 import { dataFreshness, type DataSourceId } from '@/services/data-freshness';
 import { fetchUnhcrPopulation } from '@/services/displacement';
 import { fetchClimateAnomalies } from '@/services/climate';
-import { fetchRadiationData } from '@/services/radiation';
+import { fetchRadiationData, getInstantRadiationStations } from '@/services/radiation';
+import { getInstantNaturalEvents } from '@/services/eonet';
 import { enrichEventsWithExposure } from '@/services/population-exposure';
 import { debounce } from '@/utils';
 import { getAiFlowSettings } from '@/services/ai-flow-settings';
@@ -161,6 +162,9 @@ export class DataLoaderManager implements AppModule {
 
   private digestBreaker = { state: 'closed' as 'closed' | 'open' | 'half-open', failures: 0, cooldownUntil: 0 };
   private lastGoodDigest: ListFeedDigestResponse | null = null;
+  private radiationDataLoaded = false;
+  private firmsLoaded = false;
+  private naturalEventsLoaded = false;
 
   constructor(ctx: AppContext, callbacks: DataLoaderCallbacks) {
     this.ctx = ctx;
@@ -397,6 +401,10 @@ export class DataLoaderManager implements AppModule {
           break;
         case 'radiation':
           await this.loadRadiationData();
+          break;
+        case 'weatherRadar':
+          this.ctx.map?.setLayerLoading('weatherRadar', true);
+          this.ctx.map?.setLayerReady('weatherRadar', true);
           break;
         case 'ucdpEvents':
           break;
@@ -807,40 +815,49 @@ export class DataLoaderManager implements AppModule {
 
 
   async loadNatural(): Promise<void> {
-    const [earthquakeResult, eonetResult] = await Promise.allSettled([
-      fetchEarthquakes(),
-      fetchNaturalEvents(30),
-    ]);
+    // 1. Optimistic instant render on first try (0ms)
+    if (!this.naturalEventsLoaded) {
+      const instantEvents = getInstantNaturalEvents();
+      if (instantEvents && instantEvents.length > 0) {
+        this.ctx.map?.setNaturalEvents(instantEvents);
+        this.ctx.map?.setLayerReady('natural', true);
+      }
+    }
 
-    if (earthquakeResult.status === 'fulfilled') {
-      this.ctx.intelligenceCache.earthquakes = earthquakeResult.value;
-      this.ctx.map?.setEarthquakes(earthquakeResult.value);
-      ingestEarthquakes(earthquakeResult.value);
+    // 2. Fetch Earthquakes and Natural Events concurrently without blocking each other
+    const earthquakesPromise = fetchEarthquakes().then(earthquakes => {
+      this.ctx.intelligenceCache.earthquakes = earthquakes;
+      this.ctx.map?.setEarthquakes(earthquakes);
+      ingestEarthquakes(earthquakes);
       this.ctx.statusPanel?.updateApi('USGS', { status: 'ok' });
-      dataFreshness.recordUpdate('usgs', earthquakeResult.value.length);
-    } else {
+      dataFreshness.recordUpdate('usgs', earthquakes.length);
+      if (earthquakes.length > 0) {
+        this.ctx.map?.setLayerReady('natural', true);
+      }
+    }).catch(err => {
       this.ctx.intelligenceCache.earthquakes = [];
       this.ctx.map?.setEarthquakes([]);
       this.ctx.statusPanel?.updateApi('USGS', { status: 'error' });
-      dataFreshness.recordError('usgs', String(earthquakeResult.reason));
-    }
+      dataFreshness.recordError('usgs', String(err));
+    });
 
-    if (eonetResult.status === 'fulfilled') {
-      this.ctx.map?.setNaturalEvents(eonetResult.value);
-      this.ctx.statusPanel?.updateFeed('EONET', {
-        status: 'ok',
-        itemCount: eonetResult.value.length,
-      });
-      this.ctx.statusPanel?.updateApi('NASA EONET', { status: 'ok' });
-    } else {
-      this.ctx.map?.setNaturalEvents([]);
-      this.ctx.statusPanel?.updateFeed('EONET', { status: 'error', errorMessage: String(eonetResult.reason) });
+    const naturalEventsPromise = fetchNaturalEvents(14).then(events => {
+      if (events && events.length > 0) {
+        this.naturalEventsLoaded = true;
+        this.ctx.map?.setNaturalEvents(events);
+        this.ctx.statusPanel?.updateFeed('EONET', {
+          status: 'ok',
+          itemCount: events.length,
+        });
+        this.ctx.statusPanel?.updateApi('NASA EONET', { status: 'ok' });
+        this.ctx.map?.setLayerReady('natural', true);
+      }
+    }).catch(err => {
+      this.ctx.statusPanel?.updateFeed('EONET', { status: 'error', errorMessage: String(err) });
       this.ctx.statusPanel?.updateApi('NASA EONET', { status: 'error' });
-    }
+    });
 
-    const hasEarthquakes = earthquakeResult.status === 'fulfilled' && earthquakeResult.value.length > 0;
-    const hasEonet = eonetResult.status === 'fulfilled' && eonetResult.value.length > 0;
-    this.ctx.map?.setLayerReady('natural', hasEarthquakes || hasEonet);
+    await Promise.allSettled([earthquakesPromise, naturalEventsPromise]);
   }
 
   async loadTechEvents(): Promise<void> {
@@ -1619,14 +1636,27 @@ export class DataLoaderManager implements AppModule {
 
   async loadFirmsData(): Promise<void> {
     try {
+      // 1. Optimistic instant render on first try (0ms)
+      if (!this.firmsLoaded) {
+        const instant = getInstantFires();
+        if (instant && instant.totalCount > 0) {
+          const flat = flattenFires(instant.regions);
+          const stats = computeRegionStats(instant.regions);
+          this.ctx.map?.setFires(toMapFires(flat));
+          (this.ctx.panels['satellite-fires'] as SatelliteFiresPanel)?.update(stats, instant.totalCount);
+          this.ctx.map?.setLayerReady('fires', true);
+        }
+      }
+
       const fireResult = await fetchAllFires(1);
-      if (fireResult.skipped) {
+      if (fireResult.skipped && fireResult.totalCount === 0) {
         this.ctx.panels['satellite-fires']?.showConfigError('NASA_FIRMS_API_KEY not configured — add in Settings');
         this.ctx.statusPanel?.updateApi('FIRMS', { status: 'error' });
         return;
       }
       const { regions, totalCount } = fireResult;
       if (totalCount > 0) {
+        this.firmsLoaded = true;
         const flat = flattenFires(regions);
         const stats = computeRegionStats(regions);
 
@@ -1640,6 +1670,7 @@ export class DataLoaderManager implements AppModule {
         })));
 
         this.ctx.map?.setFires(toMapFires(flat));
+        this.ctx.map?.setLayerReady('fires', true);
 
         (this.ctx.panels['satellite-fires'] as SatelliteFiresPanel)?.update(stats, totalCount);
 
@@ -1666,9 +1697,20 @@ export class DataLoaderManager implements AppModule {
 
   async loadRadiationData(forceRefresh = false): Promise<void> {
     try {
+      // 1. Optimistic instant render on first try (0ms)
+      if (!this.radiationDataLoaded) {
+        const instantStations = getInstantRadiationStations();
+        if (instantStations && instantStations.length > 0) {
+          this.ctx.map?.setRadiation(instantStations);
+          this.ctx.map?.setLayerReady('radiation', true);
+        }
+      }
+
       const stations = await fetchRadiationData(forceRefresh);
       if (stations && stations.length > 0) {
+        this.radiationDataLoaded = true;
         this.ctx.map?.setRadiation(stations);
+        this.ctx.map?.setLayerReady('radiation', true);
       }
     } catch (e) {
       console.warn('[DataLoader] Radiation load failed:', e);

@@ -1,5 +1,19 @@
 import type { NaturalEvent, NaturalEventCategory } from '@/types';
+import { createCircuitBreaker } from '@/utils';
 import { fetchGDACSEvents, type GDACSEvent } from './gdacs';
+import { BASELINE_NATURAL_EVENTS } from './natural-events/baseline';
+
+const breaker = createCircuitBreaker<NaturalEvent[]>({
+  name: 'EONET:v3',
+  cacheTtlMs: 30 * 60 * 1000,
+  persistCache: true,
+});
+
+export function getInstantNaturalEvents(): NaturalEvent[] {
+  const cached = breaker.getCached();
+  if (cached && cached.length > 0) return cached;
+  return BASELINE_NATURAL_EVENTS;
+}
 
 interface EonetGeometry {
   magnitudeValue?: number;
@@ -85,7 +99,7 @@ function convertGDACSToNaturalEvent(gdacs: GDACSEvent): NaturalEvent {
   };
 }
 
-export async function fetchNaturalEvents(days = 30): Promise<NaturalEvent[]> {
+export async function fetchNaturalEvents(days = 14): Promise<NaturalEvent[]> {
   const [eonetEvents, gdacsEvents] = await Promise.all([
     fetchEonetEvents(days),
     fetchGDACSEvents(),
@@ -112,62 +126,64 @@ export async function fetchNaturalEvents(days = 30): Promise<NaturalEvent[]> {
     }
   }
 
-  return merged;
+  return merged.length > 0 ? merged : BASELINE_NATURAL_EVENTS;
 }
 
 async function fetchEonetEvents(days: number): Promise<NaturalEvent[]> {
-  try {
-    const url = `${EONET_API_URL}?status=open&days=${days}`;
-    const response = await fetch(url);
+  return breaker.execute(async () => {
+    try {
+      const url = `${EONET_API_URL}?status=open&days=${days}`;
+      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
 
-    if (!response.ok) {
-      throw new Error(`EONET API error: ${response.status}`);
-    }
-
-    const data: EonetResponse = await response.json();
-    const events: NaturalEvent[] = [];
-    const now = Date.now();
-
-    for (const event of data.events) {
-      const category = event.categories[0];
-      if (!category) continue;
-
-      // Skip earthquakes - USGS provides better data for seismic events
-      if (category.id === 'earthquakes') continue;
-
-      // Get most recent geometry point
-      const latestGeo = event.geometry[event.geometry.length - 1];
-      if (!latestGeo || latestGeo.type !== 'Point') continue;
-
-      const eventDate = new Date(latestGeo.date);
-      const [lon, lat] = latestGeo.coordinates;
-      const source = event.sources[0];
-
-      // Filter out wildfires older than 48 hours
-      if (category.id === 'wildfires' && now - eventDate.getTime() > WILDFIRE_MAX_AGE_MS) {
-        continue;
+      if (!response.ok) {
+        throw new Error(`EONET API error: ${response.status}`);
       }
 
-      events.push({
-        id: event.id,
-        title: event.title,
-        description: event.description || undefined,
-        category: category.id as NaturalEventCategory,
-        categoryTitle: category.title,
-        lat,
-        lon,
-        date: eventDate,
-        magnitude: latestGeo.magnitudeValue,
-        magnitudeUnit: latestGeo.magnitudeUnit,
-        sourceUrl: source?.url,
-        sourceName: source?.id,
-        closed: event.closed !== null,
-      });
-    }
+      const data: EonetResponse = await response.json();
+      const events: NaturalEvent[] = [];
+      const now = Date.now();
 
-    return events;
-  } catch (error) {
-    console.error('[EONET] Failed to fetch natural events:', error);
-    return [];
-  }
+      for (const event of data.events) {
+        const category = event.categories[0];
+        if (!category) continue;
+
+        // Skip earthquakes - USGS provides better data for seismic events
+        if (category.id === 'earthquakes') continue;
+
+        // Get most recent geometry point
+        const latestGeo = event.geometry[event.geometry.length - 1];
+        if (!latestGeo || latestGeo.type !== 'Point') continue;
+
+        const eventDate = new Date(latestGeo.date);
+        const [lon, lat] = latestGeo.coordinates;
+        const source = event.sources[0];
+
+        // Filter out wildfires older than 48 hours
+        if (category.id === 'wildfires' && now - eventDate.getTime() > WILDFIRE_MAX_AGE_MS) {
+          continue;
+        }
+
+        events.push({
+          id: event.id,
+          title: event.title,
+          description: event.description || undefined,
+          category: category.id as NaturalEventCategory,
+          categoryTitle: category.title,
+          lat,
+          lon,
+          date: eventDate,
+          magnitude: latestGeo.magnitudeValue,
+          magnitudeUnit: latestGeo.magnitudeUnit,
+          sourceUrl: source?.url,
+          sourceName: source?.id,
+          closed: event.closed !== null,
+        });
+      }
+
+      return events.length > 0 ? events : BASELINE_NATURAL_EVENTS;
+    } catch (error) {
+      console.warn('[EONET] Fetch failed, using baseline events:', error);
+      return BASELINE_NATURAL_EVENTS;
+    }
+  }, BASELINE_NATURAL_EVENTS);
 }

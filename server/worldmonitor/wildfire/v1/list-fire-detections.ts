@@ -119,47 +119,82 @@ function mapConfidence(c: string): FireConfidence {
   return 'FIRE_CONFIDENCE_UNSPECIFIED';
 }
 
-function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): { row: Record<string, string>, regionName: string }[] {
+function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): ListFireDetectionsResponse['fireDetections'] {
   const lines = csv.trim().split('\n');
   if (lines.length < 2) return [];
 
   const headers = lines[0]!.split(',').map((h) => h.trim());
   const latIdx = headers.indexOf('latitude');
   const lonIdx = headers.indexOf('longitude');
-  
+  const brightIdx = headers.indexOf('bright_ti4') !== -1 ? headers.indexOf('bright_ti4') : headers.indexOf('brightness');
+  const frpIdx = headers.indexOf('frp');
+  const confIdx = headers.indexOf('confidence');
+  const satIdx = headers.indexOf('satellite');
+  const dateIdx = headers.indexOf('acq_date');
+  const timeIdx = headers.indexOf('acq_time');
+  const daynightIdx = headers.indexOf('daynight');
+
   if (latIdx === -1 || lonIdx === -1) return [];
 
-  const results: { row: Record<string, string>, regionName: string }[] = [];
+  const regionEntries = Object.entries(regions).map(([name, bbox]) => ({
+    name,
+    minLon: bbox[0]!,
+    minLat: bbox[1]!,
+    maxLon: bbox[2]!,
+    maxLat: bbox[3]!,
+  }));
+
+  const fireDetections: ListFireDetectionsResponse['fireDetections'] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!;
+    const line = lines[i];
     if (!line) continue;
-    
+
     const vals = line.split(',');
     const latStr = vals[latIdx];
     const lonStr = vals[lonIdx];
     if (!latStr || !lonStr) continue;
-    
+
     const lat = parseFloat(latStr);
     const lon = parseFloat(lonStr);
-    
+    if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
+
+    const frp = frpIdx !== -1 && vals[frpIdx] ? parseFloat(vals[frpIdx]) : 0;
+    const brightness = brightIdx !== -1 && vals[brightIdx] ? parseFloat(vals[brightIdx]) : 0;
+
+    // Filter out minor thermal noise to accelerate client render and reduce payload
+    if (frp < 2.0 && brightness < 315) continue;
+
     let matchedRegion = '';
-    for (const [rName, bbox] of Object.entries(regions)) {
-      if (lat >= bbox[1]! && lat <= bbox[3]! && lon >= bbox[0]! && lon <= bbox[2]!) {
-        matchedRegion = rName;
+    for (let r = 0; r < regionEntries.length; r++) {
+      const reg = regionEntries[r]!;
+      if (lat >= reg.minLat && lat <= reg.maxLat && lon >= reg.minLon && lon <= reg.maxLon) {
+        matchedRegion = reg.name;
         break;
       }
     }
-    
+
     const regionName = matchedRegion || classifyContinent(lat, lon);
-    const row: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      row[h] = vals[idx] ? vals[idx].trim() : '';
+    const acqDate = dateIdx !== -1 && vals[dateIdx] ? vals[dateIdx].trim() : '';
+    const acqTime = timeIdx !== -1 && vals[timeIdx] ? vals[timeIdx].trim() : '';
+    const detectedAt = parseDetectedAt(acqDate, acqTime);
+
+    fireDetections.push({
+      id: `fire-${lat}-${lon}-${detectedAt}`,
+      location: { latitude: lat, longitude: lon },
+      brightness: Number.isFinite(brightness) ? brightness : 0,
+      frp: Number.isFinite(frp) ? frp : 0,
+      confidence: mapConfidence(confIdx !== -1 && vals[confIdx] ? vals[confIdx].trim() : ''),
+      satellite: satIdx !== -1 && vals[satIdx] ? vals[satIdx].trim() : 'VIIRS',
+      detectedAt: Number.isFinite(detectedAt) ? detectedAt : 0,
+      region: regionName,
+      dayNight: daynightIdx !== -1 && vals[daynightIdx] ? vals[daynightIdx].trim() : 'D',
     });
-    results.push({ row, regionName });
   }
 
-  return results;
+  // Sort by Fire Radiative Power (intensity) and cap to top 3,500 most significant global fires
+  fireDetections.sort((a, b) => (b.frp || 0) - (a.frp || 0));
+  return fireDetections.slice(0, 3500);
 }
 
 /**
@@ -167,6 +202,7 @@ function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): { ro
  * milliseconds.
  */
 function parseDetectedAt(acqDate: string, acqTime: string): number {
+  if (!acqDate) return Date.now();
   const padded = acqTime.padStart(4, '0');
   const hours = padded.slice(0, 2);
   const minutes = padded.slice(2);
@@ -180,11 +216,6 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
   const apiKey =
     process.env.NASA_FIRMS_API_KEY || process.env.FIRMS_API_KEY || '';
 
-  if (!apiKey) {
-    console.warn('[FIRMS] No NASA_FIRMS_API_KEY configured. Returning empty results.');
-    return { fireDetections: [], pagination: undefined };
-  }
-
   console.log('[FIRMS] listFireDetections called. Checking cache for key:', REDIS_CACHE_KEY);
 
   const result = await cachedFetchJson<ListFireDetectionsResponse>(
@@ -196,7 +227,6 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
         parsedRegions[name] = bbox.split(',').map(Number);
       }
 
-      const fireDetections: ListFireDetectionsResponse['fireDetections'] = [];
       const globalUrl = 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv';
       
       console.log('[FIRMS] Fetching global 24h CSV from:', globalUrl);
@@ -204,7 +234,7 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
       try {
         const res = await fetch(globalUrl, {
           headers: { Accept: 'text/csv', 'User-Agent': CHROME_UA },
-          signal: AbortSignal.timeout(15_000),
+          signal: AbortSignal.timeout(10_000),
         });
         
         if (!res.ok) {
@@ -213,36 +243,13 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
         }
         
         const csv = await res.text();
-        const matches = parseAndFilterCSV(csv, parsedRegions);
-        
-        console.log(`[FIRMS] Successfully parsed global CSV. Found ${matches.length} fires in monitored regions.`);
-        
-        for (const match of matches) {
-          const { row, regionName } = match;
-          const detectedAt = parseDetectedAt(row.acq_date || '', row.acq_time || '');
-          fireDetections.push({
-            id: `fire-${row.latitude}-${row.longitude}-${detectedAt}`,
-            location: {
-              latitude: parseFloat(row.latitude || '0'),
-              longitude: parseFloat(row.longitude || '0'),
-            },
-            brightness: parseFloat(row.bright_ti4 || '0'),
-            frp: parseFloat(row.frp || '0'),
-            confidence: mapConfidence(row.confidence || ''),
-            satellite: row.satellite || '',
-            detectedAt: Number.isFinite(detectedAt) ? detectedAt : 0,
-            region: regionName,
-            dayNight: row.daynight || 'D',
-          });
-        }
+        const fireDetections = parseAndFilterCSV(csv, parsedRegions);
+        console.log(`[FIRMS] Successfully parsed global CSV. Found ${fireDetections.length} significant fires.`);
+        return fireDetections.length > 0 ? { fireDetections, pagination: undefined } : null;
       } catch (err: any) {
         console.error(`[FIRMS] Failed to fetch or parse global fire data: ${err.message}`);
+        return null;
       }
-
-      console.log(`[FIRMS] Returning ${fireDetections.length} total fires.`);
-      return fireDetections.length > 0 ? { fireDetections, pagination: undefined } : null;
     },
-  );
-
   return result || { fireDetections: [], pagination: undefined };
 };

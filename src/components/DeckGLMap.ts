@@ -555,25 +555,36 @@ export class DeckGLMap {
     this.maplibreMap.on('load', () => {
       if (apiKey && this.maplibreMap) {
         try {
-          this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
           this.mapTilerRadarLayer = new maptilerWeather.RadarLayer({ id: 'maptiler-radar', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
+          this.mapTilerPrecipitationLayer = new maptilerWeather.PrecipitationLayer({ id: 'maptiler-precipitation', opacity: 0.8, bounds: [-180, -90, 180, 90] } as any);
           this.mapTilerPressureLayer = new maptilerWeather.PressureLayer({ id: 'maptiler-pressure', opacity: 0.3, bounds: [-180, -90, 180, 90] } as any);
-
-          if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
-            this.mapTilerPrecipitationLayer.animateByFactor(600);
-          }
-          if (typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
-            this.mapTilerRadarLayer.animateByFactor(600);
-          }
-          if (typeof this.mapTilerPressureLayer.animateByFactor === 'function') {
-            this.mapTilerPressureLayer.animateByFactor(600);
-          }
 
           const isWeatherRadarEnabled = this.state.layers.weatherRadar;
           if (isWeatherRadarEnabled) {
-            this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
-            this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
+            // Priority: Load primary radar layer first to maximize tile bandwidth and ensure instant rendering
             this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
+            if (typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
+              this.mapTilerRadarLayer.animateByFactor(600);
+            }
+            this.setLayerReady('weatherRadar', true);
+
+            // Stagger secondary precipitation & pressure layers to prevent tile request contention
+            setTimeout(() => {
+              if (this.maplibreMap && this.state.layers.weatherRadar) {
+                if (!this.maplibreMap.getLayer('maptiler-precipitation') && this.mapTilerPrecipitationLayer) {
+                  this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
+                  if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
+                    this.mapTilerPrecipitationLayer.animateByFactor(600);
+                  }
+                }
+                if (!this.maplibreMap.getLayer('maptiler-pressure') && this.mapTilerPressureLayer) {
+                  this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
+                  if (typeof this.mapTilerPressureLayer.animateByFactor === 'function') {
+                    this.mapTilerPressureLayer.animateByFactor(600);
+                  }
+                }
+              }
+            }, 180);
           }
 
           // Initialize Weather Time Tracking Bar
@@ -4600,9 +4611,22 @@ export class DeckGLMap {
       input.addEventListener('change', () => {
         const layer = (input as HTMLInputElement).closest('.layer-toggle')?.getAttribute('data-layer') as keyof MapLayers;
         if (layer) {
-          this.state.layers[layer] = (input as HTMLInputElement).checked;
+          const checked = (input as HTMLInputElement).checked;
+          this.state.layers[layer] = checked;
           this.setLayers({ ...this.state.layers });
-          this.onLayerChange?.(layer, (input as HTMLInputElement).checked, 'user');
+          if (layer === 'weatherRadar') {
+            if (checked) {
+              this.setLayerLoading('weatherRadar', true);
+              setTimeout(() => {
+                this.setLayerLoading('weatherRadar', false);
+                this.setLayerReady('weatherRadar', true);
+              }, 400);
+            } else {
+              this.setLayerLoading('weatherRadar', false);
+              this.setLayerReady('weatherRadar', false);
+            }
+          }
+          this.onLayerChange?.(layer, checked, 'user');
           this.updateCategoryCounts();
         }
       });
@@ -5429,42 +5453,72 @@ export class DeckGLMap {
       try {
         const isWeatherRadarEnabled = this.state.layers.weatherRadar;
 
-        // Handle Pressure Layer
+        // 1. Prioritize primary Radar Layer first for instant first-try tile presentation
         if (isWeatherRadarEnabled) {
-          if (!this.maplibreMap.getLayer('maptiler-pressure') && this.mapTilerPressureLayer) {
-            this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
-          } else if (this.maplibreMap.getLayer('maptiler-pressure')) {
-            this.maplibreMap.moveLayer('maptiler-pressure');
+          if (!this.maplibreMap.getLayer('maptiler-radar') && this.mapTilerRadarLayer) {
+            this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
+            if (typeof this.mapTilerRadarLayer.animateByFactor === 'function') {
+              this.mapTilerRadarLayer.animateByFactor(600);
+            }
+          } else if (this.maplibreMap.getLayer('maptiler-radar')) {
+            this.maplibreMap.moveLayer('maptiler-radar');
           }
+          this.setLayerReady('weatherRadar', true);
         } else {
-          if (this.maplibreMap.getLayer('maptiler-pressure')) {
-            this.maplibreMap.removeLayer('maptiler-pressure');
+          if (this.maplibreMap.getLayer('maptiler-radar')) {
+            this.maplibreMap.removeLayer('maptiler-radar');
           }
         }
 
-        // Handle Precipitation Layer
+        // 2. Secondary weather layers (Precipitation & Pressure)
         if (isWeatherRadarEnabled) {
           if (!this.maplibreMap.getLayer('maptiler-precipitation') && this.mapTilerPrecipitationLayer) {
             this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
+            if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
+              this.mapTilerPrecipitationLayer.animateByFactor(600);
+            }
           } else if (this.maplibreMap.getLayer('maptiler-precipitation')) {
             this.maplibreMap.moveLayer('maptiler-precipitation');
+          }
+
+          if (!this.maplibreMap.getLayer('maptiler-pressure') && this.mapTilerPressureLayer) {
+            this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
+            if (typeof this.mapTilerPressureLayer.animateByFactor === 'function') {
+              this.mapTilerPressureLayer.animateByFactor(600);
+            }
+          } else if (this.maplibreMap.getLayer('maptiler-pressure')) {
+            this.maplibreMap.moveLayer('maptiler-pressure');
           }
         } else {
           if (this.maplibreMap.getLayer('maptiler-precipitation')) {
             this.maplibreMap.removeLayer('maptiler-precipitation');
           }
+          if (this.maplibreMap.getLayer('maptiler-pressure')) {
+            this.maplibreMap.removeLayer('maptiler-pressure');
+          }
         }
 
-        // Handle Radar Layer
-        if (isWeatherRadarEnabled) {
-          if (!this.maplibreMap.getLayer('maptiler-radar') && this.mapTilerRadarLayer) {
-            this.maplibreMap.addLayer(this.mapTilerRadarLayer as any);
-          } else if (this.maplibreMap.getLayer('maptiler-radar')) {
-            this.maplibreMap.moveLayer('maptiler-radar');
+        // 3. Instant open RainViewer radar tile fallback if MapTiler layer is not available
+        if (isWeatherRadarEnabled && !this.mapTilerRadarLayer) {
+          if (!this.maplibreMap.getSource('rainviewer-radar-source')) {
+            this.maplibreMap.addSource('rainviewer-radar-source', {
+              type: 'raster',
+              tiles: ['https://tilecache.rainviewer.com/v2/radar/nowcast_10/256/{z}/{x}/{y}/2/1_1.png'],
+              tileSize: 256,
+            });
           }
-        } else {
-          if (this.maplibreMap.getLayer('maptiler-radar')) {
-            this.maplibreMap.removeLayer('maptiler-radar');
+          if (!this.maplibreMap.getLayer('rainviewer-radar-layer')) {
+            this.maplibreMap.addLayer({
+              id: 'rainviewer-radar-layer',
+              type: 'raster',
+              source: 'rainviewer-radar-source',
+              paint: { 'raster-opacity': 0.8 },
+            });
+          }
+          this.setLayerReady('weatherRadar', true);
+        } else if (!isWeatherRadarEnabled) {
+          if (this.maplibreMap.getLayer('rainviewer-radar-layer')) {
+            this.maplibreMap.removeLayer('rainviewer-radar-layer');
           }
         }
 
@@ -6061,6 +6115,19 @@ export class DeckGLMap {
       import('@/services/alert-status').then(({ AlertStatusService }) => {
         AlertStatusService.getInstance().fetchStatuses().then(() => this.debouncedRebuildLayers());
       });
+    }
+
+    if (layer === 'weatherRadar') {
+      if (this.state.layers[layer]) {
+        this.setLayerLoading('weatherRadar', true);
+        setTimeout(() => {
+          this.setLayerLoading('weatherRadar', false);
+          this.setLayerReady('weatherRadar', true);
+        }, 400);
+      } else {
+        this.setLayerLoading('weatherRadar', false);
+        this.setLayerReady('weatherRadar', false);
+      }
     }
 
     this.onLayerChange?.(layer, this.state.layers[layer], 'programmatic');

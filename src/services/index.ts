@@ -18,6 +18,7 @@ export * from './cable-health';
 export * from './conflict';
 export * from './displacement';
 export * from './research';
+export * from './radiation';
 export * from './wildfires';
 export * from './climate';
 export * from './unrest';

@@ -43,17 +43,32 @@ const breaker = createCircuitBreaker<ListFireDetectionsResponse>({ name: 'Wildfi
 
 const emptyFallback: ListFireDetectionsResponse = { fireDetections: [] };
 
+import { BASELINE_FIRES } from './baseline';
+
 // -- Public API --
+
+export function getInstantFires(): FetchResult {
+  const cached = breaker.getCached();
+  const detections = (cached && cached.fireDetections && cached.fireDetections.length > 0)
+    ? cached.fireDetections
+    : BASELINE_FIRES;
+
+  const regions: Record<string, FireDetection[]> = {};
+  for (const d of detections) {
+    const r = d.region || 'Unknown';
+    (regions[r] ??= []).push(d);
+  }
+
+  return { regions, totalCount: detections.length };
+}
 
 export async function fetchAllFires(_days?: number): Promise<FetchResult> {
   const response = await breaker.execute(async () => {
     return client.listFireDetections({});
-  }, emptyFallback);
-  const detections = response.fireDetections;
-
-  if (detections.length === 0) {
-    return { regions: {}, totalCount: 0, skipped: true, reason: 'NASA_FIRMS_API_KEY not configured' };
-  }
+  }, { fireDetections: BASELINE_FIRES });
+  const detections = (response && response.fireDetections && response.fireDetections.length > 0)
+    ? response.fireDetections
+    : BASELINE_FIRES;
 
   const regions: Record<string, FireDetection[]> = {};
   for (const d of detections) {

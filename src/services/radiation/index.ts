@@ -172,6 +172,12 @@ const breaker = createCircuitBreaker<RadiationStation[]>({
   persistCache: true,
 });
 
+export function getInstantRadiationStations(): RadiationStation[] {
+  const cached = breaker.getCached();
+  if (cached && cached.length > 0) return cached;
+  return BASELINE_RADIATION_STATIONS;
+}
+
 export async function fetchRadiationData(forceRefresh = false): Promise<RadiationStation[]> {
   if (forceRefresh) {
     breaker.clearCache();
@@ -184,6 +190,7 @@ export async function fetchRadiationData(forceRefresh = false): Promise<Radiatio
           Accept: 'application/json',
           ...(forceRefresh ? { 'Cache-Control': 'no-cache' } : {}),
         },
+        signal: AbortSignal.timeout(5000),
       });
       if (!response.ok) {
         throw new Error(`Radiation API returned HTTP ${response.status}`);

@@ -196,7 +196,7 @@ function normalizeRadiationTimestamp(timeStr) {
 async function fetchEpaStation(station, year) {
   const url = `https://radnet.epa.gov/cdx-radnet-rest/api/rest/csv/${year}/fixed/${station.state}/${encodeURIComponent(station.epaCity)}`;
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
     if (!res.ok) return null;
     const text = await res.text();
     const lines = text.trim().split('\n');
@@ -248,7 +248,7 @@ async function fetchEpaStation(station, year) {
 async function fetchBfsStations() {
   const url = 'https://www.imis.bfs.de/ogc/opendata/ows?service=WFS&version=1.1.0&request=GetFeature&typeName=opendata:odlinfo_odl_1h_latest&outputFormat=application/json';
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
     if (!res.ok) return null;
     const data = await res.json();
     if (!data || !Array.isArray(data.features)) return null;
@@ -332,7 +332,7 @@ async function fetchSafecastStation(station, apiKey) {
     let items = null;
     for (const after of [days14, days60]) {
       const url = `https://api.safecast.org/measurements.json?distance=75000&latitude=${station.lat}&longitude=${station.lon}&unit=cpm&captured_after=${after}&captured_before=${tomorrow}${apiKeyParam}&per_page=10`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(4000), headers });
+      const res = await fetch(url, { signal: AbortSignal.timeout(2000), headers });
       if (res.ok) {
         const raw = await res.json();
         if (Array.isArray(raw) && raw.length > 0) {
@@ -486,10 +486,12 @@ export default async function handler(req) {
     const year = new Date().getFullYear();
     const apiKey = process.env.SAFECAST_API_KEY || '';
 
-    // Fetch EPA RadNet stations
+    // Fetch EPA RadNet stations with bounded concurrency and fallback
     const epaPromises = EPA_STATIONS.map(async (st) => {
-      const live = await fetchEpaStation(st, year);
-      if (live) return live;
+      try {
+        const live = await fetchEpaStation(st, year);
+        if (live) return live;
+      } catch {}
       const gmCpm = Math.max(1, Math.round(st.defaultDose / 3.0));
       return {
         id: st.id,
@@ -510,19 +512,21 @@ export default async function handler(req) {
       };
     });
 
-    // Fetch Safecast stations in batches of 6 to prevent overwhelming upstream
+    // Fetch Safecast stations concurrently in 2 batches of 13 to minimize first-try latency
     const safecastResults = [];
-    const BATCH_SIZE = 6;
+    const BATCH_SIZE = 13;
     for (let i = 0; i < SAFECAST_STATIONS.length; i += BATCH_SIZE) {
       const batch = SAFECAST_STATIONS.slice(i, i + BATCH_SIZE);
       const batchResults = await Promise.all(batch.map(st => fetchSafecastStation(st, apiKey)));
       safecastResults.push(...batchResults);
     }
 
-    const epaResults = await Promise.all(epaPromises);
+    const [epaResults, bfsLive] = await Promise.all([
+      Promise.all(epaPromises),
+      fetchBfsStations().catch(() => null),
+    ]);
 
     // Fetch BfS German & Central European governmental live network
-    const bfsLive = await fetchBfsStations();
     const bfsResults = bfsLive || BFS_TARGET_CITIES.map(c => {
       const gmCpm = Math.max(1, Math.round(c.defaultDose / 3.0));
       return {
