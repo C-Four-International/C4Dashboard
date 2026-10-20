@@ -4158,7 +4158,7 @@ export class DeckGLMap {
                 { key: 'radiation', label: t('components.deckgl.layers.radiation'), icon: '&#9762;' },
                 { key: 'irradiators', label: t('components.deckgl.layers.gammaIrradiators'), icon: '&#9888;' },
                 { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
-                { key: 'nuclear', label: t('components.deckgl.layers.nuclearSites'), icon: '&#9762;' },
+                { key: 'nuclear', label: t('components.deckgl.layers.nuclearSites'), icon: '🏭' },
                 { key: 'agriculturalStressASI', label: 'Agricultural Index', icon: '&#127806;' },
                 { key: 'bgpAnomalies', label: t('components.deckgl.layers.bgpAnomalies'), icon: '&#128256;' },
               ],
@@ -4167,7 +4167,7 @@ export class DeckGLMap {
               id: 'military',
               title: 'Military',
               layers: [
-                { key: 'military', label: t('components.deckgl.layers.militaryActivity'), icon: '&#9992;' },
+                { key: 'military', label: t('components.deckgl.layers.militaryActivity'), icon: '🛡️' },
                 { key: 'conflicts', label: t('components.deckgl.layers.conflictZones'), icon: '&#9876;' },
                 { key: 'bases', label: t('components.deckgl.layers.militaryBases'), icon: '&#127963;' },
               ],

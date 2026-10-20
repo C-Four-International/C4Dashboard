@@ -558,10 +558,10 @@ export class MapComponent {
       helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc', '&#128256;'),
     ])}
         ${helpSection('military', [
-      helpItem(label('militaryActivity'), 'militaryActivity', '&#9992;'),
+      helpItem(label('militaryActivity'), 'militaryActivity', '🛡️'),
       helpItem(label('conflictZones'), 'geoConflicts', '&#9876;'),
       helpItem(label('militaryBases'), 'militaryBases', '&#127963;'),
-      helpItem(label('nuclearSites'), 'militaryNuclear', '&#9762;'),
+      helpItem(label('nuclearSites'), 'militaryNuclear', '🏭'),
     ])}
         ${helpSection('shippingAir', [
       helpItem(label('shipTraffic'), 'transportShipping', '&#128674;'),
