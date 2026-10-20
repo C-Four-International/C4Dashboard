@@ -19,6 +19,7 @@
 
   /* Text */
   --text: #e8e8e8;
+  --text-bright: #d1d5db;
   --text-secondary: #ccc;
   --text-dim: #888;
   --text-muted: #666;
@@ -152,6 +153,7 @@
 
   /* Text */
   --text: #1a1a1a;
+  --text-bright: #374151;
   --text-secondary: #333;
   --text-dim: #6b6b6b;
   --text-muted: #767676;
@@ -12511,7 +12513,13 @@ a.prediction-link:hover {
 .deckgl-layer-toggles .layer-category-header:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--border-hover, rgba(255, 255, 255, 0.25));
-  color: var(--text-bright, #fff);
+  color: var(--text-bright, #d1d5db);
+}
+
+.deckgl-layer-toggles .layer-category-header::selection,
+.deckgl-layer-toggles .layer-category-header *::selection {
+  background: #cbd5e1;
+  color: #1f2937;
 }
 
 .deckgl-layer-toggles .layer-category-header[aria-expanded="true"] {
@@ -12663,6 +12671,77 @@ a.prediction-link:hover {
 
 .deckgl-layer-toggles .layer-toggle.has-data {
   border-color: rgba(68, 255, 136, 0.2);
+}
+
+/* Light theme overrides for deck.gl Layer Toggles */
+[data-theme="light"] .deckgl-layer-toggles {
+  background: #ffffff;
+  border-color: #d4d4d4;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .deckgl-layer-toggles .toggle-header {
+  border-bottom-color: #e2e8f0;
+  color: #64748b;
+}
+
+[data-theme="light"] .deckgl-layer-toggles .layer-expand-all-btn,
+[data-theme="light"] .deckgl-layer-toggles .toggle-collapse,
+[data-theme="light"] .deckgl-layer-toggles .layer-help-btn {
+  color: #64748b;
+}
+
+[data-theme="light"] .deckgl-layer-toggles .layer-expand-all-btn:hover,
+[data-theme="light"] .deckgl-layer-toggles .toggle-collapse:hover,
+[data-theme="light"] .deckgl-layer-toggles .layer-help-btn:hover {
+  color: #111827;
+  background: #f1f5f9;
+}
+
+[data-theme="light"] .deckgl-layer-toggles .layer-category-header {
+  background: #f8f9fa;
+  border-color: #e2e8f0;
+  color: #374151;
+}
+
+[data-theme="light"] .deckgl-layer-toggles .layer-category-header:hover {
+  background: #e2e8f0; /* Light grey selection background */
+  border-color: #cbd5e1;
+  color: #1f2937; /* Dark text for contrast on light grey selection */
+}
+
+[data-theme="light"] .deckgl-layer-toggles .layer-category-header[aria-expanded="true"] {
+  background: #f1f5f9;
+  border-color: rgba(22, 163, 74, 0.4);
+  color: #111827;
+}
+
+[data-theme="light"] .deckgl-layer-toggles .layer-category-header[aria-expanded="true"]:hover {
+  background: #e2e8f0;
+  color: #111827;
+}
+
+[data-theme="light"] .deckgl-layer-toggles .layer-category-list {
+  border-left-color: #e2e8f0;
+}
+
+[data-theme="light"] .deckgl-layer-toggles .layer-toggle {
+  background: #ffffff;
+  color: #374151;
+}
+
+[data-theme="light"] .deckgl-layer-toggles .layer-toggle:hover {
+  background: #f1f5f9;
+  color: #111827;
+}
+
+[data-theme="light"] .deckgl-layer-toggles .category-badge {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+[data-theme="light"] .deckgl-layer-toggles .category-chevron {
+  color: #64748b;
 }
 
 /* deck.gl Legend - horizontal bar at bottom center */
