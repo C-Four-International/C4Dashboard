@@ -61,10 +61,7 @@ export class StrategicPosturePanel extends Panel {
     this.setContent(`
       <div class="posture-panel">
         <div class="posture-loading">
-          <div class="posture-loading-radar">
-            <div class="posture-radar-sweep"></div>
-            <div class="posture-radar-dot"></div>
-          </div>
+          <div class="posture-loading-radar"></div>
           <div class="posture-loading-title">${t('components.strategicPosture.scanningTheaters')}</div>
           <div class="posture-loading-stages">
             <div class="posture-stage active">

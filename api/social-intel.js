@@ -664,10 +664,11 @@ async function generateAirGappedBriefing(clusterPosts, geminiKey) {
   const systemInstruction = `You are an air-gapped factual intelligence briefing engine. You synthesize corroborated social media intelligence from verified OSINT and news monitors into ultra-concise event briefings.
 
 STRICT PROTOCOL:
-1. Grounding: You must ONLY state concrete, corroborated facts directly reported in the provided source texts. Do NOT extrapolate, speculate, or introduce any outside facts.
-2. Brevity: The briefing MUST be UNDER 25 WORDS.
-3. Tone: Telegraphic, objective wire-service intelligence style (e.g. 'Ukrainian air defenses intercepted 14 drones over Kharkiv; power infrastructure sustained minor damage.').
-4. No preambles, titles, courtesy phrases, or formatting like markdown asterisks. Just the raw factual briefing under 25 words.`;
+1. Language: You MUST ALWAYS write the briefing in ENGLISH. Many sources are written in Ukrainian, Russian, or other languages; you MUST translate and synthesize all information into fluent, concise English. NEVER output Cyrillic characters or non-English text under any circumstances.
+2. Grounding: You must ONLY state concrete, corroborated facts directly reported in the provided source texts. Do NOT extrapolate, speculate, or introduce any outside facts.
+3. Brevity: The briefing MUST be UNDER 25 WORDS.
+4. Tone: Telegraphic, objective wire-service intelligence style (e.g. 'Ukrainian air defenses intercepted 14 drones over Kharkiv; power infrastructure sustained minor damage.').
+5. Formatting: Output ONLY the raw factual briefing in English. No preambles, titles, translation notes, source citations, quotes, or markdown formatting.`;
 
   // Use Google AI Studio's lowest cost models: gemini-1.5-flash-8b ($0.0375/1M tokens) with fallbacks
   const models = ['gemini-1.5-flash-8b', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
@@ -680,7 +681,7 @@ STRICT PROTOCOL:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemInstruction }] },
-          contents: [{ role: 'user', parts: [{ text: `CORROBORATED SOURCE REPORTS:\n${combinedContext}\n\nGenerate the <=25 word factual briefing:` }] }],
+          contents: [{ role: 'user', parts: [{ text: `CORROBORATED SOURCE REPORTS (Translate non-English source reports into English):\n${combinedContext}\n\nGenerate the <=25 word factual briefing strictly in English:` }] }],
           generationConfig: {
             temperature: 0.1,
             maxOutputTokens: 60,
@@ -692,7 +693,8 @@ STRICT PROTOCOL:
       if (res.ok) {
         const json = await res.json();
         const rawBrief = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (rawBrief) {
+        // Ensure result is present and does not contain raw Cyrillic text
+        if (rawBrief && !/[\u0400-\u04FF]/.test(rawBrief)) {
           return {
             briefing: enforceBriefingWordLimit(rawBrief, 24),
             modelUsed: model,
@@ -708,11 +710,23 @@ STRICT PROTOCOL:
 }
 
 // Local deterministic fallback synthesizer if AI Studio is offline or has no key
-function generateLocalBriefingFallback(clusterPosts) {
-  // Pick the most representative post with shortest, clearest headline sentence
-  const bestPost = clusterPosts.reduce((best, cur) => {
+export function generateLocalBriefingFallback(clusterPosts) {
+  // Prefer non-Cyrillic (English) posts if available in cluster
+  const englishPosts = clusterPosts.filter(p => !/[\u0400-\u04FF]/.test(p.cleanedText));
+  const candidatePool = englishPosts.length > 0 ? englishPosts : clusterPosts;
+
+  const bestPost = candidatePool.reduce((best, cur) => {
     return cur.cleanedText.length < best.cleanedText.length ? cur : best;
-  }, clusterPosts[0]);
+  }, candidatePool[0]);
+
+  // If the chosen post is still in Cyrillic, provide a clean English operational notice
+  if (/[\u0400-\u04FF]/.test(bestPost.cleanedText)) {
+    const author = bestPost.authorName || bestPost.author || 'OSINT channel';
+    return {
+      briefing: enforceBriefingWordLimit(`${author} published operational military situation updates and frontline telemetry.`, 24),
+      modelUsed: 'local-corroborator',
+    };
+  }
 
   const firstSentence = bestPost.cleanedText.split(/[.!?]\s+/)[0] || bestPost.cleanedText;
   return {

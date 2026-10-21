@@ -6,6 +6,7 @@ import handler, {
   enforceBriefingWordLimit,
   cosineSimilarity,
   fetchRailwayTelegramFeed,
+  generateLocalBriefingFallback,
 } from '../api/social-intel.js';
 
 describe('Social Media Intel - Local Preprocessing & Noise Filtering', () => {
@@ -66,6 +67,40 @@ describe('Social Media Intel - Multi-Source Corroboration', () => {
     const distinctAuthors = new Set(cluster.map(p => `${p.platform}:${p.author}`));
     assert.strictEqual(distinctAuthors.size, 2, 'Should have 2 distinct sources');
     assert.ok(distinctAuthors.size >= 2, 'Should pass multi-source corroboration rule');
+  });
+
+  it('strictly forces English and avoids Cyrillic in local briefing fallback', () => {
+    // Case 1: Mixed cluster with Ukrainian/Russian and English posts -> prefers English
+    const mixedCluster = [
+      {
+        platform: 'telegram',
+        author: '@deepstateua',
+        authorName: 'DeepState',
+        cleanedText: 'Ворог просунувся біля населеного пункту на сході України за повідомленням аналітиків.',
+      },
+      {
+        platform: 'bluesky',
+        author: 'bellingcat.com',
+        authorName: 'Bellingcat',
+        cleanedText: 'Commercial satellite imagery indicates active armor movements across the eastern sector.',
+      },
+    ];
+    const resMixed = generateLocalBriefingFallback(mixedCluster);
+    assert.strictEqual(/[\u0400-\u04FF]/.test(resMixed.briefing), false, 'Should not contain Cyrillic');
+    assert.ok(resMixed.briefing.includes('Commercial satellite imagery'), 'Should select the English post');
+
+    // Case 2: All-Cyrillic posts cluster -> produces an English operational situation notice
+    const allCyrillicCluster = [
+      {
+        platform: 'telegram',
+        author: '@kpszsu',
+        authorName: 'Air Force AFU',
+        cleanedText: 'Збито 18 із 24 ударних БпЛА типу Shahed над територією Миколаївської та Одеської областей.',
+      },
+    ];
+    const resCyrillic = generateLocalBriefingFallback(allCyrillicCluster);
+    assert.strictEqual(/[\u0400-\u04FF]/.test(resCyrillic.briefing), false, 'All-Cyrillic cluster must produce English briefing');
+    assert.ok(resCyrillic.briefing.includes('Air Force AFU') || resCyrillic.briefing.includes('operational'), 'Must have English text');
   });
 });
 

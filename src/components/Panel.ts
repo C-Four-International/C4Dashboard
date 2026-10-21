@@ -351,10 +351,7 @@ export class Panel {
   public showLoading(message = t('common.loading')): void {
     replaceChildren(this.content,
       h('div', { className: 'panel-loading' },
-        h('div', { className: 'panel-loading-radar' },
-          h('div', { className: 'panel-radar-sweep' }),
-          h('div', { className: 'panel-radar-dot' }),
-        ),
+        h('div', { className: 'panel-loading-radar' }),
         h('div', { className: 'panel-loading-text' }, message),
       ),
     );
@@ -367,10 +364,7 @@ export class Panel {
   public showRetrying(message = t('common.retrying')): void {
     replaceChildren(this.content,
       h('div', { className: 'panel-loading' },
-        h('div', { className: 'panel-loading-radar' },
-          h('div', { className: 'panel-radar-sweep' }),
-          h('div', { className: 'panel-radar-dot' }),
-        ),
+        h('div', { className: 'panel-loading-radar retrying' }),
         h('div', { className: 'panel-loading-text retrying' }, message),
       ),
     );

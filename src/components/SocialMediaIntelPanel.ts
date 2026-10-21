@@ -1,5 +1,6 @@
 import { Panel } from './Panel';
 import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
+import { h, replaceChildren } from '@/utils/dom-utils';
 import { t } from '@/services/i18n';
 import {
   fetchSocialIntelBriefings,
@@ -38,6 +39,16 @@ export class SocialMediaIntelPanel extends Panel {
     await this.loadData(true);
   }
 
+  public override showLoading(message = t('components.socialIntel.loading') || 'Correlating OSINT and breaking news...'): void {
+    replaceChildren(
+      this.content,
+      h('div', { className: 'social-intel-loading-container' },
+        h('div', { className: 'social-intel-spinner-wheel' }),
+        h('div', { className: 'social-intel-loading-text' }, message),
+      ),
+    );
+  }
+
   private async loadData(forceRefresh = false): Promise<void> {
     if (this.isRefreshing) return;
     this.isRefreshing = true;
@@ -48,9 +59,9 @@ export class SocialMediaIntelPanel extends Panel {
     }
 
     if (this.briefings.length === 0) {
-      this.showLoading(t('components.socialIntel.loading') || 'Correlating OSINT and breaking news...');
+      this.showLoading();
     } else {
-      this.setDataBadge('cached', 'Refreshing...');
+      this.setDataBadge('cached');
     }
 
     try {
@@ -60,8 +71,7 @@ export class SocialMediaIntelPanel extends Panel {
       this.setCount(this.briefings.length);
 
       const cacheState = forceRefresh ? 'live' : 'cached';
-      const detail = data.cachedUntil ? '3h TTL' : 'AI Correlated';
-      this.setDataBadge(cacheState, detail);
+      this.setDataBadge(cacheState);
 
       this.render();
     } catch (err: any) {
@@ -69,7 +79,7 @@ export class SocialMediaIntelPanel extends Panel {
       if (this.briefings.length === 0) {
         this.showError(t('common.failedToLoad') || 'Failed to load social media intelligence briefings.');
       } else {
-        this.setDataBadge('unavailable', 'Sync failed');
+        this.setDataBadge('unavailable');
       }
     } finally {
       this.isRefreshing = false;
@@ -141,10 +151,13 @@ export class SocialMediaIntelPanel extends Panel {
             title="Refresh intel feed (3h cache)"
             aria-label="Refresh intel feed"
           >
-            <svg class="social-refresh-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-              <path d="M21 3v5h-5" />
-            </svg>
+            <span class="social-refresh-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
+            </span>
+            <span class="social-loading-wheel" aria-hidden="true"></span>
           </button>
         </div>
       </div>
