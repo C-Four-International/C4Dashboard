@@ -195,78 +195,28 @@
       }
     ],
     "social_intel": [
-      {
-        "handle": "liveukraine_media",
-        "label": "Live Ukraine",
-        "topic": "breaking",
-        "tier": 2,
-        "enabled": true,
-        "region": "ukraine",
-        "maxMessages": 25
-      },
-      {
-        "handle": "clashreport",
-        "label": "Clash Report",
-        "topic": "conflict",
-        "tier": 2,
-        "enabled": true,
-        "region": "global",
-        "maxMessages": 30
-      },
-      {
-        "handle": "osinttechnical",
-        "label": "OSINTtechnical",
-        "topic": "conflict",
-        "tier": 2,
-        "enabled": true,
-        "region": "global",
-        "maxMessages": 25
-      },
-      {
-        "handle": "inaborodina",
-        "label": "Ina Borodina",
-        "topic": "conflict",
-        "tier": 2,
-        "enabled": true,
-        "region": "ukraine",
-        "maxMessages": 20
-      },
-      {
-        "handle": "MiddleEastSpectator",
-        "label": "Middle East Spectator",
-        "topic": "geopolitics",
-        "tier": 2,
-        "enabled": true,
-        "region": "middle_east",
-        "maxMessages": 25
-      },
-      {
-        "handle": "militarnyi_eng",
-        "label": "Militarnyi in English",
-        "topic": "conflict",
-        "tier": 2,
-        "enabled": true,
-        "region": "ukraine",
-        "maxMessages": 25
-      },
-      {
-        "handle": "warmonitor",
-        "label": "War Monitor",
-        "topic": "alerts",
-        "tier": 2,
-        "enabled": true,
-        "region": "ukraine",
-        "maxMessages": 25
-      },
-      {
-        "handle": "bellingcat",
-        "label": "Bellingcat",
-        "topic": "osint",
-        "tier": 3,
-        "enabled": true,
-        "region": "global",
-        "maxMessages": 20
-      }
+      { "handle": "clashreport", "label": "Clash Report", "topic": "conflict", "tier": 1, "enabled": true, "region": "global", "maxMessages": 25 },
+      { "handle": "liveukraine_media", "label": "Live Ukraine", "topic": "breaking", "tier": 1, "enabled": true, "region": "ukraine", "maxMessages": 25 },
+      { "handle": "bellingcat", "label": "Bellingcat", "topic": "osint", "tier": 1, "enabled": true, "region": "global", "maxMessages": 20 },
+      { "handle": "LiveUAMap", "label": "LiveUAMap", "topic": "breaking", "tier": 1, "enabled": true, "region": "global", "maxMessages": 25 },
+      { "handle": "BNONews", "label": "BNO News", "topic": "breaking", "tier": 1, "enabled": true, "region": "global", "maxMessages": 25 },
+      { "handle": "osinttechnical", "label": "OSINTtechnical", "topic": "conflict", "tier": 1, "enabled": true, "region": "global", "maxMessages": 25 },
+      { "handle": "OSINTdefender", "label": "OSINTdefender", "topic": "conflict", "tier": 1, "enabled": true, "region": "global", "maxMessages": 25 },
+      { "handle": "defensepoliticsasia", "label": "Defense Politics Asia", "topic": "geopolitics", "tier": 2, "enabled": true, "region": "asia_pacific", "maxMessages": 20 },
+      { "handle": "militarnyi_eng", "label": "Militarnyi English", "topic": "conflict", "tier": 2, "enabled": true, "region": "ukraine", "maxMessages": 25 },
+      { "handle": "kyivpost_official", "label": "Kyiv Post", "topic": "breaking", "tier": 2, "enabled": true, "region": "ukraine", "maxMessages": 20 },
+      { "handle": "AuroraIntel", "label": "Aurora Intel", "topic": "conflict", "tier": 2, "enabled": true, "region": "global", "maxMessages": 20 },
+      { "handle": "GeopoliticalCenter", "label": "GeopoliticalCenter", "topic": "geopolitics", "tier": 2, "enabled": true, "region": "europe", "maxMessages": 20 },
+      { "handle": "deepstateua", "label": "DeepState", "topic": "conflict", "tier": 1, "enabled": true, "region": "ukraine", "maxMessages": 25 },
+      { "handle": "informnapalm", "label": "InformNapalm", "topic": "osint", "tier": 1, "enabled": true, "region": "ukraine", "maxMessages": 20 },
+      { "handle": "GeneralStaffZSU", "label": "General Staff AFU", "topic": "conflict", "tier": 1, "enabled": true, "region": "ukraine", "maxMessages": 20 },
+      { "handle": "kpszsu", "label": "Air Force AFU", "topic": "alerts", "tier": 1, "enabled": true, "region": "ukraine", "maxMessages": 25 },
+      { "handle": "DIUkraine", "label": "Defense Intelligence UA", "topic": "osint", "tier": 1, "enabled": true, "region": "ukraine", "maxMessages": 20 },
+      { "handle": "suspilnenews", "label": "Suspilne News", "topic": "breaking", "tier": 2, "enabled": true, "region": "ukraine", "maxMessages": 20 },
+      { "handle": "ukrpravda_news", "label": "Ukrainska Pravda", "topic": "breaking", "tier": 2, "enabled": true, "region": "ukraine", "maxMessages": 20 },
+      { "handle": "spravdi", "label": "Spravdi", "topic": "geopolitics", "tier": 2, "enabled": true, "region": "ukraine", "maxMessages": 20 },
+      { "handle": "milinfolive", "label": "Military Informant", "topic": "conflict", "tier": 2, "enabled": true, "region": "russia", "maxMessages": 20 },
+      { "handle": "SSternenko", "label": "Sternenko", "topic": "conflict", "tier": 2, "enabled": true, "region": "ukraine", "maxMessages": 20 }
     ],
     "tech": [],
     "finance": []

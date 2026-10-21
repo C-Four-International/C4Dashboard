@@ -2,30 +2,67 @@ import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 
 export const config = { runtime: 'edge' };
 
-// Prominent OSINT and News accounts on Bluesky (AT Protocol)
+// Prominent, verified OSINT institutions, defense researchers, and wires on Bluesky (AT Protocol)
 const BLUESKY_ACCOUNTS = [
-  'bellingcat.com',
-  'osinttechnical.bsky.social',
-  'kyivindependent.com',
-  'reuters.com',
-  'apnews.com',
-  'geoconfirmed.bsky.social',
-  'warmonitor3.bsky.social',
-  'defense-one.bsky.social',
-  'dw.com',
-  'bbcnews.bsky.social',
+  // Leading OSINT Institutions & Geolocation Verification
+  'bellingcat.com',               // Bellingcat - Gold-standard investigative OSINT
+  'thestudyofwar.bsky.social',    // Institute for the Study of War (ISW) - Conflict & frontline maps
+  'geoconfirmed.org',             // GeoConfirmed - Conflict imagery geolocation & verification
+  'criticalthreats.bsky.social',  // Critical Threats Project (AEI) - Middle East, Iran & Sahel monitoring
+
+  // Premier Independent OSINT Researchers & Analysts
+  'eliothiggins.bsky.social',     // Eliot Higgins - Bellingcat founder, weapon forensics & geolocations
+  'osinttechnical.bsky.social',   // OSINTtechnical - Military equipment, air defense & tactical footage
+  'covertshores.bsky.social',     // H I Sutton / Covert Shores - Naval, submarine & maritime OSINT
+  'tatarigami.bsky.social',       // Tatarigami_UA / Frontelligence - Satellite imagery & military logistics
+  'vcdgf555.bsky.social',         // Evergreen Intel - Strategic reconnaissance flights & vessel tracking
+  'emilkastehelmi.bsky.social',   // Emil Kastehelmi / Black Bird Group - Tactical frontline mapping
+  'defmon3.bsky.social',          // Defmon3 - Frontline military map analyst & strike assessments
+  'armscontrolwonk.bsky.social',  // Jeffrey Lewis / CNS - Missile & nuclear proliferation OSINT
+  'giancarlofiorella.bsky.social',// Giancarlo Fiorella - Bellingcat research director
+  'trbrtc.bsky.social',           // Christiaan Triebert - NYT Visual Investigations / ex-Bellingcat
+  'aric.bsky.social',             // Aric Toler - NYT Visual Investigations / ex-Bellingcat
+
+  // Defense Think Tanks & Strategic Analysts
+  'rusi.bsky.social',             // Royal United Services Institute - Premier European defense analysis
+  'csis.org',                     // Center for Strategic & International Studies (CSIS) - Aerospace & security
+  'michaelkofman.bsky.social',    // Michael Kofman - Carnegie Endowment, military capability analyst
+  'warontherocks.bsky.social',    // War on the Rocks - Military strategy & national security
+
+  // Primary Wires & On-the-Ground Reporters (for corroboration & ground-truth)
+  'kyivindependent.com',          // The Kyiv Independent - Eastern European breaking news & war tracking
+  'reuters.com',                  // Reuters - Global breaking wire
+  'apnews.com',                   // The Associated Press - Global breaking wire
+  'aljazeera.com',                // Al Jazeera English - Middle East & Global South breaking coverage
 ];
 
-// Prominent OSINT and News channels on Telegram
+// Prominent, verified OSINT and Defense channels on Telegram
 const TELEGRAM_CHANNELS = [
-  'liveukraine_media',
-  'clashreport',
-  'osinttechnical',
-  'deepstateua',
-  'MiddleEastSpectator',
-  'militarnyi_eng',
-  'warmonitor',
-  'bellingcat',
+  // 1. Dedicated English OSINT & Wire Aggregators
+  'clashreport',                  // Clash Report - Real-time military footage, weapons & equipment updates
+  'liveukraine_media',            // Live: Ukraine - Daily military briefings, air strikes & battlefield damage
+  'bellingcat',                   // Bellingcat - Official investigative OSINT publications & forensics
+  'LiveUAMap',                    // LiveUAMap - Direct conflict map updates & verified geolocations
+  'BNONews',                      // BNO News - High-speed factual breaking wires & security alerts
+  'osinttechnical',               // OSINTtechnical - Air defense, drone footage & hardware forensics
+  'OSINTdefender',                // OSINTdefender - Strategic flights, naval movements & defense tracking
+  'defensepoliticsasia',          // Defense Politics Asia - Military order-of-battle & map updates
+  'militarnyi_eng',               // Militarnyi in English - Defense tech & frontline equipment portal
+  'kyivpost_official',            // Kyiv Post - Verified ground-truth English newsroom
+  'AuroraIntel',                  // Aurora Intel - Conflict tracking & verified alerts
+  'GeopoliticalCenter',           // GeopoliticalCenter - Airspace, naval & European defense alerts
+
+  // 2. Verified Frontline Mapping, Tactical Forensics & Defense Intelligence
+  'deepstateua',                  // DeepStateUA - Premier frontline map & visual battlefield verification
+  'informnapalm',                 // InformNapalm - International volunteer intelligence & weapon tracking
+  'GeneralStaffZSU',              // General Staff of AFU - Official operational military situation reports
+  'kpszsu',                       // Air Force Command of AFU - Real-time air alerts & missile/drone intercept statistics
+  'DIUkraine',                    // Defense Intelligence of Ukraine (GUR) - Official intelligence updates
+  'suspilnenews',                 // Suspilne News - Ukrainian national public broadcaster
+  'ukrpravda_news',               // Ukrainska Pravda - Primary investigative & breaking newsroom
+  'spravdi',                      // Spravdi - Centre for Strategic Communication
+  'milinfolive',                  // Military Informant - Hardware forensics, strike assessments & drone tracking
+  'SSternenko',                   // Serhii Sternenko - Aerial drone reconnaissance & frontline strike documentation
 ];
 
 // 3-hour cache TTL (10,800 seconds = 10,800,000 ms)
@@ -811,11 +848,11 @@ async function buildSocialIntelBriefings() {
     return timeB - timeA;
   });
 
-  // Balanced selection: Corroborated multi-source events first, followed by breaking Telegram OSINT & Bluesky signals
+  // Balanced selection: Corroborated multi-source events first, followed by balanced breaking Telegram OSINT & Bluesky signals
   const finalClusters = [
-    ...corroboratedClusters.slice(0, 12),
-    ...singleTgClusters.slice(0, 12),
-    ...singleBskyClusters.slice(0, 6),
+    ...corroboratedClusters.slice(0, 14),
+    ...singleTgClusters.slice(0, 10),
+    ...singleBskyClusters.slice(0, 10),
   ];
 
   // 5. Briefing Generation (< 25 words)
