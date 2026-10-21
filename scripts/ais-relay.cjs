@@ -21,9 +21,11 @@ const AISSTREAM_URL = 'wss://stream.aisstream.io/v0/stream';
 const API_KEY = process.env.AISSTREAM_API_KEY || process.env.VITE_AISSTREAM_API_KEY;
 const PORT = process.env.PORT || 3004;
 
-if (!API_KEY) {
+const DISABLE_AISSTREAM = process.env.DISABLE_AISSTREAM === 'true';
+
+if (!API_KEY && !DISABLE_AISSTREAM) {
   console.error('[Relay] Error: AISSTREAM_API_KEY environment variable not set');
-  console.error('[Relay] Get a free key at https://aisstream.io');
+  console.error('[Relay] Get a free key at https://aisstream.io (or set DISABLE_AISSTREAM=true)');
   process.exit(1);
 }
 
@@ -67,6 +69,9 @@ if (IS_PRODUCTION_RELAY && !RELAY_SHARED_SECRET && !ALLOW_UNAUTHENTICATED_RELAY)
 }
 
 let upstreamSocket = null;
+let upstreamReconnectTimer = null;
+let upstreamFailureCount = 0;
+let lastUpstreamErrorWas429 = false;
 let upstreamPaused = false;
 let upstreamQueue = [];
 let upstreamQueueReadIndex = 0;
@@ -1941,6 +1946,26 @@ const server = http.createServer(async (req, res) => {
 });
 
 function connectUpstream() {
+  if (DISABLE_AISSTREAM) return;
+  if (!API_KEY) return;
+
+  // Clear any scheduled reconnect timer
+  if (upstreamReconnectTimer) {
+    clearTimeout(upstreamReconnectTimer);
+    upstreamReconnectTimer = null;
+  }
+
+  // Single active connection guard: aisstream.io permits only 1 connection per API key
+  if (upstreamSocket && (upstreamSocket.readyState === WebSocket.CONNECTING || upstreamSocket.readyState === WebSocket.OPEN)) {
+    return;
+  }
+
+  // Terminate any dead or closing socket instance cleanly
+  if (upstreamSocket) {
+    try { upstreamSocket.terminate(); } catch {}
+    upstreamSocket = null;
+  }
+
   console.log('[Relay] Connecting to aisstream.io...');
   const socket = new WebSocket(AISSTREAM_URL);
   upstreamSocket = socket;
@@ -1991,10 +2016,12 @@ function connectUpstream() {
     // Verify this socket is still the current one (race condition guard)
     if (upstreamSocket !== socket) {
       console.log('[Relay] Stale socket open event, closing');
-      socket.close();
+      try { socket.close(); } catch {}
       return;
     }
     console.log('[Relay] Connected to aisstream.io');
+    upstreamFailureCount = 0;
+    lastUpstreamErrorWas429 = false;
     socket.send(JSON.stringify({
       APIKey: API_KEY,
       BoundingBoxes: [[[-90, -180], [90, 180]]],
@@ -2027,13 +2054,44 @@ function connectUpstream() {
       upstreamSocket = null;
       clearUpstreamQueue();
       upstreamPaused = false;
-      console.log('[Relay] Disconnected, reconnecting in 5s...');
-      setTimeout(connectUpstream, 5000);
+
+      upstreamFailureCount++;
+
+      // Compute backoff delay
+      let delayMs;
+      if (lastUpstreamErrorWas429) {
+        // Exponential backoff for HTTP 429: start at 30s, then 60s, 120s, up to 300s (5m)
+        const step = Math.min(upstreamFailureCount, 4);
+        delayMs = Math.min(300_000, 30_000 * Math.pow(2, step - 1));
+      } else {
+        // Normal reconnect: start at 5s, back off to 10s, 20s, max 60s
+        const step = Math.min(upstreamFailureCount, 4);
+        delayMs = Math.min(60_000, 5_000 * Math.pow(2, step - 1));
+      }
+
+      // Add 10% random jitter to avoid lock-step retries
+      const jitter = Math.floor(delayMs * 0.1 * Math.random());
+      const finalDelay = delayMs + jitter;
+      const delaySec = Math.round(finalDelay / 1000);
+
+      console.log(`[Relay] Disconnected from aisstream.io, reconnecting in ${delaySec}s...`);
+
+      if (upstreamReconnectTimer) clearTimeout(upstreamReconnectTimer);
+      upstreamReconnectTimer = setTimeout(() => {
+        upstreamReconnectTimer = null;
+        connectUpstream();
+      }, finalDelay);
     }
   });
 
   socket.on('error', (err) => {
-    console.error('[Relay] Upstream error:', err.message);
+    const is429 = err.message && err.message.includes('429');
+    if (is429) {
+      lastUpstreamErrorWas429 = true;
+      console.warn('[Relay] Upstream 429 Too Many Requests: aisstream.io permits only 1 active connection per API key (or key is temporarily rate-limited). Backing off...');
+    } else {
+      console.error('[Relay] Upstream error:', err.message);
+    }
   });
 }
 
