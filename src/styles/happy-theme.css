@@ -267,7 +267,6 @@
    Happy Loading States — Circular spinning wheel
    ========================================================== */
 [data-variant="happy"] .panel-loading-radar,
-[data-variant="happy"] .panel-loading-spinner,
 [data-variant="happy"] .posture-loading-radar {
   border-color: rgba(107, 143, 94, 0.25);
   border-top-color: var(--green, #6b8f5e);

@@ -61,7 +61,10 @@ export class StrategicPosturePanel extends Panel {
     this.setContent(`
       <div class="posture-panel">
         <div class="posture-loading">
-          <div class="posture-loading-radar"></div>
+          <svg class="panel-loading-spinner" width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+            <circle cx="18" cy="18" r="14" stroke="rgba(255, 255, 255, 0.2)" stroke-width="3" />
+            <path d="M18 4a14 14 0 0 1 14 14" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+          </svg>
           <div class="posture-loading-title">${t('components.strategicPosture.scanningTheaters')}</div>
           <div class="posture-loading-stages">
             <div class="posture-stage active">

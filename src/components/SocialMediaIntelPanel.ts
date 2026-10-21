@@ -1,6 +1,6 @@
 import { Panel } from './Panel';
 import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
-import { h, replaceChildren } from '@/utils/dom-utils';
+import { replaceChildren, rawHtml } from '@/utils/dom-utils';
 import { t } from '@/services/i18n';
 import {
   fetchSocialIntelBriefings,
@@ -42,10 +42,17 @@ export class SocialMediaIntelPanel extends Panel {
   public override showLoading(message = t('components.socialIntel.loading') || 'Correlating OSINT and breaking news...'): void {
     replaceChildren(
       this.content,
-      h('div', { className: 'social-intel-loading-container' },
-        h('div', { className: 'social-intel-spinner-wheel' }),
-        h('div', { className: 'social-intel-loading-text' }, message),
-      ),
+      rawHtml(`
+        <div class="social-intel-loading-container">
+          <div class="social-intel-spinner-badge">
+            <svg class="social-intel-spinner-wheel" width="30" height="30" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+              <circle cx="18" cy="18" r="14" stroke="rgba(0, 0, 0, 0.15)" stroke-width="3" />
+              <path d="M18 4a14 14 0 0 1 14 14" stroke="#000000" stroke-width="3" stroke-linecap="round" />
+            </svg>
+          </div>
+          <div class="social-intel-loading-text">${escapeHtml(message)}</div>
+        </div>
+      `),
     );
   }
 
@@ -150,15 +157,7 @@ export class SocialMediaIntelPanel extends Panel {
             id="social-intel-refresh-btn"
             title="Refresh intel feed (3h cache)"
             aria-label="Refresh intel feed"
-          >
-            <span class="social-refresh-icon">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                <path d="M21 3v5h-5" />
-              </svg>
-            </span>
-            <span class="social-loading-wheel" aria-hidden="true"></span>
-          </button>
+          ><span class="social-refresh-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg></span><svg class="social-loading-wheel" width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="rgba(0, 0, 0, 0.18)" stroke-width="2.5" /><path d="M12 3a9 9 0 0 1 9 9" stroke="#000000" stroke-width="2.5" stroke-linecap="round" /></svg></button>
         </div>
       </div>
     `;
@@ -189,6 +188,10 @@ export class SocialMediaIntelPanel extends Panel {
       </div>
     ` : '';
 
+    const cardsList = this.content.querySelector('#social-intel-cards-list');
+    const prevCardsScrollTop = cardsList?.scrollTop ?? 0;
+    const prevContentScrollTop = this.content.scrollTop;
+
     this.content.innerHTML = `
       <div class="social-intel-panel-inner">
         ${filtersHtml}
@@ -198,6 +201,14 @@ export class SocialMediaIntelPanel extends Panel {
     `;
 
     this.attachEventListeners();
+
+    if (prevContentScrollTop > 0) {
+      this.content.scrollTop = prevContentScrollTop;
+    }
+    const newCardsList = this.content.querySelector('#social-intel-cards-list');
+    if (newCardsList && prevCardsScrollTop > 0) {
+      newCardsList.scrollTop = prevCardsScrollTop;
+    }
   }
 
   private renderBriefingCard(b: SocialIntelBriefing): string {
@@ -228,6 +239,7 @@ export class SocialMediaIntelPanel extends Panel {
 
         <div class="social-card-actions">
           <button
+            type="button"
             class="social-expand-sources-btn ${isExpanded ? 'expanded' : ''}"
             data-action="toggle-expand"
             data-id="${escapeHtml(b.id)}"
@@ -327,17 +339,61 @@ export class SocialMediaIntelPanel extends Panel {
     list?.addEventListener('click', (e) => {
       const target = (e.target as HTMLElement).closest('[data-action="toggle-expand"]') as HTMLElement | null;
       if (target) {
+        e.preventDefault();
         e.stopPropagation();
         const id = target.dataset.id;
         if (id) {
-          if (this.expandedBriefings.has(id)) {
-            this.expandedBriefings.delete(id);
-          } else {
-            this.expandedBriefings.add(id);
-          }
-          this.render();
+          this.toggleExpand(id, target);
         }
       }
     });
+  }
+
+  private toggleExpand(id: string, buttonEl?: HTMLElement): void {
+    const isCurrentlyExpanded = this.expandedBriefings.has(id);
+    if (isCurrentlyExpanded) {
+      this.expandedBriefings.delete(id);
+    } else {
+      this.expandedBriefings.add(id);
+    }
+
+    const card = buttonEl
+      ? buttonEl.closest('.social-intel-card')
+      : this.content.querySelector(`.social-intel-card[data-id="${id}"]`);
+
+    if (card) {
+      const btn = buttonEl || card.querySelector<HTMLElement>('[data-action="toggle-expand"]');
+      const isExpandedNow = !isCurrentlyExpanded;
+      if (btn) {
+        btn.classList.toggle('expanded', isExpandedNow);
+        btn.setAttribute('aria-expanded', isExpandedNow ? 'true' : 'false');
+        const chevron = btn.querySelector('.social-chevron');
+        if (chevron) {
+          chevron.textContent = isExpandedNow ? '▲' : '▼';
+        }
+      }
+
+      const existingDrawer = card.querySelector('.social-sources-drawer');
+      if (isExpandedNow) {
+        if (!existingDrawer) {
+          const briefing = this.briefings.find((b) => b.id === id);
+          if (briefing) {
+            const drawerContainer = document.createElement('div');
+            drawerContainer.innerHTML = this.renderSourcesDrawer(briefing.sources);
+            const drawerEl = drawerContainer.firstElementChild;
+            if (drawerEl) {
+              card.appendChild(drawerEl);
+            }
+          }
+        } else {
+          (existingDrawer as HTMLElement).style.display = '';
+        }
+      } else if (existingDrawer) {
+        existingDrawer.remove();
+      }
+      return;
+    }
+
+    this.render();
   }
 }

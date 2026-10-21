@@ -5189,24 +5189,56 @@ a.prediction-link:hover {
   min-height: 120px;
 }
 
-.panel-loading-radar,
 .panel-loading-spinner {
   width: 34px;
   height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  flex-shrink: 0;
+  display: block;
+  margin-bottom: 16px;
+  animation: panel-spinner-spin 0.8s linear infinite;
+  transform-origin: center;
+}
+
+.panel-loading-spinner circle {
+  stroke: rgba(255, 255, 255, 0.2) !important;
+}
+
+.panel-loading-spinner path {
+  stroke: #ffffff !important;
+}
+
+.panel-loading-spinner.retrying path {
+  stroke: var(--yellow, #f0c040) !important;
+}
+
+[data-theme="light"] .panel-loading-spinner circle {
+  stroke: rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="light"] .panel-loading-spinner path {
+  stroke: #000000 !important;
+}
+
+.panel-loading-radar {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
   margin-bottom: 16px;
   position: relative;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.12);
-  border-top-color: var(--accent, #00ffaa);
-  border-right-color: var(--accent, #00ffaa);
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  border-top-color: #ffffff;
   box-sizing: border-box;
   animation: panel-spinner-spin 0.8s linear infinite;
 }
 
-.panel-loading-radar.retrying,
-.panel-loading-spinner.retrying {
+.panel-loading-radar.retrying {
   border-top-color: var(--yellow, #f0c040);
-  border-right-color: var(--yellow, #f0c040);
 }
 
 .panel-radar-sweep,
@@ -14641,12 +14673,15 @@ body.has-critical-banner .panels-grid {
 .posture-loading-radar {
   width: 36px;
   height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
   margin: 0 auto 16px;
   position: relative;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.12);
-  border-top-color: var(--accent, #00ffaa);
-  border-right-color: var(--accent, #00ffaa);
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  border-top-color: #ffffff;
   box-sizing: border-box;
   animation: panel-spinner-spin 0.8s linear infinite;
 }

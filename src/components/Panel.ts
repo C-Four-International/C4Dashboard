@@ -1,7 +1,7 @@
 import { isDesktopRuntime } from '../services/runtime';
 import { invokeTauri } from '../services/tauri-bridge';
 import { t } from '../services/i18n';
-import { h, replaceChildren, safeHtml } from '../utils/dom-utils';
+import { h, replaceChildren, safeHtml, rawHtml } from '../utils/dom-utils';
 import { trackPanelResized } from '@/services/analytics';
 
 export interface PanelOptions {
@@ -350,10 +350,15 @@ export class Panel {
 
   public showLoading(message = t('common.loading')): void {
     replaceChildren(this.content,
-      h('div', { className: 'panel-loading' },
-        h('div', { className: 'panel-loading-radar' }),
-        h('div', { className: 'panel-loading-text' }, message),
-      ),
+      rawHtml(`
+        <div class="panel-loading">
+          <svg class="panel-loading-spinner" width="34" height="34" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+            <circle cx="18" cy="18" r="14" stroke="rgba(255, 255, 255, 0.18)" stroke-width="3" />
+            <path d="M18 4a14 14 0 0 1 14 14" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+          </svg>
+          <div class="panel-loading-text">${message}</div>
+        </div>
+      `),
     );
   }
 
@@ -363,10 +368,15 @@ export class Panel {
 
   public showRetrying(message = t('common.retrying')): void {
     replaceChildren(this.content,
-      h('div', { className: 'panel-loading' },
-        h('div', { className: 'panel-loading-radar retrying' }),
-        h('div', { className: 'panel-loading-text retrying' }, message),
-      ),
+      rawHtml(`
+        <div class="panel-loading">
+          <svg class="panel-loading-spinner retrying" width="34" height="34" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+            <circle cx="18" cy="18" r="14" stroke="rgba(255, 255, 255, 0.18)" stroke-width="3" />
+            <path d="M18 4a14 14 0 0 1 14 14" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+          </svg>
+          <div class="panel-loading-text retrying">${message}</div>
+        </div>
+      `),
     );
   }
 
