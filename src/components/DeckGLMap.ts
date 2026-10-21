@@ -581,17 +581,33 @@ export class DeckGLMap {
             // Stagger secondary precipitation & pressure layers to prevent tile request contention
             setTimeout(() => {
               if (this.maplibreMap && this.state.layers.weatherRadar) {
+                const beforePrecipId = this.maplibreMap.getLayer('maptiler-radar') ? 'maptiler-radar' : undefined;
                 if (!this.maplibreMap.getLayer('maptiler-precipitation') && this.mapTilerPrecipitationLayer) {
-                  this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
+                  this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any, beforePrecipId);
                   if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
                     this.mapTilerPrecipitationLayer.animateByFactor(600);
                   }
+                } else if (this.maplibreMap.getLayer('maptiler-precipitation') && beforePrecipId) {
+                  try { this.maplibreMap.moveLayer('maptiler-precipitation', beforePrecipId); } catch { /* ignore */ }
                 }
+
+                // Pressure heatmap displays BENEATH precipitation and radar layers
+                const beforePressureId = this.maplibreMap.getLayer('maptiler-precipitation')
+                  ? 'maptiler-precipitation'
+                  : (this.maplibreMap.getLayer('maptiler-radar') ? 'maptiler-radar' : undefined);
                 if (!this.maplibreMap.getLayer('maptiler-pressure') && this.mapTilerPressureLayer) {
-                  this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
+                  this.maplibreMap.addLayer(this.mapTilerPressureLayer as any, beforePressureId);
                   if (typeof this.mapTilerPressureLayer.animateByFactor === 'function') {
                     this.mapTilerPressureLayer.animateByFactor(600);
                   }
+                } else if (this.maplibreMap.getLayer('maptiler-pressure') && beforePressureId) {
+                  try { this.maplibreMap.moveLayer('maptiler-pressure', beforePressureId); } catch { /* ignore */ }
+                }
+
+                this.syncWeatherLayersOrder();
+
+                if (this.state.layers.waterTemperature) {
+                  this.updateWaterTemperatureLayer(true);
                 }
               }
             }, 180);
@@ -2226,6 +2242,36 @@ export class DeckGLMap {
       }
     } catch (err) {
       console.warn('[DeckGLMap] Failed to update sea surface temperature layer:', err);
+    }
+  }
+
+  private syncWeatherLayersOrder(): void {
+    if (!this.maplibreMap) return;
+    try {
+      const hasRadar = Boolean(this.maplibreMap.getLayer('maptiler-radar'));
+      const hasPrecip = Boolean(this.maplibreMap.getLayer('maptiler-precipitation'));
+      const hasPressure = Boolean(this.maplibreMap.getLayer('maptiler-pressure'));
+
+      // Layer hierarchy (bottom to top):
+      // 1. maptiler-pressure (heatmap beneath precipitation and radar)
+      // 2. maptiler-precipitation (middle)
+      // 3. maptiler-radar (top)
+      if (hasRadar) {
+        try { this.maplibreMap.moveLayer('maptiler-radar'); } catch { /* ignore */ }
+      }
+      if (hasPrecip && hasRadar) {
+        try { this.maplibreMap.moveLayer('maptiler-precipitation', 'maptiler-radar'); } catch { /* ignore */ }
+      }
+      if (hasPressure) {
+        const beforePressureId = hasPrecip
+          ? 'maptiler-precipitation'
+          : (hasRadar ? 'maptiler-radar' : undefined);
+        if (beforePressureId) {
+          try { this.maplibreMap.moveLayer('maptiler-pressure', beforePressureId); } catch { /* ignore */ }
+        }
+      }
+    } catch (e) {
+      console.warn('[DeckGLMap] Failed to sync weather layer order:', e);
     }
   }
 
@@ -5733,24 +5779,27 @@ export class DeckGLMap {
         }
 
         // 2. Secondary weather layers (Precipitation & Pressure)
+        // Ensure pressure heatmap displays BENEATH precipitation and radar layers
         if (isWeatherRadarEnabled) {
+          const beforePrecipId = this.maplibreMap.getLayer('maptiler-radar') ? 'maptiler-radar' : undefined;
           if (!this.maplibreMap.getLayer('maptiler-precipitation') && this.mapTilerPrecipitationLayer) {
-            this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any);
+            this.maplibreMap.addLayer(this.mapTilerPrecipitationLayer as any, beforePrecipId);
             if (typeof this.mapTilerPrecipitationLayer.animateByFactor === 'function') {
               this.mapTilerPrecipitationLayer.animateByFactor(600);
             }
-          } else if (this.maplibreMap.getLayer('maptiler-precipitation')) {
-            this.maplibreMap.moveLayer('maptiler-precipitation');
           }
 
+          const beforePressureId = this.maplibreMap.getLayer('maptiler-precipitation')
+            ? 'maptiler-precipitation'
+            : (this.maplibreMap.getLayer('maptiler-radar') ? 'maptiler-radar' : undefined);
           if (!this.maplibreMap.getLayer('maptiler-pressure') && this.mapTilerPressureLayer) {
-            this.maplibreMap.addLayer(this.mapTilerPressureLayer as any);
+            this.maplibreMap.addLayer(this.mapTilerPressureLayer as any, beforePressureId);
             if (typeof this.mapTilerPressureLayer.animateByFactor === 'function') {
               this.mapTilerPressureLayer.animateByFactor(600);
             }
-          } else if (this.maplibreMap.getLayer('maptiler-pressure')) {
-            this.maplibreMap.moveLayer('maptiler-pressure');
           }
+
+          this.syncWeatherLayersOrder();
         } else {
           if (this.maplibreMap.getLayer('maptiler-precipitation')) {
             this.maplibreMap.removeLayer('maptiler-precipitation');

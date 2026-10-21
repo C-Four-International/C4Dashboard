@@ -7,7 +7,12 @@ import handler, {
   cosineSimilarity,
   fetchRailwayTelegramFeed,
   generateLocalBriefingFallback,
+  hasNonEnglishText,
+  translateTextWithGoogle,
+  batchTranslateWithGoogle,
+  generateBriefingWithGoogleTranslation,
 } from '../api/social-intel.js';
+import translateHandler from '../api/translate.js';
 
 describe('Social Media Intel - Local Preprocessing & Noise Filtering', () => {
   it('strips urls, emojis, and boilerplate promotional text while preserving numbers', () => {
@@ -237,6 +242,141 @@ describe('Social Media Intel - API Endpoint Handler', () => {
       }
       delete process.env.RELAY_SHARED_SECRET;
     }
+  });
+});
+
+describe('Social Media Intel - Google Pre-Trained Translation Hook', () => {
+  it('detects foreign non-English scripts accurately', () => {
+    // Cyrillic (Ukrainian / Russian)
+    assert.strictEqual(hasNonEnglishText('Збито 18 із 24 ударних БпЛА типу Shahed'), true);
+    assert.strictEqual(hasNonEnglishText('Силы ПВО перехватили беспилотник над областью'), true);
+
+    // Arabic / Hebrew
+    assert.strictEqual(hasNonEnglishText('سلاح الجو يستهدف مواقع عسكرية'), true);
+    assert.strictEqual(hasNonEnglishText('חיל האוויר תקף מטרות'), true);
+
+    // Latin / English
+    assert.strictEqual(hasNonEnglishText('Air defense intercepted 18 out of 24 drones.'), false);
+    assert.strictEqual(hasNonEnglishText('165 drones reported across 30 locations in Kyiv region.'), false);
+  });
+
+  it('translates foreign text snippet into English using Google pre-trained translation', async () => {
+    const foreignSnippet = 'Збито 18 із 24 ударних БпЛА типу Shahed над територією Одеської області.';
+    const translated = await translateTextWithGoogle(foreignSnippet, 'en');
+
+    assert.ok(translated && typeof translated === 'string', 'Should return translated string');
+    assert.strictEqual(/[\u0400-\u04FF]/.test(translated), false, 'Translated text should not contain Cyrillic');
+    const lower = translated.toLowerCase();
+    assert.ok(
+      lower.includes('18') || lower.includes('shahed') || lower.includes('uav') || lower.includes('drone'),
+      `Expected translated text to contain drone/shahed telemetry, got: ${translated}`,
+    );
+  });
+
+  it('translates foreign posts into substantive intelligence briefings instead of generic operational notices', async () => {
+    const foreignCluster = [
+      {
+        platform: 'telegram',
+        author: '@kpszsu',
+        authorName: 'Air Force AFU',
+        cleanedText: 'Збито 18 із 24 ударних БпЛА типу Shahed над територією Одеської області.',
+      },
+    ];
+
+    const res = await generateBriefingWithGoogleTranslation(foreignCluster);
+    assert.ok(res && res.briefing, 'Should generate a briefing');
+    assert.strictEqual(/[\u0400-\u04FF]/.test(res.briefing), false, 'Briefing must be in English with no Cyrillic');
+    assert.strictEqual(
+      res.briefing.includes('operational military situation updates and frontline telemetry'),
+      false,
+      'Must NOT be a generic operational response',
+    );
+
+    const words = res.briefing.split(/\s+/).filter(Boolean);
+    assert.ok(words.length <= 24, `Word count must be <= 24 words, got ${words.length}`);
+    assert.ok(/[.!?]$/.test(res.briefing), 'Briefing should end with sentence punctuation');
+    assert.strictEqual(res.modelUsed, 'google-pretrained-translation');
+  });
+
+  it('batch translates multiple snippets efficiently', async () => {
+    const snippets = [
+      'Збито 18 із 24 ударних БпЛА типу Shahed.',
+      'Військові відбили нічну атаку безпілотників.',
+      'Air defenses active across the southern sector.',
+    ];
+
+    const results = await batchTranslateWithGoogle(snippets, 'en');
+    assert.strictEqual(results.length, 3);
+    assert.strictEqual(/[\u0400-\u04FF]/.test(results[0]), false, 'Item 0 should be translated to English');
+    assert.strictEqual(/[\u0400-\u04FF]/.test(results[1]), false, 'Item 1 should be translated to English');
+    assert.strictEqual(results[2], snippets[2], 'English text should pass through unchanged');
+  });
+
+  it('translates on-demand via /api/translate endpoint (GET and POST)', async () => {
+    // 1. OPTIONS preflight
+    const optReq = new Request('http://localhost/api/translate', {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://worldmonitor.app' },
+    });
+    const optRes = await translateHandler(optReq);
+    assert.strictEqual(optRes.status, 204);
+
+    // 2. GET request with query params
+    const getReq = new Request(
+      `http://localhost/api/translate?text=${encodeURIComponent('Збито 18 ударних БпЛА')}&target=en`,
+      {
+        method: 'GET',
+        headers: { Origin: 'https://worldmonitor.app' },
+      },
+    );
+    const getRes = await translateHandler(getReq);
+    assert.strictEqual(getRes.status, 200);
+    const getData = await getRes.json();
+    assert.ok(getData.translatedText);
+    assert.strictEqual(/[\u0400-\u04FF]/.test(getData.translatedText), false);
+    assert.strictEqual(getData.provider, 'google-pretrained-translation-api');
+
+    // 3. POST request with JSON body
+    const postReq = new Request('http://localhost/api/translate', {
+      method: 'POST',
+      headers: {
+        'Origin': 'https://worldmonitor.app',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: 'Збито 18 ударних БпЛА над Одесою.',
+        target: 'en',
+      }),
+    });
+    const postRes = await translateHandler(postReq);
+    assert.strictEqual(postRes.status, 200);
+    const postData = await postRes.json();
+    assert.ok(postData.translatedText);
+    assert.strictEqual(/[\u0400-\u04FF]/.test(postData.translatedText), false);
+
+    // 4. Missing text parameter returns 400
+    const errReq = new Request('http://localhost/api/translate', {
+      method: 'GET',
+      headers: { Origin: 'https://worldmonitor.app' },
+    });
+    const errRes = await translateHandler(errReq);
+    assert.strictEqual(errRes.status, 400);
+  });
+
+  it('translates on-demand via /api/social-intel?action=translate', async () => {
+    const req = new Request(
+      `http://localhost/api/social-intel?action=translate&text=${encodeURIComponent('Збито 18 ударних БпЛА')}`,
+      {
+        method: 'GET',
+        headers: { Origin: 'https://worldmonitor.app' },
+      },
+    );
+    const res = await handler(req);
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.ok(data.translatedText);
+    assert.strictEqual(/[\u0400-\u04FF]/.test(data.translatedText), false);
+    assert.strictEqual(data.provider, 'google-pretrained-translation-api');
   });
 });
 

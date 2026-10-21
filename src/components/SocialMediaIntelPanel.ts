@@ -109,7 +109,10 @@ export class SocialMediaIntelPanel extends Panel {
         const q = this.searchQuery.toLowerCase();
         const textMatch = b.briefing.toLowerCase().includes(q);
         const sourceMatch = b.sources.some(
-          (s) => s.author.toLowerCase().includes(q) || s.cleanedText.toLowerCase().includes(q),
+          (s) =>
+            s.author.toLowerCase().includes(q) ||
+            s.cleanedText.toLowerCase().includes(q) ||
+            (s.translatedText && s.translatedText.toLowerCase().includes(q)),
         );
         if (!textMatch && !sourceMatch) return false;
       }
@@ -264,6 +267,10 @@ export class SocialMediaIntelPanel extends Panel {
             .map((s) => {
               const platformLabel = s.platform === 'bluesky' ? '🦋 Bluesky' : '✈️ Telegram';
               const cleanSnippet = s.cleanedText.length > 220 ? `${s.cleanedText.slice(0, 220)}...` : s.cleanedText;
+              const hasTranslation = !!(s.isTranslated && s.translatedText && s.translatedText !== s.cleanedText);
+              const translatedSnippet = hasTranslation && s.translatedText
+                ? (s.translatedText.length > 240 ? `${s.translatedText.slice(0, 240)}...` : s.translatedText)
+                : '';
 
               return `
                 <div class="social-source-item" data-platform="${s.platform}">
@@ -287,7 +294,24 @@ export class SocialMediaIntelPanel extends Panel {
                     </div>
                   </div>
                   <div class="social-source-snippet">
-                    "${escapeHtml(cleanSnippet)}"
+                    ${
+                      hasTranslation
+                        ? `
+                          <div class="social-source-translation-meta">
+                            <span class="social-source-translation-badge" title="Translated using Google pre-trained translation API">
+                              🌐 Translated to English
+                            </span>
+                          </div>
+                          <div class="social-source-translated-text">
+                            "${escapeHtml(translatedSnippet)}"
+                          </div>
+                          <details class="social-source-orig-details">
+                            <summary class="social-source-orig-summary">Original post snippet</summary>
+                            <div class="social-source-orig-text">"${escapeHtml(cleanSnippet)}"</div>
+                          </details>
+                        `
+                        : `"${escapeHtml(cleanSnippet)}"`
+                    }
                   </div>
                 </div>
               `;

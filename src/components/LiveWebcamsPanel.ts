@@ -289,6 +289,12 @@ export class LiveWebcamsPanel extends Panel {
   private readonly IDLE_PAUSE_MS = 5 * 60 * 1000;
   private isIdle = false;
   private streamIndices: Map<string, number> = new Map();
+  private boundMessageHandler!: (e: MessageEvent) => void;
+  private readonly STREAM_WATCHDOG_MS = 12000;
+  private streamWatchdogs: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private failedStreamsByFeed: Map<string, Set<string>> = new Map();
+  private allFallbacksFailed: Set<string> = new Set();
+  private allFallbacksRetryTimeout: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
   constructor() {
     super({ id: 'live-webcams', title: t('panels.liveWebcams') });
@@ -296,6 +302,7 @@ export class LiveWebcamsPanel extends Panel {
     this.createToolbar();
     this.setupIntersectionObserver();
     this.setupIdleDetection();
+    this.setupMessageListener();
     subscribeStreamQualityChange(() => this.render());
     this.render();
   }
@@ -368,26 +375,256 @@ export class LiveWebcamsPanel extends Panel {
     if (!feed) return;
     const streams = this.getFeedStreams(feed);
     if (streams.length <= 1) return;
+
+    if (this.allFallbacksFailed.has(feedId)) {
+      this.allFallbacksFailed.delete(feedId);
+      this.failedStreamsByFeed.delete(feedId);
+      const timer = this.allFallbacksRetryTimeout.get(feedId);
+      if (timer) {
+        clearTimeout(timer);
+        this.allFallbacksRetryTimeout.delete(feedId);
+      }
+    }
+
     const cur = this.streamIndices.get(feedId) ?? 0;
     const nextIdx = (cur + 1) % streams.length;
+    const selectedVid = streams[nextIdx];
+    if (selectedVid) {
+      this.failedStreamsByFeed.get(feedId)?.delete(selectedVid);
+    }
+    this.switchFeedToStreamIndex(feedId, nextIdx);
+  }
+
+  private switchFeedToStreamIndex(feedId: string, nextIdx: number): void {
+    const feed = WEBCAM_FEEDS.find(f => f.id === feedId);
+    if (!feed) return;
+    const streams = this.getFeedStreams(feed);
     this.streamIndices.set(feedId, nextIdx);
 
     // In grid mode, update only this cell's iframe and badge directly without reloading all other iframes
     if (this.viewMode === 'grid') {
       const cell = this.content.querySelector<HTMLElement>(`[data-feed-id="${feedId}"]`);
       if (cell) {
-        const iframe = cell.querySelector('iframe');
+        const oldIframe = cell.querySelector('iframe');
         const badge = cell.querySelector<HTMLButtonElement>('.webcam-stream-badge');
-        if (iframe) {
-          iframe.src = this.buildEmbedUrl(streams[nextIdx]!);
+        if (oldIframe) {
+          const newIframe = this.createIframe(feed);
+          oldIframe.src = 'about:blank';
+          cell.replaceChild(newIframe, oldIframe);
+          const ifrIdx = this.iframes.indexOf(oldIframe);
+          if (ifrIdx !== -1) {
+            this.iframes[ifrIdx] = newIframe;
+          } else {
+            this.iframes.push(newIframe);
+          }
         }
         if (badge) {
           badge.textContent = `CAM ${nextIdx + 1}/${streams.length}`;
+          badge.classList.remove('offline');
+          badge.title = `Switch camera angle (${streams.length} available)`;
         }
+        return;
+      }
+    } else if (this.viewMode === 'single' && this.activeFeed.id === feedId) {
+      const wrapper = this.content.querySelector<HTMLElement>('.webcam-single');
+      if (wrapper) {
+        const oldIframe = wrapper.querySelector('iframe');
+        if (oldIframe) {
+          const newIframe = this.createIframe(feed);
+          oldIframe.src = 'about:blank';
+          wrapper.replaceChild(newIframe, oldIframe);
+          const ifrIdx = this.iframes.indexOf(oldIframe);
+          if (ifrIdx !== -1) {
+            this.iframes[ifrIdx] = newIframe;
+          } else {
+            this.iframes.push(newIframe);
+          }
+        }
+        const streamBtns = this.content.querySelectorAll<HTMLButtonElement>('.webcam-stream-btn');
+        streamBtns.forEach((btn, idx) => {
+          btn.classList.toggle('active', idx === nextIdx);
+        });
         return;
       }
     }
     this.render();
+  }
+
+  private setupMessageListener(): void {
+    this.boundMessageHandler = (e: MessageEvent) => {
+      this.handleWindowMessage(e);
+    };
+    window.addEventListener('message', this.boundMessageHandler);
+  }
+
+  private handleWindowMessage(e: MessageEvent): void {
+    if (!this.isVisible || this.isIdle || document.hidden) return;
+
+    const iframe = this.iframes.find(f => f.contentWindow === e.source);
+    if (!iframe) return;
+    const feedId = iframe.dataset.feedId;
+    if (!feedId) return;
+
+    let msg: any = e.data;
+    if (typeof msg === 'string') {
+      try {
+        msg = JSON.parse(msg);
+      } catch {
+        return;
+      }
+    }
+    if (!msg || typeof msg !== 'object') return;
+
+    // Failure indicators:
+    // 1. Desktop proxy: type === 'yt-error' (e.g. 2, 5, 100, 101, 150, 153)
+    // 2. Desktop proxy: type === 'yt-state' && state === 0 (stream ended)
+    // 3. YouTube iframe API: event === 'onError' (with info error code)
+    // 4. YouTube iframe API: event === 'infoDelivery' with errorCode
+    // 5. YouTube iframe API: event === 'onStateChange' && info === 0 (stream ended)
+    // 6. YouTube iframe API: event === 'infoDelivery' && playerState === 0 (stream ended)
+    const isYtError = msg.type === 'yt-error' ||
+      msg.event === 'onError' ||
+      (msg.event === 'infoDelivery' && typeof msg.info?.errorCode === 'number' && msg.info.errorCode > 0);
+
+    const isStreamEnded = (msg.type === 'yt-state' && msg.state === 0) ||
+      (msg.event === 'onStateChange' && msg.info === 0) ||
+      (msg.event === 'infoDelivery' && msg.info?.playerState === 0);
+
+    if (isYtError || isStreamEnded) {
+      const reason = isYtError
+        ? `error code ${msg.code ?? msg.info ?? msg.info?.errorCode}`
+        : 'stream ended';
+      this.handleStreamFailure(feedId, reason);
+      return;
+    }
+
+    // Healthy / playing indicators:
+    // 1. Desktop proxy: type === 'yt-ready'
+    // 2. Desktop proxy: type === 'yt-state' && (state === 1 || state === 3)
+    // 3. YouTube iframe API: event === 'onReady'
+    // 4. YouTube iframe API: event === 'onStateChange' && (info === 1 || info === 3)
+    // 5. YouTube iframe API: event === 'infoDelivery' && (playerState === 1 || playerState === 3)
+    const isReadyOrPlaying = msg.type === 'yt-ready' ||
+      msg.event === 'onReady' ||
+      (msg.type === 'yt-state' && (msg.state === 1 || msg.state === 3)) ||
+      (msg.event === 'onStateChange' && (msg.info === 1 || msg.info === 3)) ||
+      (msg.event === 'infoDelivery' && (msg.info?.playerState === 1 || msg.info?.playerState === 3));
+
+    if (isReadyOrPlaying) {
+      this.handleStreamSuccess(feedId);
+    }
+  }
+
+  private startStreamWatchdog(feedId: string): void {
+    this.clearStreamWatchdog(feedId);
+    if (!this.isVisible || this.isIdle || document.hidden) return;
+
+    const timeoutId = setTimeout(() => {
+      this.streamWatchdogs.delete(feedId);
+      this.handleStreamFailure(feedId, 'watchdog timeout: stream unreachable or stalled');
+    }, this.STREAM_WATCHDOG_MS);
+    this.streamWatchdogs.set(feedId, timeoutId);
+  }
+
+  private clearStreamWatchdog(feedId: string): void {
+    const timer = this.streamWatchdogs.get(feedId);
+    if (timer) {
+      clearTimeout(timer);
+      this.streamWatchdogs.delete(feedId);
+    }
+  }
+
+  private clearAllStreamWatchdogs(): void {
+    this.streamWatchdogs.forEach(timer => clearTimeout(timer));
+    this.streamWatchdogs.clear();
+  }
+
+  private clearAllRetryTimeouts(): void {
+    this.allFallbacksRetryTimeout.forEach(timer => clearTimeout(timer));
+    this.allFallbacksRetryTimeout.clear();
+  }
+
+  private handleStreamSuccess(feedId: string): void {
+    this.clearStreamWatchdog(feedId);
+    this.allFallbacksFailed.delete(feedId);
+    const retryTimer = this.allFallbacksRetryTimeout.get(feedId);
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      this.allFallbacksRetryTimeout.delete(feedId);
+    }
+    if (this.viewMode === 'grid') {
+      const cell = this.content.querySelector<HTMLElement>(`[data-feed-id="${feedId}"]`);
+      if (cell) {
+        const badge = cell.querySelector<HTMLButtonElement>('.webcam-stream-badge');
+        if (badge) {
+          badge.classList.remove('offline');
+        }
+      }
+    }
+  }
+
+  private handleStreamFailure(feedId: string, reason?: string): void {
+    this.clearStreamWatchdog(feedId);
+    if (!this.isVisible || this.isIdle || document.hidden) return;
+
+    const feed = WEBCAM_FEEDS.find(f => f.id === feedId);
+    if (!feed) return;
+
+    const streams = this.getFeedStreams(feed);
+    if (streams.length <= 1) return;
+
+    const currentVideoId = this.getFeedVideoId(feed);
+    let failedSet = this.failedStreamsByFeed.get(feedId);
+    if (!failedSet) {
+      failedSet = new Set();
+      this.failedStreamsByFeed.set(feedId, failedSet);
+    }
+    failedSet.add(currentVideoId);
+
+    // Look for next untried candidate
+    const curIdx = this.streamIndices.get(feedId) ?? 0;
+    let nextIdx = -1;
+    for (let offset = 1; offset < streams.length; offset++) {
+      const candidateIdx = (curIdx + offset) % streams.length;
+      const candidateVid = streams[candidateIdx];
+      if (candidateVid && !failedSet.has(candidateVid)) {
+        nextIdx = candidateIdx;
+        break;
+      }
+    }
+
+    if (nextIdx === -1) {
+      console.warn(`[LiveWebcamsPanel] All fallback streams for ${feed.city} failed. Will retry in 60s.`);
+      this.allFallbacksFailed.add(feedId);
+
+      if (this.viewMode === 'grid') {
+        const cell = this.content.querySelector<HTMLElement>(`[data-feed-id="${feedId}"]`);
+        if (cell) {
+          const badge = cell.querySelector<HTMLButtonElement>('.webcam-stream-badge');
+          if (badge) {
+            badge.textContent = 'OFFLINE';
+            badge.classList.add('offline');
+            badge.title = 'All streams unreachable — retrying in 60s (click to retry now)';
+          }
+        }
+      }
+
+      if (!this.allFallbacksRetryTimeout.has(feedId)) {
+        const retryTimer = setTimeout(() => {
+          this.allFallbacksRetryTimeout.delete(feedId);
+          this.failedStreamsByFeed.delete(feedId);
+          this.allFallbacksFailed.delete(feedId);
+          if (this.isVisible && !this.isIdle && !document.hidden) {
+            this.switchFeedToStreamIndex(feedId, 0);
+          }
+        }, 60000);
+        this.allFallbacksRetryTimeout.set(feedId, retryTimer);
+      }
+      return;
+    }
+
+    console.info(`[LiveWebcamsPanel] Auto-switching ${feed.city} from ${currentVideoId} to fallback CAM ${nextIdx + 1}/${streams.length} (${streams[nextIdx]}) [Reason: ${reason || 'unreachable'}]`);
+    this.switchFeedToStreamIndex(feedId, nextIdx);
   }
 
   private createToolbar(): void {
@@ -504,6 +741,17 @@ export class LiveWebcamsPanel extends Panel {
     this.render();
   }
 
+  private get parentPostMessageOrigin(): string | null {
+    try {
+      const { origin, protocol } = window.location;
+      if (origin && origin !== 'null') return origin;
+      if (protocol === 'tauri:' || protocol === 'asset:') return '*';
+    } catch {
+      // Ignore invalid location values.
+    }
+    return null;
+  }
+
   private buildEmbedUrl(videoId: string): string {
     const quality = getStreamQuality();
     if (isDesktopRuntime()) {
@@ -513,16 +761,31 @@ export class LiveWebcamsPanel extends Panel {
         autoplay: '1',
         mute: '1',
       });
+      const parentOrigin = this.parentPostMessageOrigin;
+      if (parentOrigin) params.set('parentOrigin', parentOrigin);
+      try {
+        const origin = window.location.origin;
+        if (origin && origin !== 'null') params.set('origin', origin);
+      } catch { /* ignore */ }
       if (quality !== 'auto') params.set('vq', quality);
       return `${remoteBase}/api/youtube/embed?${params.toString()}`;
     }
     const vq = quality !== 'auto' ? `&vq=${quality}` : '';
-    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&playsinline=1&rel=0${vq}`;
+    let originParam = '';
+    try {
+      const origin = window.location.origin;
+      if (origin && origin !== 'null') {
+        originParam = `&origin=${encodeURIComponent(origin)}`;
+      }
+    } catch { /* ignore */ }
+    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&playsinline=1&rel=0&enablejsapi=1${originParam}${vq}`;
   }
 
   private createIframe(feed: WebcamFeed): HTMLIFrameElement {
     const iframe = document.createElement('iframe');
     iframe.className = 'webcam-iframe';
+    iframe.dataset.feedId = feed.id;
+    iframe.id = `webcam-iframe-${feed.id}`;
     const videoId = this.getFeedVideoId(feed);
     iframe.src = this.buildEmbedUrl(videoId);
     iframe.title = `${feed.city} live webcam`;
@@ -532,8 +795,9 @@ export class LiveWebcamsPanel extends Panel {
     iframe.setAttribute('loading', 'lazy');
     iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation');
     iframe.addEventListener('error', () => {
-      this.cycleFeedStream(feed.id);
+      this.handleStreamFailure(feed.id, 'DOM iframe error event');
     });
+    this.startStreamWatchdog(feed.id);
     return iframe;
   }
 
@@ -644,14 +908,14 @@ export class LiveWebcamsPanel extends Panel {
       const streamGroup = document.createElement('div');
       streamGroup.className = 'webcam-fallback-group';
       const curIdx = this.streamIndices.get(this.activeFeed.id) ?? 0;
-      activeStreams.forEach((_, idx) => {
+      activeStreams.forEach((vid, idx) => {
         const sBtn = document.createElement('button');
         sBtn.className = `webcam-feed-btn webcam-stream-btn${curIdx === idx ? ' active' : ''}`;
         sBtn.textContent = `CAM ${idx + 1}`;
         sBtn.title = `Switch to Angle ${idx + 1} for ${this.activeFeed.city}`;
         sBtn.addEventListener('click', () => {
-          this.streamIndices.set(this.activeFeed.id, idx);
-          this.render();
+          this.failedStreamsByFeed.get(this.activeFeed.id)?.delete(vid);
+          this.switchFeedToStreamIndex(this.activeFeed.id, idx);
         });
         streamGroup.appendChild(sBtn);
       });
@@ -663,6 +927,7 @@ export class LiveWebcamsPanel extends Panel {
   }
 
   private destroyIframes(): void {
+    this.clearAllStreamWatchdogs();
     this.iframes.forEach(iframe => {
       iframe.src = 'about:blank';
       iframe.remove();
@@ -744,7 +1009,12 @@ export class LiveWebcamsPanel extends Panel {
     ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'].forEach(event => {
       document.removeEventListener(event, this.boundIdleResetHandler);
     });
+    if (this.boundMessageHandler) {
+      window.removeEventListener('message', this.boundMessageHandler);
+    }
     this.observer?.disconnect();
+    this.clearAllStreamWatchdogs();
+    this.clearAllRetryTimeouts();
     this.destroyIframes();
     super.destroy();
   }

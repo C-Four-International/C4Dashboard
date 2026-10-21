@@ -10,6 +10,64 @@ export interface SocialSourcePost {
   freshness: string;
   rawText: string;
   cleanedText: string;
+  translatedText?: string | null;
+  isTranslated?: boolean;
+}
+
+export interface TranslationResult {
+  originalText: string;
+  translatedText: string;
+  targetLanguage: string;
+  provider: string;
+}
+
+/**
+ * Client API hook for Google pre-trained translation.
+ * Calls /api/translate with fallback to /api/social-intel?action=translate.
+ */
+export async function translateSnippetWithGoogle(
+  text: string,
+  target = 'en',
+): Promise<string> {
+  if (!text || !text.trim()) return '';
+
+  try {
+    const res = await fetch(
+      `/api/translate?text=${encodeURIComponent(text)}&target=${encodeURIComponent(target)}`,
+      {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+
+    if (res.ok) {
+      const data = (await res.json()) as TranslationResult;
+      if (data?.translatedText) {
+        return data.translatedText;
+      }
+    }
+  } catch {
+    // Try fallback endpoint
+    try {
+      const fbRes = await fetch(
+        `/api/social-intel?action=translate&text=${encodeURIComponent(text)}&target=${encodeURIComponent(target)}`,
+        {
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(10000),
+        },
+      );
+      if (fbRes.ok) {
+        const fbData = (await fbRes.json()) as TranslationResult;
+        if (fbData?.translatedText) {
+          return fbData.translatedText;
+        }
+      }
+    } catch {
+      // Return original text if both fail
+    }
+  }
+
+  return text;
 }
 
 export interface SocialIntelBriefing {

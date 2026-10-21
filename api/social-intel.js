@@ -666,7 +666,7 @@ async function generateAirGappedBriefing(clusterPosts, geminiKey) {
 STRICT PROTOCOL:
 1. Language: You MUST ALWAYS write the briefing in ENGLISH. Many sources are written in Ukrainian, Russian, or other languages; you MUST translate and synthesize all information into fluent, concise English. NEVER output Cyrillic characters or non-English text under any circumstances.
 2. Grounding: You must ONLY state concrete, corroborated facts directly reported in the provided source texts. Do NOT extrapolate, speculate, or introduce any outside facts.
-3. Brevity: The briefing MUST be UNDER 25 WORDS.
+3. Brevity: The briefing MUST be UNDER 40 WORDS, but not less than 15 words, and must be coherent and cohesive without being abruptly cut off.
 4. Tone: Telegraphic, objective wire-service intelligence style (e.g. 'Ukrainian air defenses intercepted 14 drones over Kharkiv; power infrastructure sustained minor damage.').
 5. Formatting: Output ONLY the raw factual briefing in English. No preambles, titles, translation notes, source citations, quotes, or markdown formatting.`;
 
@@ -709,18 +709,244 @@ STRICT PROTOCOL:
   return null;
 }
 
+// ============================================================================
+// Google Pre-Trained Translation API Hook & Neural Translation Utilities
+// ============================================================================
+
+// Regex detecting non-Latin alphabets (Cyrillic, Arabic, Hebrew, CJK, Hangul, Katakana/Hiragana, Thai, Greek)
+export const NON_ENGLISH_REGEX = /[\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0590-\u05FF\u4E00-\u9FFF\uAC00-\uD7AF\u3040-\u30FF\u0E00-\u0E7F\u0370-\u03FF]/;
+
+export function hasNonEnglishText(text) {
+  if (!text || typeof text !== 'string') return false;
+  return NON_ENGLISH_REGEX.test(text);
+}
+
+function decodeHtmlEntities(str) {
+  if (!str || typeof str !== 'string') return str;
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec));
+}
+
+/**
+ * Translates arbitrary text snippets into English (or another target language)
+ * using Google Cloud Translation API Basic v2 with automatic fallback to Google's
+ * pre-trained neural machine translation engine and Gemini 1.5 Flash.
+ */
+export async function translateTextWithGoogle(text, targetLang = 'en') {
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    return '';
+  }
+
+  const trimmed = text.trim();
+  // If target is English and snippet contains only English/Latin characters, return directly
+  if (targetLang === 'en' && !hasNonEnglishText(trimmed)) {
+    return trimmed;
+  }
+
+  const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY || process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+
+  // 1. Google Cloud Translation API Basic v2 (Pre-Trained Neural Translation)
+  if (apiKey) {
+    try {
+      const v2Url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
+      const res = await fetch(v2Url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          q: trimmed,
+          target: targetLang,
+          format: 'text',
+        }),
+        signal: AbortSignal.timeout(6000),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const translated = json.data?.translations?.[0]?.translatedText;
+        if (translated && typeof translated === 'string' && translated.trim().length > 0) {
+          return decodeHtmlEntities(translated.trim());
+        }
+      }
+    } catch {
+      // Fall through to Tier 2
+    }
+  }
+
+  // 2. Google Pre-Trained Neural Translation Engine (client=gtx)
+  try {
+    const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(trimmed)}`;
+    const res = await fetch(gtxUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'WorldMonitor/1.0 (Google-Pretrained-Translation-Hook)',
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(6000),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      if (Array.isArray(json) && Array.isArray(json[0])) {
+        const parts = json[0].map(item => (Array.isArray(item) ? item[0] : '')).filter(Boolean);
+        const translated = parts.join('').trim();
+        if (translated.length > 0) {
+          return decodeHtmlEntities(translated);
+        }
+      }
+    }
+  } catch {
+    // Fall through to Tier 3
+  }
+
+  // 3. Gemini 1.5 Flash Translation Fallback
+  if (apiKey) {
+    try {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${apiKey}`;
+      const res = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [{ text: `Translate the following source text accurately into English. Output ONLY the translated text, no quotes, no markdown, no notes:\n${trimmed}` }],
+          }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 120 },
+        }),
+        signal: AbortSignal.timeout(7000),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const translated = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (translated && !hasNonEnglishText(translated)) {
+          return translated;
+        }
+      }
+    } catch {
+      // Fall through
+    }
+  }
+
+  return trimmed;
+}
+
+/**
+ * Batch translates an array of text snippets using Google pre-trained translation.
+ */
+export async function batchTranslateWithGoogle(texts, targetLang = 'en') {
+  if (!Array.isArray(texts) || texts.length === 0) return [];
+
+  const uniqueTexts = Array.from(new Set(texts.map(t => (t || '').trim()).filter(Boolean)));
+  const translationMap = new Map();
+
+  const CONCURRENCY = 5;
+  for (let i = 0; i < uniqueTexts.length; i += CONCURRENCY) {
+    const chunk = uniqueTexts.slice(i, i + CONCURRENCY);
+    await Promise.allSettled(
+      chunk.map(async text => {
+        try {
+          const translated = await translateTextWithGoogle(text, targetLang);
+          translationMap.set(text, translated);
+        } catch {
+          translationMap.set(text, text);
+        }
+      })
+    );
+  }
+
+  return texts.map(t => {
+    const trimmed = (t || '').trim();
+    return translationMap.get(trimmed) || t;
+  });
+}
+
+/**
+ * Synthesizes a factual intelligence briefing (<25 words) from cluster posts
+ * by translating foreign source snippets into English via Google's pre-trained translation API,
+ * replacing generic operational notices with real translated event telemetry.
+ */
+export async function generateBriefingWithGoogleTranslation(clusterPosts) {
+  if (!Array.isArray(clusterPosts) || clusterPosts.length === 0) {
+    return generateLocalBriefingFallback(clusterPosts);
+  }
+
+  // Look for any existing English post or pre-translated post first
+  const existingEnglishPost = clusterPosts.find(p => p.translatedText && !hasNonEnglishText(p.translatedText)) ||
+    clusterPosts.find(p => !hasNonEnglishText(p.cleanedText));
+
+  if (existingEnglishPost) {
+    const sourceText = existingEnglishPost.translatedText || existingEnglishPost.cleanedText;
+    const firstSentence = sourceText.split(/[.!?]\s+/)[0] || sourceText;
+    return {
+      briefing: enforceBriefingWordLimit(firstSentence, 24),
+      modelUsed: existingEnglishPost.translatedText ? 'google-pretrained-translation' : 'local-corroborator',
+    };
+  }
+
+  // If all posts are non-English, choose the most informative post and translate it
+  const bestPost = clusterPosts.reduce((best, cur) => {
+    return cur.cleanedText.length < best.cleanedText.length ? cur : best;
+  }, clusterPosts[0]);
+
+  let translated = bestPost.translatedText;
+  if (!translated || hasNonEnglishText(translated)) {
+    try {
+      translated = await translateTextWithGoogle(bestPost.cleanedText, 'en');
+      bestPost.translatedText = translated;
+      bestPost.isTranslated = true;
+    } catch {
+      // Fallback
+    }
+  }
+
+  // If translation succeeded and is in English, build an informative briefing
+  if (translated && !hasNonEnglishText(translated)) {
+    const firstSentence = translated.split(/[.!?]\s+/)[0] || translated;
+    return {
+      briefing: enforceBriefingWordLimit(firstSentence, 24),
+      modelUsed: 'google-pretrained-translation',
+    };
+  }
+
+  // If translation failed, fallback to local operational notice
+  return generateLocalBriefingFallback(clusterPosts);
+}
+
 // Local deterministic fallback synthesizer if AI Studio is offline or has no key
 export function generateLocalBriefingFallback(clusterPosts) {
-  // Prefer non-Cyrillic (English) posts if available in cluster
-  const englishPosts = clusterPosts.filter(p => !/[\u0400-\u04FF]/.test(p.cleanedText));
+  if (!Array.isArray(clusterPosts) || clusterPosts.length === 0) {
+    return { briefing: 'No substantive reports identified.', modelUsed: 'local-corroborator' };
+  }
+
+  // Prefer posts that have an English translation or are already in English
+  const englishPosts = clusterPosts.filter(p => {
+    if (p.translatedText && !hasNonEnglishText(p.translatedText)) return true;
+    return !hasNonEnglishText(p.cleanedText);
+  });
   const candidatePool = englishPosts.length > 0 ? englishPosts : clusterPosts;
 
   const bestPost = candidatePool.reduce((best, cur) => {
-    return cur.cleanedText.length < best.cleanedText.length ? cur : best;
+    const curLen = (cur.translatedText || cur.cleanedText).length;
+    const bestLen = (best.translatedText || best.cleanedText).length;
+    return curLen < bestLen ? cur : best;
   }, candidatePool[0]);
 
-  // If the chosen post is still in Cyrillic, provide a clean English operational notice
-  if (/[\u0400-\u04FF]/.test(bestPost.cleanedText)) {
+  // If the chosen post has a translated text from Google Pre-Trained Translation, use it!
+  if (bestPost.translatedText && !hasNonEnglishText(bestPost.translatedText)) {
+    const firstSentence = bestPost.translatedText.split(/[.!?]\s+/)[0] || bestPost.translatedText;
+    return {
+      briefing: enforceBriefingWordLimit(firstSentence, 24),
+      modelUsed: 'google-pretrained-translation',
+    };
+  }
+
+  // If the chosen post is in Cyrillic or other non-English language and not yet translated, provide a clean English operational notice
+  if (hasNonEnglishText(bestPost.cleanedText)) {
     const author = bestPost.authorName || bestPost.author || 'OSINT channel';
     return {
       briefing: enforceBriefingWordLimit(`${author} published operational military situation updates and frontline telemetry.`, 24),
@@ -869,7 +1095,38 @@ async function buildSocialIntelBriefings() {
     ...singleBskyClusters.slice(0, 10),
   ];
 
-  // 5. Briefing Generation (< 25 words)
+  // 5. Batch-translate foreign posts in final clusters via Google Pre-Trained Translation
+  const foreignPosts = [];
+  for (const cluster of finalClusters) {
+    for (const post of cluster) {
+      if (hasNonEnglishText(post.cleanedText) && !post.translatedText) {
+        foreignPosts.push(post);
+      }
+    }
+  }
+
+  if (foreignPosts.length > 0) {
+    try {
+      const uniqueTexts = Array.from(new Set(foreignPosts.map(p => p.cleanedText)));
+      const translatedList = await batchTranslateWithGoogle(uniqueTexts, 'en');
+      const textMap = new Map();
+      uniqueTexts.forEach((orig, idx) => {
+        textMap.set(orig, translatedList[idx]);
+      });
+
+      for (const post of foreignPosts) {
+        const translated = textMap.get(post.cleanedText);
+        if (translated && !hasNonEnglishText(translated)) {
+          post.translatedText = translated;
+          post.isTranslated = true;
+        }
+      }
+    } catch (err) {
+      console.warn('[SocialIntel] Batch Google translation error:', err.message);
+    }
+  }
+
+  // 6. Briefing Generation (< 25 words)
   const briefings = [];
   let modelUsedOverall = 'local-corroborator';
 
@@ -881,6 +1138,9 @@ async function buildSocialIntelBriefings() {
     let res = null;
     if (geminiKey) {
       res = await generateAirGappedBriefing(cluster, geminiKey);
+    }
+    if (!res) {
+      res = await generateBriefingWithGoogleTranslation(cluster);
     }
     if (!res) {
       res = generateLocalBriefingFallback(cluster);
@@ -911,6 +1171,8 @@ async function buildSocialIntelBriefings() {
         freshness: formatTimeAgo(new Date(p.publishedAt).getTime()),
         rawText: p.rawText,
         cleanedText: p.cleanedText,
+        translatedText: p.translatedText || null,
+        isTranslated: !!p.isTranslated,
       })),
       platforms,
       corroborationScore: distinctAuthors.size,
@@ -948,7 +1210,7 @@ function formatTimeAgo(timestamp) {
 // Edge Handler
 // ============================================================================
 export default async function handler(req) {
-  const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');
+  const corsHeaders = getCorsHeaders(req, 'GET, POST, OPTIONS');
 
   if (isDisallowedOrigin(req)) {
     return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
@@ -961,14 +1223,66 @@ export default async function handler(req) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
+  const url = new URL(req.url);
+
+  // Dedicated API hook for Google pre-trained translation
+  if (url.searchParams.get('action') === 'translate') {
+    let text = url.searchParams.get('text') || url.searchParams.get('q') || '';
+    let target = url.searchParams.get('target') || url.searchParams.get('tl') || 'en';
+
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json();
+        if (body.text) text = body.text;
+        if (body.q) text = body.q;
+        if (body.target) target = body.target;
+      } catch {
+        // Fall back to query params
+      }
+    }
+
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return new Response(JSON.stringify({ error: 'Missing text parameter' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
+    try {
+      const translatedText = await translateTextWithGoogle(text, target);
+      return new Response(
+        JSON.stringify({
+          originalText: text,
+          translatedText,
+          targetLanguage: target,
+          provider: 'google-pretrained-translation-api',
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+            ...corsHeaders,
+          },
+        },
+      );
+    } catch (err) {
+      return new Response(
+        JSON.stringify({ error: 'Translation failed', details: err.message }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        },
+      );
+    }
+  }
+
   if (req.method !== 'GET') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
-
-  const url = new URL(req.url);
   const bypassCache = url.searchParams.get('fresh') === '1' || url.searchParams.get('fresh') === 'true';
 
   // 1. Check in-memory cache (3 hours)

@@ -57,3 +57,62 @@ describe('Live Webcams Resource Management', () => {
     );
   });
 });
+
+describe('Live Webcams Automatic Fallback Livestream Switching', () => {
+  it('registers and cleans up window message listener for livestream events', () => {
+    assert.ok(
+      panelTs.includes('this.setupMessageListener();') &&
+      panelTs.includes('window.addEventListener(\'message\', this.boundMessageHandler);') &&
+      panelTs.includes('window.removeEventListener(\'message\', this.boundMessageHandler);'),
+      'Must manage window message event listener lifecycle'
+    );
+  });
+
+  it('enables YouTube JS API bridge in embed URLs for event and error reporting', () => {
+    assert.ok(
+      panelTs.includes('enablejsapi=1') &&
+      panelTs.includes('origin='),
+      'Web embeds must pass enablejsapi=1 and origin'
+    );
+    assert.ok(
+      panelTs.includes('parentOrigin'),
+      'Desktop embeds must pass parentOrigin'
+    );
+  });
+
+  it('starts and manages stream watchdog timer to catch unreachable or stalled livestreams', () => {
+    assert.ok(
+      panelTs.includes('this.startStreamWatchdog(feed.id);') &&
+      panelTs.includes('this.clearStreamWatchdog(feedId);') &&
+      panelTs.includes('STREAM_WATCHDOG_MS'),
+      'Must have watchdog timer mechanism for stalled or unreachable streams'
+    );
+  });
+
+  it('handles YouTube player errors, ended streams, and watchdog timeouts via handleStreamFailure', () => {
+    assert.ok(
+      panelTs.includes('handleStreamFailure(feedId') &&
+      panelTs.includes('isYtError') &&
+      panelTs.includes('isStreamEnded'),
+      'Must handle YouTube error codes, ended streams, and watchdog timeouts'
+    );
+  });
+
+  it('auto-switches to next untried fallback and replaces cell iframe without reloading all grid cells', () => {
+    assert.ok(
+      panelTs.includes('switchFeedToStreamIndex(feedId, nextIdx)') &&
+      panelTs.includes('cell.replaceChild(newIframe, oldIframe);') &&
+      panelTs.includes('this.failedStreamsByFeed'),
+      'Must switch to next working candidate and replace only the affected iframe'
+    );
+  });
+
+  it('handles scenario when all fallbacks are exhausted with offline state and scheduled recovery retry', () => {
+    assert.ok(
+      panelTs.includes('this.allFallbacksFailed.add(feedId);') &&
+      panelTs.includes('OFFLINE') &&
+      panelTs.includes('this.allFallbacksRetryTimeout'),
+      'Must show offline indicator when all candidates fail and schedule recovery retry'
+    );
+  });
+});

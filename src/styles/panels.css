@@ -715,6 +715,65 @@
   word-break: break-word;
 }
 
+.social-source-translation-meta {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.social-source-translation-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-style: normal;
+}
+
+.social-source-translated-text {
+  font-size: 11px;
+  color: var(--text);
+  font-style: italic;
+  line-height: 1.35;
+}
+
+.social-source-orig-details {
+  margin-top: 5px;
+  font-style: normal;
+}
+
+.social-source-orig-summary {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--font-mono);
+  transition: color 0.15s ease;
+}
+
+.social-source-orig-summary:hover {
+  color: #38bdf8;
+}
+
+.social-source-orig-text {
+  margin-top: 3px;
+  padding: 4px 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  font-style: italic;
+  word-break: break-word;
+}
+
 .social-intel-empty-state {
   text-align: center;
   padding: 30px 15px;
