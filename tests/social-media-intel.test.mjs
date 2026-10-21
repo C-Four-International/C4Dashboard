@@ -5,6 +5,7 @@ import handler, {
   isSubstantivePost,
   enforceBriefingWordLimit,
   cosineSimilarity,
+  fetchRailwayTelegramFeed,
 } from '../api/social-intel.js';
 
 describe('Social Media Intel - Local Preprocessing & Noise Filtering', () => {
@@ -139,5 +140,67 @@ describe('Social Media Intel - API Endpoint Handler', () => {
     assert.strictEqual(postMatch[2], '50123');
     assert.strictEqual(`https://t.me/${postMatch[1]}/${postMatch[2]}`, 'https://t.me/clashreport/50123');
   });
+
+  it('correctly requests and normalizes feed items from the pre-existing Railway proxy worker', async () => {
+    const originalFetch = globalThis.fetch;
+    const originalEnv = process.env.WS_RELAY_URL;
+    process.env.WS_RELAY_URL = 'https://railway-proxy.example.com';
+    process.env.RELAY_SHARED_SECRET = 'secret123';
+
+    try {
+      globalThis.fetch = async (url, options) => {
+        const u = new URL(url);
+        assert.strictEqual(u.origin, 'https://railway-proxy.example.com');
+        assert.strictEqual(u.pathname, '/telegram/feed');
+        assert.strictEqual(u.searchParams.get('limit'), '100');
+        assert.strictEqual(options.headers['x-relay-key'], 'secret123');
+        assert.strictEqual(options.headers['Authorization'], 'Bearer secret123');
+
+        return new Response(JSON.stringify({
+          source: 'telegram',
+          count: 2,
+          items: [
+            {
+              id: 'clashreport:1234',
+              channel: 'clashreport',
+              channelTitle: 'Clash Report',
+              url: 'https://t.me/clashreport/1234',
+              ts: '2026-10-20T18:00:00.000Z',
+              text: 'Air defense systems activated following incoming drone alerts.',
+            },
+            {
+              id: 'liveukraine_media:5678',
+              channel: 'liveukraine_media',
+              channelTitle: 'Live Ukraine',
+              url: 'https://t.me/liveukraine_media/5678',
+              ts: '2026-10-20T18:05:00.000Z',
+              text: 'Explosions heard in southern harbor district.',
+            },
+          ],
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      };
+
+      const posts = await fetchRailwayTelegramFeed(['clashreport', 'liveukraine_media'], 'secret123');
+      assert.strictEqual(posts.length, 2);
+      assert.strictEqual(posts[0].platform, 'telegram');
+      assert.strictEqual(posts[0].author, '@clashreport');
+      assert.strictEqual(posts[0].authorName, 'Clash Report');
+      assert.strictEqual(posts[0].url, 'https://t.me/clashreport/1234');
+      assert.strictEqual(posts[0].publishedAt, '2026-10-20T18:00:00.000Z');
+      assert.strictEqual(posts[0].rawText, 'Air defense systems activated following incoming drone alerts.');
+
+      assert.strictEqual(posts[1].author, '@liveukraine_media');
+      assert.strictEqual(posts[1].authorName, 'Live Ukraine');
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalEnv !== undefined) {
+        process.env.WS_RELAY_URL = originalEnv;
+      } else {
+        delete process.env.WS_RELAY_URL;
+      }
+      delete process.env.RELAY_SHARED_SECRET;
+    }
+  });
 });
+
 

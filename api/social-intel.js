@@ -393,6 +393,75 @@ async function fetchTelegramBotUpdates(apiKey) {
  *   - a.tgme_widget_message_date with <time datetime="...">
  *   - .tgme_widget_message_owner_name
  */
+/**
+ * Fetches batched posts directly from the pre-existing Railway proxy worker running MTProto:
+ * Endpoint: GET /telegram/feed?channels=...&limit=100
+ */
+export async function fetchRailwayTelegramFeed(channels, apiKey) {
+  const relayBase = process.env.WS_RELAY_URL;
+  if (!relayBase) return [];
+
+  let relay = relayBase;
+  if (relay.startsWith('wss://')) relay = relay.replace('wss://', 'https://');
+  if (relay.startsWith('ws://')) relay = relay.replace('ws://', 'http://');
+
+  try {
+    const channelParam = Array.isArray(channels) ? channels.join(',') : channels;
+    const url = new URL('/telegram/feed', relay);
+    if (channelParam) url.searchParams.set('channels', channelParam);
+    url.searchParams.set('limit', '100');
+
+    const headers = {
+      'Accept': 'application/json',
+      'User-Agent': 'WorldMonitor-Intel/1.0 (+https://worldmonitor.app)',
+    };
+    const secret = process.env.RELAY_SHARED_SECRET || process.env.WORLDMONITOR_RELAY_KEY || apiKey;
+    if (secret) {
+      headers['Authorization'] = `Bearer ${secret}`;
+      headers['x-relay-key'] = secret;
+      headers['X-Telegram-Key'] = secret;
+    }
+
+    const res = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(8000) });
+    if (!res.ok) {
+      console.warn('[SocialIntel] Railway Telegram feed HTTP status:', res.status);
+      return [];
+    }
+
+    const data = await res.json();
+    const items = Array.isArray(data) ? data : data.items || data.messages || [];
+    if (!Array.isArray(items) || items.length === 0) return [];
+
+    return items.map(m => {
+      const ch = (m.channel || (m.author ? String(m.author).replace(/^@/, '') : '')).trim();
+      const chTitle = m.authorName || m.channelTitle || ch || 'Telegram Channel';
+      const pubAt = m.publishedAt || m.ts || (m.date ? new Date(typeof m.date === 'number' ? m.date * 1000 : m.date).toISOString() : new Date().toISOString());
+      const raw = m.rawText || m.text || m.message || m.caption || '';
+      return {
+        id: `tg-relay-${ch || 'post'}-${m.id || Math.random().toString(36).slice(2)}`,
+        platform: 'telegram',
+        author: ch ? `@${ch}` : '@telegram',
+        authorName: chTitle,
+        url: m.url || (ch && m.id ? `https://t.me/${ch}/${m.id}` : `https://t.me/${ch}`),
+        publishedAt: pubAt,
+        rawText: raw,
+      };
+    }).filter(p => p.rawText.length > 0);
+  } catch (err) {
+    console.warn('[SocialIntel] Railway Telegram feed fetch failed:', err.message);
+    return [];
+  }
+}
+
+/**
+ * Fetches public channel posts using Telegram's official Web Widget DOM structure (https://t.me/s/<channel>)
+ * and optional MTProto relay if configured:
+ * Structure:
+ *   - .tgme_widget_message container with data-post="<channel>/<id>"
+ *   - .tgme_widget_message_text (or .js-message_text)
+ *   - a.tgme_widget_message_date with <time datetime="...">
+ *   - .tgme_widget_message_owner_name
+ */
 async function fetchTelegramChannelPosts(channel, apiKey) {
   // 1. If MTProto relay is configured, query it first
   if (process.env.WS_RELAY_URL) {
@@ -405,9 +474,11 @@ async function fetchTelegramChannelPosts(channel, apiKey) {
         'Accept': 'application/json',
         'User-Agent': 'WorldMonitor-Intel/1.0 (+https://worldmonitor.app)',
       };
-      if (apiKey) {
-        headers['Authorization'] = `Bearer ${apiKey}`;
-        headers['X-Telegram-Key'] = apiKey;
+      const secret = process.env.RELAY_SHARED_SECRET || process.env.WORLDMONITOR_RELAY_KEY || apiKey;
+      if (secret) {
+        headers['Authorization'] = `Bearer ${secret}`;
+        headers['x-relay-key'] = secret;
+        headers['X-Telegram-Key'] = secret;
       }
 
       const res = await fetch(relayUrl, { headers, signal: AbortSignal.timeout(6000) });
@@ -419,10 +490,10 @@ async function fetchTelegramChannelPosts(channel, apiKey) {
             id: `tg-${channel}-${m.id || Math.random().toString(36).slice(2)}`,
             platform: 'telegram',
             author: `@${channel}`,
-            authorName: channel,
+            authorName: m.channelTitle || m.authorName || channel,
             url: m.url || `https://t.me/${channel}/${m.id || ''}`,
-            publishedAt: m.date ? new Date(typeof m.date === 'number' ? m.date * 1000 : m.date).toISOString() : new Date().toISOString(),
-            rawText: m.text || m.caption || m.message || '',
+            publishedAt: m.publishedAt || m.ts || (m.date ? new Date(typeof m.date === 'number' ? m.date * 1000 : m.date).toISOString() : new Date().toISOString()),
+            rawText: m.rawText || m.text || m.caption || m.message || '',
           }));
         }
       }
@@ -506,26 +577,35 @@ async function fetchTelethonRedisPosts() {
   return [];
 }
 
-// Ingest all candidate accounts across Bluesky and Telegram (with Telethon MTProto support)
+// Ingest all candidate accounts across Bluesky and Telegram (with Railway proxy worker)
 async function ingestAllPosts() {
   const bskyKey = process.env.BLUESKY_API_KEY;
   const tgKey = process.env.TELEGRAM_API_KEY;
 
-  // 1. Check for Telethon MTProto scraped posts from Upstash Redis
-  const telethonPosts = await fetchTelethonRedisPosts();
+  // 1. Check for Telegram posts from pre-existing Railway proxy worker
+  let tgPosts = [];
+  if (process.env.WS_RELAY_URL) {
+    tgPosts = await fetchRailwayTelegramFeed(TELEGRAM_CHANNELS, tgKey);
+  }
 
+  // 2. Check for Telegram MTProto scraped posts from Upstash Redis (if Railway did not return posts)
+  if (tgPosts.length === 0) {
+    tgPosts = await fetchTelethonRedisPosts();
+  }
+
+  // 3. Fall back to individual channel scraping / Bot updates if neither Railway nor Redis returned posts
+  const fetchFallbackTg = tgPosts.length === 0;
   const authHeader = await getBlueskyAuthHeader(bskyKey);
   const bskyPromises = BLUESKY_ACCOUNTS.map(account => fetchBlueskyAuthorPosts(account, authHeader));
 
-  // If Telethon posts exist in Redis, use them directly; otherwise fallback to relay/bot/preview scraping
-  const tgPromises = telethonPosts.length > 0
-    ? []
-    : TELEGRAM_CHANNELS.map(channel => fetchTelegramChannelPosts(channel, tgKey));
-  const botPromise = (!telethonPosts.length && tgKey) ? fetchTelegramBotUpdates(tgKey) : Promise.resolve([]);
+  const fallbackTgPromises = fetchFallbackTg
+    ? TELEGRAM_CHANNELS.map(channel => fetchTelegramChannelPosts(channel, tgKey))
+    : [];
+  const botPromise = (fetchFallbackTg && tgKey) ? fetchTelegramBotUpdates(tgKey) : Promise.resolve([]);
 
-  const results = await Promise.allSettled([...bskyPromises, ...tgPromises, botPromise]);
+  const results = await Promise.allSettled([...bskyPromises, ...fallbackTgPromises, botPromise]);
 
-  const allPosts = [...telethonPosts];
+  const allPosts = [...tgPosts];
   for (const r of results) {
     if (r.status === 'fulfilled' && Array.isArray(r.value)) {
       allPosts.push(...r.value);

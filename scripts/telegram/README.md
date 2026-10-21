@@ -64,15 +64,47 @@ python telethon_scraper.py --once --output telethon_feed.json
 
 ---
 
-## 5. Environment Variables Reference
+## 5. Running on the Pre-existing Railway Proxy Worker (Recommended)
+
+World Monitor already includes an MTProto scraper running directly inside the pre-existing Railway relay (`scripts/ais-relay.cjs`) using GramJS (the JavaScript implementation of Telethon / MTProto).
+
+### How It Works:
+1. **Stateful MTProto Polling**: The Railway proxy worker keeps a persistent TCP connection to Telegram MTProto and automatically polls channels defined in [`data/telegram-channels.json`](file:///c:/Users/lepko/Documents/GitHub/worldmonitor/data/telegram-channels.json).
+2. **HTTP Endpoint for Vercel**: Exposes `GET /telegram/feed?channels=...&limit=100` which Vercel calls via `WS_RELAY_URL`.
+3. **Optional Upstash Redis Cache**: If `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set on Railway, the worker automatically writes fresh post snapshots to Redis on every poll cycle (`worldmonitor:telegram:telethon:feed:v1`).
+
+### Railway Worker Environment Variables:
+Set these in your Railway service dashboard:
+- `TELEGRAM_API_ID` - Telegram API ID from https://my.telegram.org/apps
+- `TELEGRAM_API_HASH` - Telegram API Hash
+- `TELEGRAM_SESSION` - StringSession string (generated with `node telegram/session-auth.mjs` or `python generate_session.py`)
+- `TELEGRAM_CHANNEL_SET` - Channel set to poll (`full` or `social_intel`, defaults to `full`)
+- `TELEGRAM_POLL_INTERVAL_MS` - Polling frequency in ms (default: `60000`, min: `15000`)
+- `RELAY_SHARED_SECRET` - Shared secret between Vercel and Railway
+- `UPSTASH_REDIS_REST_URL` (optional) - Upstash Redis REST URL for cross-cloud caching
+- `UPSTASH_REDIS_REST_TOKEN` (optional) - Upstash Redis REST Token
+
+### Vercel Environment Variables:
+Set these in your Vercel project settings:
+- `WS_RELAY_URL` - The HTTPS URL of your Railway proxy (e.g. `https://your-relay.up.railway.app`)
+- `RELAY_SHARED_SECRET` - Matching secret configured on Railway
+- `GEMINI_API_KEY` - Google AI Studio key for `text-embedding-004` and `gemini-1.5-flash-8b` briefings
+- `BLUESKY_API_KEY` (optional) - Bluesky App Password or JWT
+- `UPSTASH_REDIS_REST_URL` (optional) - Upstash Redis URL
+
+---
+
+## 6. Environment Variables Reference
 
 | Variable | Required | Description |
 |---|---|---|
 | `TELEGRAM_API_ID` | Yes | Telegram API ID from `my.telegram.org` |
 | `TELEGRAM_API_HASH` | Yes | Telegram API Hash from `my.telegram.org` |
-| `TELEGRAM_SESSION` | Yes (or bot) | Telethon `StringSession` token |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_API_KEY` | Optional | Bot token fallback if running as a bot |
+| `TELEGRAM_SESSION` | Yes | Telethon / GramJS `StringSession` token |
+| `WS_RELAY_URL` | Yes (on Vercel) | Railway relay URL (e.g. `https://relay.up.railway.app`) |
+| `RELAY_SHARED_SECRET` | Recommended | Shared authentication secret between Vercel and Railway |
 | `UPSTASH_REDIS_REST_URL` | Optional | Upstash Redis REST URL (for pushing to web dashboard) |
 | `UPSTASH_REDIS_REST_TOKEN` | Optional | Upstash Redis REST Token |
 | `REDIS_FEED_KEY` | Optional | Redis key for all posts (default: `worldmonitor:telegram:telethon:feed:v1`) |
 | `TELEGRAM_CHANNELS` | Optional | Comma-separated list of channel handles to monitor |
+

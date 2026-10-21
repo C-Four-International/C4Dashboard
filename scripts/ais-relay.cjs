@@ -128,8 +128,8 @@ function sendPreGzipped(req, res, statusCode, headers, rawBody, gzippedBody) {
 // ─────────────────────────────────────────────────────────────
 const TELEGRAM_ENABLED = Boolean(process.env.TELEGRAM_API_ID && process.env.TELEGRAM_API_HASH && process.env.TELEGRAM_SESSION);
 const TELEGRAM_POLL_INTERVAL_MS = Math.max(15_000, Number(process.env.TELEGRAM_POLL_INTERVAL_MS || 60_000));
-const TELEGRAM_MAX_FEED_ITEMS = Math.max(50, Number(process.env.TELEGRAM_MAX_FEED_ITEMS || 200));
-const TELEGRAM_MAX_TEXT_CHARS = Math.max(200, Number(process.env.TELEGRAM_MAX_TEXT_CHARS || 800));
+const TELEGRAM_MAX_FEED_ITEMS = Math.max(50, Number(process.env.TELEGRAM_MAX_FEED_ITEMS || 400));
+const TELEGRAM_MAX_TEXT_CHARS = Math.max(200, Number(process.env.TELEGRAM_MAX_TEXT_CHARS || 2000));
 
 const telegramState = {
   client: null,
@@ -177,21 +177,46 @@ function loadTelegramChannels() {
 }
 
 function normalizeTelegramMessage(msg, channel) {
-  const textRaw = String(msg?.message || '');
+  const textRaw = String(msg?.message || msg?.text || msg?.caption || '');
   const text = textRaw.slice(0, TELEGRAM_MAX_TEXT_CHARS);
   const ts = msg?.date ? new Date(msg.date * 1000).toISOString() : new Date().toISOString();
   return {
     id: `${channel.handle}:${msg.id}`,
     source: 'telegram',
+    platform: 'telegram',
     channel: channel.handle,
     channelTitle: channel.label || channel.handle,
+    author: `@${channel.handle}`,
+    authorName: channel.label || channel.handle,
     url: `https://t.me/${channel.handle}/${msg.id}`,
     ts,
+    publishedAt: ts,
     text,
+    rawText: text,
     topic: channel.topic || 'other',
     tags: [channel.region].filter(Boolean),
     earlySignal: true,
   };
+}
+
+async function syncTelegramToRedis(items) {
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!redisUrl || !redisToken || !Array.isArray(items) || items.length === 0) return;
+  const redisKey = process.env.REDIS_FEED_KEY || 'worldmonitor:telegram:telethon:feed:v1';
+  const ttlSeconds = Math.max(3600, Number(process.env.REDIS_FEED_TTL_SECONDS || 21600)); // 6 hours
+
+  try {
+    const serialized = JSON.stringify(items);
+    const targetUrl = `${redisUrl.replace(/\/+$/, '')}/set/${encodeURIComponent(redisKey)}/${encodeURIComponent(serialized)}/EX/${ttlSeconds}`;
+    await fetch(targetUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${redisToken}` },
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch (err) {
+    console.warn('[Relay] Telegram Redis sync error:', err?.message || String(err));
+  }
 }
 
 async function initTelegramClientIfNeeded() {
@@ -246,7 +271,8 @@ async function pollTelegramOnce() {
       });
 
       for (const msg of msgs) {
-        if (!msg || !msg.id || !msg.message) continue;
+        const textContent = msg?.message || msg?.text || msg?.caption || '';
+        if (!msg || !msg.id || !textContent) continue;
         const item = normalizeTelegramMessage(msg, channel);
         newItems.push(item);
         if (!telegramState.cursorByHandle[handle] || msg.id > telegramState.cursorByHandle[handle]) {
@@ -273,6 +299,9 @@ async function pollTelegramOnce() {
       })
       .sort((a, b) => (b.ts || '').localeCompare(a.ts || ''))
       .slice(0, TELEGRAM_MAX_FEED_ITEMS);
+
+    // Sync to Upstash Redis if configured
+    syncTelegramToRedis(telegramState.items).catch(() => {});
   }
 
   telegramState.lastPollAt = Date.now();
@@ -1673,17 +1702,23 @@ const server = http.createServer(async (req, res) => {
       }, JSON.stringify(payload));
     }
   } else if (pathname === '/telegram' || pathname.startsWith('/telegram/')) {
-    // Telegram Early Signals feed (public channels)
+    // Telegram Early Signals & Social Media Intel feed (public channels)
     try {
       const url = new URL(req.url, `http://localhost:${PORT}`);
-      const limit = Math.max(1, Math.min(200, Number(url.searchParams.get('limit') || 50)));
+      const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 50)));
       const topic = (url.searchParams.get('topic') || '').trim().toLowerCase();
-      const channel = (url.searchParams.get('channel') || '').trim().toLowerCase();
+      const channelParam = (url.searchParams.get('channel') || url.searchParams.get('channels') || '').trim().toLowerCase();
+      const channelList = channelParam
+        ? channelParam.split(',').map(s => s.trim().replace(/^@/, '')).filter(Boolean)
+        : [];
 
       const items = Array.isArray(telegramState.items) ? telegramState.items : [];
       const filtered = items.filter((it) => {
         if (topic && String(it.topic || '').toLowerCase() !== topic) return false;
-        if (channel && String(it.channel || '').toLowerCase() !== channel) return false;
+        if (channelList.length > 0) {
+          const itemChan = String(it.channel || '').toLowerCase();
+          if (!channelList.includes(itemChan)) return false;
+        }
         return true;
       }).slice(0, limit);
 

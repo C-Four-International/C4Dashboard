@@ -138,6 +138,134 @@
         "enabled": true,
         "region": "europe",
         "maxMessages": 15
+      },
+      {
+        "handle": "liveukraine_media",
+        "label": "Live Ukraine",
+        "topic": "breaking",
+        "tier": 2,
+        "enabled": true,
+        "region": "ukraine",
+        "maxMessages": 25
+      },
+      {
+        "handle": "osinttechnical",
+        "label": "OSINTtechnical",
+        "topic": "conflict",
+        "tier": 2,
+        "enabled": true,
+        "region": "global",
+        "maxMessages": 25
+      },
+      {
+        "handle": "inaborodina",
+        "label": "Ina Borodina",
+        "topic": "conflict",
+        "tier": 2,
+        "enabled": true,
+        "region": "ukraine",
+        "maxMessages": 20
+      },
+      {
+        "handle": "MiddleEastSpectator",
+        "label": "Middle East Spectator",
+        "topic": "geopolitics",
+        "tier": 2,
+        "enabled": true,
+        "region": "middle_east",
+        "maxMessages": 25
+      },
+      {
+        "handle": "militarnyi_eng",
+        "label": "Militarnyi in English",
+        "topic": "conflict",
+        "tier": 2,
+        "enabled": true,
+        "region": "ukraine",
+        "maxMessages": 25
+      },
+      {
+        "handle": "warmonitor",
+        "label": "War Monitor",
+        "topic": "alerts",
+        "tier": 2,
+        "enabled": true,
+        "region": "ukraine",
+        "maxMessages": 25
+      }
+    ],
+    "social_intel": [
+      {
+        "handle": "liveukraine_media",
+        "label": "Live Ukraine",
+        "topic": "breaking",
+        "tier": 2,
+        "enabled": true,
+        "region": "ukraine",
+        "maxMessages": 25
+      },
+      {
+        "handle": "clashreport",
+        "label": "Clash Report",
+        "topic": "conflict",
+        "tier": 2,
+        "enabled": true,
+        "region": "global",
+        "maxMessages": 30
+      },
+      {
+        "handle": "osinttechnical",
+        "label": "OSINTtechnical",
+        "topic": "conflict",
+        "tier": 2,
+        "enabled": true,
+        "region": "global",
+        "maxMessages": 25
+      },
+      {
+        "handle": "inaborodina",
+        "label": "Ina Borodina",
+        "topic": "conflict",
+        "tier": 2,
+        "enabled": true,
+        "region": "ukraine",
+        "maxMessages": 20
+      },
+      {
+        "handle": "MiddleEastSpectator",
+        "label": "Middle East Spectator",
+        "topic": "geopolitics",
+        "tier": 2,
+        "enabled": true,
+        "region": "middle_east",
+        "maxMessages": 25
+      },
+      {
+        "handle": "militarnyi_eng",
+        "label": "Militarnyi in English",
+        "topic": "conflict",
+        "tier": 2,
+        "enabled": true,
+        "region": "ukraine",
+        "maxMessages": 25
+      },
+      {
+        "handle": "warmonitor",
+        "label": "War Monitor",
+        "topic": "alerts",
+        "tier": 2,
+        "enabled": true,
+        "region": "ukraine",
+        "maxMessages": 25
+      },
+      {
+        "handle": "bellingcat",
+        "label": "Bellingcat",
+        "topic": "osint",
+        "tier": 3,
+        "enabled": true,
+        "region": "global",
+        "maxMessages": 20
       }
     ],
     "tech": [],
