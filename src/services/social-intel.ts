@@ -157,28 +157,10 @@ export async function fetchSocialIntelBriefings(forceRefresh = false): Promise<S
       // Ignore
     }
   } else {
-    // Purge circuit breaker cache if it contains old data lacking Telegram posts
-    const breakerCached = socialIntelCircuitBreaker.getCached();
-    if (breakerCached?.briefings && breakerCached.briefings.length > 0) {
-      const hasTg = breakerCached.briefings.some((b) => b.platforms.includes('telegram'));
-      if (!hasTg) {
-        socialIntelCircuitBreaker.clearCache();
-      }
-    }
-
-    // Check client storage cache
+    // Check client storage cache (valid for 3 hours)
     const cached = getStoredCache();
     if (cached && cached.briefings && cached.briefings.length > 0) {
-      const hasTelegram = cached.briefings.some((b) => b.platforms.includes('telegram'));
-      if (hasTelegram) {
-        return cached;
-      }
-      try {
-        localStorage.removeItem(STORAGE_CACHE_KEY);
-        socialIntelCircuitBreaker.clearCache();
-      } catch {
-        // Ignore
-      }
+      return cached;
     }
   }
 

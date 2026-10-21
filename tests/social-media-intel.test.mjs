@@ -11,6 +11,9 @@ import handler, {
   translateTextWithGoogle,
   batchTranslateWithGoogle,
   generateBriefingWithGoogleTranslation,
+  extractWordSet,
+  fastSetJaccard,
+  jaccardSimilarity,
 } from '../api/social-intel.js';
 import translateHandler from '../api/translate.js';
 
@@ -377,6 +380,51 @@ describe('Social Media Intel - Google Pre-Trained Translation Hook', () => {
     assert.ok(data.translatedText);
     assert.strictEqual(/[\u0400-\u04FF]/.test(data.translatedText), false);
     assert.strictEqual(data.provider, 'google-pretrained-translation-api');
+  });
+});
+
+describe('Social Media Intel - Fluid Active CPU & Performance Optimizations', () => {
+  it('precomputes word sets and computes fast zero-allocation Jaccard similarity', () => {
+    const textA = 'Ukrainian air defenses intercepted multiple Shahed drones over southern regions.';
+    const textB = 'Air defenses active as multiple Shahed drones are reported over southern territory.';
+    const textC = 'Completely unrelated financial market report on treasury yields.';
+
+    const wordsA = extractWordSet(textA);
+    const wordsB = extractWordSet(textB);
+    const wordsC = extractWordSet(textC);
+
+    assert.ok(wordsA instanceof Set, 'Should return a Set');
+    assert.ok(wordsA.has('intercepted'));
+    assert.ok(wordsA.has('shahed'));
+    assert.ok(!wordsA.has('air'), 'Should filter out words <= 3 chars like "air"');
+
+    const fastSimAB = fastSetJaccard(wordsA, wordsB);
+    const slowSimAB = jaccardSimilarity(textA, textB);
+    assert.strictEqual(fastSimAB, slowSimAB, 'fastSetJaccard must match jaccardSimilarity');
+    assert.ok(fastSimAB > 0.35, 'Similar drone reports should score high');
+
+    const fastSimAC = fastSetJaccard(wordsA, wordsC);
+    assert.strictEqual(fastSimAC, 0, 'Unrelated texts should have 0 similarity');
+  });
+
+  it('coalesces concurrent requests into shared in-flight response (singleflight)', async () => {
+    // Fire two concurrent requests
+    const reqA = new Request('http://localhost/api/social-intel', {
+      method: 'GET',
+      headers: { Origin: 'https://worldmonitor.app' },
+    });
+    const reqB = new Request('http://localhost/api/social-intel', {
+      method: 'GET',
+      headers: { Origin: 'https://worldmonitor.app' },
+    });
+
+    const [resA, resB] = await Promise.all([handler(reqA), handler(reqB)]);
+    assert.strictEqual(resA.status, 200);
+    assert.strictEqual(resB.status, 200);
+
+    const [dataA, dataB] = await Promise.all([resA.json(), resB.json()]);
+    assert.strictEqual(dataA.generatedAt, dataB.generatedAt, 'Both requests should share the same generated briefings');
+    assert.strictEqual(dataA.briefings.length, dataB.briefings.length);
   });
 });
 

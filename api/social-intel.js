@@ -75,6 +75,9 @@ let memoryCache = {
   expiresAt: 0,
 };
 
+// In-flight request deduplication to prevent stampedes & redundant CPU execution
+let inFlightPromise = null;
+
 // ============================================================================
 // Upstash Redis Helpers (if configured)
 // ============================================================================
@@ -100,19 +103,55 @@ async function setRedisCache(key, value, ttlSeconds) {
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return;
   try {
-    await fetch(`${url}/set/${encodeURIComponent(key)}/${encodeURIComponent(JSON.stringify(value))}/EX/${ttlSeconds}`, {
+    // Upstash REST command format in POST body avoids URL length limits for large JSON payloads
+    const payload = JSON.stringify(['SET', key, JSON.stringify(value), 'EX', ttlSeconds]);
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(2500),
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: payload,
+      signal: AbortSignal.timeout(3000),
     });
-  } catch {
-    // Ignore Redis set errors
+    if (!res.ok) {
+      // Fallback: /set/key?ex=ttlSeconds with JSON body
+      await fetch(`${url}/set/${encodeURIComponent(key)}?ex=${ttlSeconds}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(value),
+        signal: AbortSignal.timeout(3000),
+      });
+    }
+  } catch (err) {
+    console.warn('[SocialIntel] Upstash Redis SET error:', err?.message || err);
   }
 }
 
 // ============================================================================
 // Noise Filtering & Prompt Cleaning (Local & Non-Agentic)
 // ============================================================================
+
+// Hoisted regex patterns to prevent repeated RegExp instantiation per post
+const BOILERPLATE_PATTERNS = [
+  /subscribe\s*(?:to|on)?\s*(?:our)?\s*(?:telegram|channel|updates|newsletter|patreon)?/gi,
+  /join\s*(?:our)?\s*(?:telegram|channel|group|discord|community)?/gi,
+  /follow\s*(?:us|me)?\s*(?:on)?\s*(?:twitter|x|bluesky|telegram)?/gi,
+  /forwarded\s*from\b[^\n]*/gi,
+  /breaking\s*news\s*:/gi,
+  /flash\s*:/gi,
+  /urgent\s*:/gi,
+  /link\s*in\s*(?:bio|comments|description)/gi,
+  /source\s*:\s*\S+/gi,
+  /click\s*here/gi,
+  /read\s*more\s*at[^\n]*/gi,
+  /support\s*independent\s*journalism/gi,
+  /all\s*rights\s*reserved/gi,
+];
+
 export function cleanPostText(text) {
   if (!text) return '';
   let cleaned = String(text);
@@ -132,22 +171,7 @@ export function cleanPostText(text) {
     .replace(/&nbsp;/g, ' ');
 
   // 3. Remove common boilerplate & promotional patterns
-  const boilerplatePatterns = [
-    /subscribe\s*(?:to|on)?\s*(?:our)?\s*(?:telegram|channel|updates|newsletter|patreon)?/gi,
-    /join\s*(?:our)?\s*(?:telegram|channel|group|discord|community)?/gi,
-    /follow\s*(?:us|me)?\s*(?:on)?\s*(?:twitter|x|bluesky|telegram)?/gi,
-    /forwarded\s*from\b[^\n]*/gi,
-    /breaking\s*news\s*:/gi,
-    /flash\s*:/gi,
-    /urgent\s*:/gi,
-    /link\s*in\s*(?:bio|comments|description)/gi,
-    /source\s*:\s*\S+/gi,
-    /click\s*here/gi,
-    /read\s*more\s*at[^\n]*/gi,
-    /support\s*independent\s*journalism/gi,
-    /all\s*rights\s*reserved/gi,
-  ];
-  for (const pat of boilerplatePatterns) {
+  for (const pat of BOILERPLATE_PATTERNS) {
     cleaned = cleaned.replace(pat, ' ');
   }
 
@@ -202,17 +226,27 @@ export function cosineSimilarity(vecA, vecB) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-// Simple text Jaccard similarity fallback if embedding API is unreachable
-function jaccardSimilarity(textA, textB) {
-  const wordsA = new Set(textA.toLowerCase().split(/\W+/).filter(w => w.length > 3));
-  const wordsB = new Set(textB.toLowerCase().split(/\W+/).filter(w => w.length > 3));
-  if (wordsA.size === 0 || wordsB.size === 0) return 0;
+// Optimized word set extraction for Jaccard similarity
+export function extractWordSet(text) {
+  if (!text || typeof text !== 'string') return new Set();
+  return new Set(text.toLowerCase().split(/\W+/).filter(w => w.length > 3));
+}
+
+// Zero-allocation set Jaccard similarity: |A ∩ B| / (|A| + |B| - |A ∩ B|)
+export function fastSetJaccard(wordsA, wordsB) {
+  if (!wordsA || !wordsB || wordsA.size === 0 || wordsB.size === 0) return 0;
+  const [smaller, larger] = wordsA.size < wordsB.size ? [wordsA, wordsB] : [wordsB, wordsA];
   let intersection = 0;
-  for (const w of wordsA) {
-    if (wordsB.has(w)) intersection++;
+  for (const w of smaller) {
+    if (larger.has(w)) intersection++;
   }
-  const union = new Set([...wordsA, ...wordsB]).size;
+  const union = wordsA.size + wordsB.size - intersection;
   return union === 0 ? 0 : intersection / union;
+}
+
+// Backward-compatible string-based helper
+export function jaccardSimilarity(textA, textB) {
+  return fastSetJaccard(extractWordSet(textA), extractWordSet(textB));
 }
 
 // ============================================================================
@@ -516,7 +550,9 @@ async function fetchTelegramChannelPosts(channel) {
     // Telegram widget message items are demarcated by class="tgme_widget_message"
     const messageBlocks = html.split(/<div[^>]*class="[^"]*tgme_widget_message\b/i);
 
-    for (let i = 1; i < messageBlocks.length; i++) {
+    // Telegram channels list messages chronologically; parse only the latest 8 messages to prevent excessive regex processing
+    const startIndex = Math.max(1, messageBlocks.length - 8);
+    for (let i = startIndex; i < messageBlocks.length; i++) {
       const block = messageBlocks[i];
 
       // Extract channel & message ID from data-post="channel/id"
@@ -733,6 +769,18 @@ function decodeHtmlEntities(str) {
     .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec));
 }
 
+// In-memory translation cache (preserves translated strings across isolate invocations)
+const translationCache = new Map();
+const MAX_TRANSLATION_CACHE = 500;
+
+function storeTranslation(key, val) {
+  if (translationCache.size >= MAX_TRANSLATION_CACHE) {
+    translationCache.clear();
+  }
+  translationCache.set(key, val);
+  return val;
+}
+
 /**
  * Translates arbitrary text snippets into English (or another target language)
  * using Google Cloud Translation API Basic v2 with automatic fallback to Google's
@@ -747,6 +795,11 @@ export async function translateTextWithGoogle(text, targetLang = 'en') {
   // If target is English and snippet contains only English/Latin characters, return directly
   if (targetLang === 'en' && !hasNonEnglishText(trimmed)) {
     return trimmed;
+  }
+
+  const cacheKey = `${targetLang}:${trimmed}`;
+  if (translationCache.has(cacheKey)) {
+    return translationCache.get(cacheKey);
   }
 
   const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY || process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
@@ -770,7 +823,7 @@ export async function translateTextWithGoogle(text, targetLang = 'en') {
         const json = await res.json();
         const translated = json.data?.translations?.[0]?.translatedText;
         if (translated && typeof translated === 'string' && translated.trim().length > 0) {
-          return decodeHtmlEntities(translated.trim());
+          return storeTranslation(cacheKey, decodeHtmlEntities(translated.trim()));
         }
       }
     } catch {
@@ -796,7 +849,7 @@ export async function translateTextWithGoogle(text, targetLang = 'en') {
         const parts = json[0].map(item => (Array.isArray(item) ? item[0] : '')).filter(Boolean);
         const translated = parts.join('').trim();
         if (translated.length > 0) {
-          return decodeHtmlEntities(translated);
+          return storeTranslation(cacheKey, decodeHtmlEntities(translated));
         }
       }
     }
@@ -824,7 +877,7 @@ export async function translateTextWithGoogle(text, targetLang = 'en') {
         const json = await res.json();
         const translated = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
         if (translated && !hasNonEnglishText(translated)) {
-          return translated;
+          return storeTranslation(cacheKey, translated);
         }
       }
     } catch {
@@ -1029,7 +1082,8 @@ async function buildSocialIntelBriefings() {
       clusters.push(cluster);
     }
   } else {
-    // Jaccard similarity fallback if embeddings unavailable
+    // Optimized Jaccard similarity fallback with precomputed word sets (O(N) allocations instead of O(N^2))
+    const wordSets = cleanedPosts.map(p => extractWordSet(p.cleanedText));
     const visited = new Set();
     for (let i = 0; i < cleanedPosts.length; i++) {
       if (visited.has(i)) continue;
@@ -1038,7 +1092,7 @@ async function buildSocialIntelBriefings() {
 
       for (let j = i + 1; j < cleanedPosts.length; j++) {
         if (visited.has(j)) continue;
-        const sim = jaccardSimilarity(cleanedPosts[i].cleanedText, cleanedPosts[j].cleanedText);
+        const sim = fastSetJaccard(wordSets[i], wordSets[j]);
         if (sim >= 0.28) {
           cluster.push(cleanedPosts[j]);
           visited.add(j);
@@ -1319,9 +1373,30 @@ export default async function handler(req) {
     }
   }
 
-  // 3. Generate fresh briefings
+  // 3. Deduplicate in-flight upstream generation to prevent stampedes & parallel CPU runs
+  if (inFlightPromise) {
+    try {
+      const sharedData = await inFlightPromise;
+      if (sharedData && sharedData.briefings) {
+        return new Response(JSON.stringify(sharedData), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=1800`,
+            'X-Cache-Status': 'HIT-INFLIGHT',
+            ...corsHeaders,
+          },
+        });
+      }
+    } catch {
+      // Fall through to execute new fetch
+    }
+  }
+
+  // 4. Generate fresh briefings (with singleflight promise)
   try {
-    const freshData = await buildSocialIntelBriefings();
+    inFlightPromise = buildSocialIntelBriefings();
+    const freshData = await inFlightPromise;
 
     // Store in memory cache
     memoryCache = {
@@ -1329,8 +1404,8 @@ export default async function handler(req) {
       expiresAt: Date.now() + CACHE_TTL_MS,
     };
 
-    // Store in Upstash Redis cache
-    await setRedisCache(redisKey, freshData, CACHE_TTL_SECONDS);
+    // Store in Upstash Redis cache (asynchronous, non-blocking)
+    setRedisCache(redisKey, freshData, CACHE_TTL_SECONDS).catch(() => {});
 
     return new Response(JSON.stringify(freshData), {
       status: 200,
@@ -1350,5 +1425,7 @@ export default async function handler(req) {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
+  } finally {
+    inFlightPromise = null;
   }
 }
