@@ -21,7 +21,7 @@ const TELEGRAM_CHANNELS = [
   'liveukraine_media',
   'clashreport',
   'osinttechnical',
-  'inaborodina',
+  'deepstateua',
   'MiddleEastSpectator',
   'militarnyi_eng',
   'warmonitor',
@@ -114,8 +114,8 @@ export function cleanPostText(text) {
     cleaned = cleaned.replace(pat, ' ');
   }
 
-  // 4. Remove emojis & pictorial characters
-  cleaned = cleaned.replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Emoji_Modifier_Base}\p{Emoji_Component}]/gu, '');
+  // 4. Remove emojis & pictorial characters (preserve numbers 0-9)
+  cleaned = cleaned.replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Emoji_Modifier_Base}]/gu, '');
 
   // 5. Clean up hashtags (keep informative word)
   cleaned = cleaned.replace(/#(\w+)/g, '$1');
@@ -422,7 +422,7 @@ export async function fetchRailwayTelegramFeed(channels, apiKey) {
       headers['X-Telegram-Key'] = secret;
     }
 
-    const res = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(8000) });
+    const res = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(3500) });
     if (!res.ok) {
       console.warn('[SocialIntel] Railway Telegram feed HTTP status:', res.status);
       return [];
@@ -455,54 +455,13 @@ export async function fetchRailwayTelegramFeed(channels, apiKey) {
 
 /**
  * Fetches public channel posts using Telegram's official Web Widget DOM structure (https://t.me/s/<channel>)
- * and optional MTProto relay if configured:
  * Structure:
  *   - .tgme_widget_message container with data-post="<channel>/<id>"
  *   - .tgme_widget_message_text (or .js-message_text)
  *   - a.tgme_widget_message_date with <time datetime="...">
  *   - .tgme_widget_message_owner_name
  */
-async function fetchTelegramChannelPosts(channel, apiKey) {
-  // 1. If MTProto relay is configured, query it first
-  if (process.env.WS_RELAY_URL) {
-    let relay = process.env.WS_RELAY_URL;
-    if (relay.startsWith('wss://')) relay = relay.replace('wss://', 'https://');
-    if (relay.startsWith('ws://')) relay = relay.replace('ws://', 'http://');
-    try {
-      const relayUrl = `${relay}/telegram/feed?channel=${encodeURIComponent(channel)}&limit=15`;
-      const headers = {
-        'Accept': 'application/json',
-        'User-Agent': 'WorldMonitor-Intel/1.0 (+https://worldmonitor.app)',
-      };
-      const secret = process.env.RELAY_SHARED_SECRET || process.env.WORLDMONITOR_RELAY_KEY || apiKey;
-      if (secret) {
-        headers['Authorization'] = `Bearer ${secret}`;
-        headers['x-relay-key'] = secret;
-        headers['X-Telegram-Key'] = secret;
-      }
-
-      const res = await fetch(relayUrl, { headers, signal: AbortSignal.timeout(6000) });
-      if (res.ok) {
-        const data = await res.json();
-        const items = Array.isArray(data) ? data : data.messages || data.items || [];
-        if (items.length > 0) {
-          return items.map(m => ({
-            id: `tg-${channel}-${m.id || Math.random().toString(36).slice(2)}`,
-            platform: 'telegram',
-            author: `@${channel}`,
-            authorName: m.channelTitle || m.authorName || channel,
-            url: m.url || `https://t.me/${channel}/${m.id || ''}`,
-            publishedAt: m.publishedAt || m.ts || (m.date ? new Date(typeof m.date === 'number' ? m.date * 1000 : m.date).toISOString() : new Date().toISOString()),
-            rawText: m.rawText || m.text || m.caption || m.message || '',
-          }));
-        }
-      }
-    } catch {
-      // Fall through to public preview scraping
-    }
-  }
-
-  // 2. Official Telegram Web Widget preview (https://t.me/s/<channel>)
+async function fetchTelegramChannelPosts(channel) {
   const previewUrl = `https://t.me/s/${channel}`;
   try {
     const res = await fetch(previewUrl, {
@@ -511,7 +470,7 @@ async function fetchTelegramChannelPosts(channel, apiKey) {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
       },
-      signal: AbortSignal.timeout(7000),
+      signal: AbortSignal.timeout(4500),
     });
     if (!res.ok) return [];
     const html = await res.text();
@@ -577,42 +536,54 @@ async function fetchTelethonRedisPosts() {
   return [];
 }
 
-// Ingest all candidate accounts across Bluesky and Telegram (with Railway proxy worker)
+// Ingest all candidate accounts across Bluesky and Telegram (with Railway proxy worker & fallback)
 async function ingestAllPosts() {
   const bskyKey = process.env.BLUESKY_API_KEY;
   const tgKey = process.env.TELEGRAM_API_KEY;
 
-  // 1. Check for Telegram posts from pre-existing Railway proxy worker
+  // 1. Fetch from pre-existing Railway proxy worker if configured
   let tgPosts = [];
   if (process.env.WS_RELAY_URL) {
     tgPosts = await fetchRailwayTelegramFeed(TELEGRAM_CHANNELS, tgKey);
   }
 
-  // 2. Check for Telegram MTProto scraped posts from Upstash Redis (if Railway did not return posts)
+  // 2. Fetch from Upstash Redis cache (if Railway did not return posts)
   if (tgPosts.length === 0) {
     tgPosts = await fetchTelethonRedisPosts();
   }
 
-  // 3. Fall back to individual channel scraping / Bot updates if neither Railway nor Redis returned posts
-  const fetchFallbackTg = tgPosts.length === 0;
-  const authHeader = await getBlueskyAuthHeader(bskyKey);
-  const bskyPromises = BLUESKY_ACCOUNTS.map(account => fetchBlueskyAuthorPosts(account, authHeader));
-
-  const fallbackTgPromises = fetchFallbackTg
-    ? TELEGRAM_CHANNELS.map(channel => fetchTelegramChannelPosts(channel, tgKey))
-    : [];
-  const botPromise = (fetchFallbackTg && tgKey) ? fetchTelegramBotUpdates(tgKey) : Promise.resolve([]);
-
-  const results = await Promise.allSettled([...bskyPromises, ...fallbackTgPromises, botPromise]);
-
-  const allPosts = [...tgPosts];
-  for (const r of results) {
-    if (r.status === 'fulfilled' && Array.isArray(r.value)) {
-      allPosts.push(...r.value);
+  // 3. If Railway/Redis returned fewer than 6 posts, scrape directly via Telegram Web Widget preview
+  if (tgPosts.length < 6) {
+    const previewResults = await Promise.allSettled(
+      TELEGRAM_CHANNELS.map(ch => fetchTelegramChannelPosts(ch))
+    );
+    for (const r of previewResults) {
+      if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+        tgPosts.push(...r.value);
+      }
     }
   }
 
-  return allPosts;
+  // 4. Also check Telegram Bot API if configured
+  if (tgKey) {
+    const botPosts = await fetchTelegramBotUpdates(tgKey);
+    if (botPosts.length > 0) tgPosts.push(...botPosts);
+  }
+
+  // 5. Fetch Bluesky author feeds
+  const authHeader = await getBlueskyAuthHeader(bskyKey);
+  const bskyResults = await Promise.allSettled(
+    BLUESKY_ACCOUNTS.map(account => fetchBlueskyAuthorPosts(account, authHeader))
+  );
+
+  const bskyPosts = [];
+  for (const r of bskyResults) {
+    if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+      bskyPosts.push(...r.value);
+    }
+  }
+
+  return [...tgPosts, ...bskyPosts];
 }
 
 // ============================================================================
@@ -800,18 +771,52 @@ async function buildSocialIntelBriefings() {
     }
   }
 
-  // 4. Cross-Referencing: Require >= 2 distinct sources/accounts
-  const corroboratedClusters = clusters.filter(cluster => {
+  // 4. Cross-Referencing & Selection:
+  // Categorize clusters into multi-source corroborated events and single-monitor signals
+  const corroboratedClusters = [];
+  const singleTgClusters = [];
+  const singleBskyClusters = [];
+
+  for (const cluster of clusters) {
     const distinctAuthors = new Set(cluster.map(p => `${p.platform}:${p.author}`));
-    return distinctAuthors.size >= 2;
+    if (distinctAuthors.size >= 2) {
+      corroboratedClusters.push(cluster);
+    } else {
+      const isTg = cluster.some(p => p.platform === 'telegram');
+      if (isTg) {
+        singleTgClusters.push(cluster);
+      } else {
+        singleBskyClusters.push(cluster);
+      }
+    }
+  }
+
+  // Sort corroborated by source count desc, then latest date
+  corroboratedClusters.sort((a, b) => {
+    if (b.length !== a.length) return b.length - a.length;
+    const timeA = new Date(a[0]?.publishedAt || 0).getTime();
+    const timeB = new Date(b[0]?.publishedAt || 0).getTime();
+    return timeB - timeA;
   });
 
-  // Sort clusters by number of corroborated sources descending
-  corroboratedClusters.sort((a, b) => b.length - a.length);
+  // Sort single-source clusters by recency
+  singleTgClusters.sort((a, b) => {
+    const timeA = new Date(a[0]?.publishedAt || 0).getTime();
+    const timeB = new Date(b[0]?.publishedAt || 0).getTime();
+    return timeB - timeA;
+  });
+  singleBskyClusters.sort((a, b) => {
+    const timeA = new Date(a[0]?.publishedAt || 0).getTime();
+    const timeB = new Date(b[0]?.publishedAt || 0).getTime();
+    return timeB - timeA;
+  });
 
-  // If no multi-source clusters were found (e.g. quiet news cycle), retain top 3 freshest substantive items
-  // clearly marked as single-source monitor items
-  const finalClusters = corroboratedClusters.length > 0 ? corroboratedClusters.slice(0, 15) : clusters.slice(0, 5);
+  // Balanced selection: Corroborated multi-source events first, followed by breaking Telegram OSINT & Bluesky signals
+  const finalClusters = [
+    ...corroboratedClusters.slice(0, 12),
+    ...singleTgClusters.slice(0, 12),
+    ...singleBskyClusters.slice(0, 6),
+  ];
 
   // 5. Briefing Generation (< 25 words)
   const briefings = [];

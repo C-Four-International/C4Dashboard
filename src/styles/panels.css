@@ -326,7 +326,6 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 13px;
   transition: all 0.15s ease;
 }
 
@@ -337,12 +336,19 @@
 }
 
 .social-intel-refresh-btn.loading {
-  animation: spin 1s linear infinite;
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.8;
 }
 
-@keyframes spin {
+.social-intel-refresh-btn.loading .social-refresh-svg,
+.social-intel-refresh-btn.loading svg {
+  animation: social-spin 0.8s linear infinite;
+  transform-origin: 50% 50%;
+  transform-box: fill-box;
+  display: block;
+}
+
+@keyframes social-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }

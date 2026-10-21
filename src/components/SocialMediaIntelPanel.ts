@@ -42,8 +42,13 @@ export class SocialMediaIntelPanel extends Panel {
     if (this.isRefreshing) return;
     this.isRefreshing = true;
 
+    const refreshBtn = this.content.querySelector('#social-intel-refresh-btn');
+    if (refreshBtn) {
+      refreshBtn.classList.add('loading');
+    }
+
     if (this.briefings.length === 0) {
-      this.showLoading();
+      this.showLoading(t('components.socialIntel.loading') || 'Correlating OSINT and breaking news...');
     } else {
       this.setDataBadge('cached', 'Refreshing...');
     }
@@ -68,6 +73,10 @@ export class SocialMediaIntelPanel extends Panel {
       }
     } finally {
       this.isRefreshing = false;
+      const btn = this.content.querySelector('#social-intel-refresh-btn');
+      if (btn) {
+        btn.classList.remove('loading');
+      }
     }
   }
 
@@ -95,6 +104,10 @@ export class SocialMediaIntelPanel extends Panel {
   private render(): void {
     const filtered = this.getFilteredBriefings();
 
+    const blueskyCount = this.briefings.filter((b) => b.platforms.includes('bluesky')).length;
+    const telegramCount = this.briefings.filter((b) => b.platforms.includes('telegram')).length;
+    const corroboratedCount = this.briefings.filter((b) => b.isMultiSource).length;
+
     const filtersHtml = `
       <div class="social-intel-toolbar" id="social-intel-toolbar">
         <div class="social-intel-filter-chips">
@@ -102,13 +115,13 @@ export class SocialMediaIntelPanel extends Panel {
             All (${this.briefings.length})
           </button>
           <button class="social-chip ${this.filter === 'multisource' ? 'active' : ''}" data-filter="multisource" title="Events corroborated by >= 2 independent sources">
-            ⚡ Corroborated (${this.briefings.filter((b) => b.isMultiSource).length})
+            ⚡ Corroborated (${corroboratedCount})
           </button>
           <button class="social-chip ${this.filter === 'bluesky' ? 'active' : ''}" data-filter="bluesky">
-            🦋 Bluesky
+            🦋 Bluesky (${blueskyCount})
           </button>
           <button class="social-chip ${this.filter === 'telegram' ? 'active' : ''}" data-filter="telegram">
-            ✈️ Telegram
+            ✈️ Telegram (${telegramCount})
           </button>
         </div>
         <div class="social-intel-controls">
@@ -128,7 +141,10 @@ export class SocialMediaIntelPanel extends Panel {
             title="Refresh intel feed (3h cache)"
             aria-label="Refresh intel feed"
           >
-            ↻
+            <svg class="social-refresh-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
           </button>
         </div>
       </div>

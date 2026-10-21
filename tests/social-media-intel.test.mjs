@@ -9,13 +9,15 @@ import handler, {
 } from '../api/social-intel.js';
 
 describe('Social Media Intel - Local Preprocessing & Noise Filtering', () => {
-  it('strips urls, emojis, and boilerplate promotional text', () => {
-    const raw = '🚨 BREAKING: Air raid alerts sound in Kyiv region! 🔥 Check https://t.me/example/999 Subscribe to our telegram channel for updates #Kyiv @osint_source';
+  it('strips urls, emojis, and boilerplate promotional text while preserving numbers', () => {
+    const raw = '🚨 BREAKING: Air raid alerts sound in Kyiv region! 🔥 165 drones reported across 30 locations. Check https://t.me/example/999 Subscribe to our telegram channel for updates #Kyiv @osint_source';
     const cleaned = cleanPostText(raw);
 
     assert.strictEqual(cleaned.includes('https://'), false, 'Should strip http/https URLs');
     assert.strictEqual(cleaned.includes('🚨'), false, 'Should strip alert emoji');
     assert.strictEqual(cleaned.includes('🔥'), false, 'Should strip fire emoji');
+    assert.strictEqual(cleaned.includes('165'), true, 'Should preserve digit quantities');
+    assert.strictEqual(cleaned.includes('30'), true, 'Should preserve digit numbers');
     assert.strictEqual(cleaned.includes('Subscribe to'), false, 'Should strip subscription boilerplate');
     assert.strictEqual(cleaned.includes('@osint_source'), false, 'Should strip author mention');
     assert.strictEqual(cleaned.includes('Kyiv'), true, 'Should retain informative hashtag word');
