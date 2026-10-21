@@ -489,19 +489,43 @@ async function fetchTelegramChannelPosts(channel, apiKey) {
   }
 }
 
-// Ingest all candidate accounts across Bluesky and Telegram
+/**
+ * Fetches posts scraped via Python Telethon service from Upstash Redis.
+ * Key: worldmonitor:telegram:telethon:feed:v1 (configured by REDIS_FEED_KEY)
+ */
+async function fetchTelethonRedisPosts() {
+  const redisKey = process.env.REDIS_FEED_KEY || 'worldmonitor:telegram:telethon:feed:v1';
+  try {
+    const cached = await getRedisCache(redisKey);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      return cached;
+    }
+  } catch (err) {
+    console.warn('[SocialIntel] Telethon Redis fetch error:', err.message);
+  }
+  return [];
+}
+
+// Ingest all candidate accounts across Bluesky and Telegram (with Telethon MTProto support)
 async function ingestAllPosts() {
   const bskyKey = process.env.BLUESKY_API_KEY;
   const tgKey = process.env.TELEGRAM_API_KEY;
 
+  // 1. Check for Telethon MTProto scraped posts from Upstash Redis
+  const telethonPosts = await fetchTelethonRedisPosts();
+
   const authHeader = await getBlueskyAuthHeader(bskyKey);
   const bskyPromises = BLUESKY_ACCOUNTS.map(account => fetchBlueskyAuthorPosts(account, authHeader));
-  const tgPromises = TELEGRAM_CHANNELS.map(channel => fetchTelegramChannelPosts(channel, tgKey));
-  const botPromise = tgKey ? fetchTelegramBotUpdates(tgKey) : Promise.resolve([]);
+
+  // If Telethon posts exist in Redis, use them directly; otherwise fallback to relay/bot/preview scraping
+  const tgPromises = telethonPosts.length > 0
+    ? []
+    : TELEGRAM_CHANNELS.map(channel => fetchTelegramChannelPosts(channel, tgKey));
+  const botPromise = (!telethonPosts.length && tgKey) ? fetchTelegramBotUpdates(tgKey) : Promise.resolve([]);
 
   const results = await Promise.allSettled([...bskyPromises, ...tgPromises, botPromise]);
 
-  const allPosts = [];
+  const allPosts = [...telethonPosts];
   for (const r of results) {
     if (r.status === 'fulfilled' && Array.isArray(r.value)) {
       allPosts.push(...r.value);
