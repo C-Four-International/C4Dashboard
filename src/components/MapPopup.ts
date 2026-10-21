@@ -1,4 +1,4 @@
-import type { ConflictZone, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, NuclearFacility, EconomicCenter, GammaIrradiator, Pipeline, UnderseaCable, CableAdvisory, RepairShip, InternetOutage, AIDataCenter, AisDisruptionEvent, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, Port, Spaceport, CriticalMineralProject, CyberThreat, BgpAnomaly } from '@/types';
+import type { ConflictZone, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, NuclearFacility, EconomicCenter, GammaIrradiator, Pipeline, UnderseaCable, CableAdvisory, RepairShip, InternetOutage, AIDataCenter, AisDisruptionEvent, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, Port, Spaceport, CriticalMineralProject, CyberThreat, BgpAnomaly, AQIStation, AQIClusterData } from '@/types';
 import type { RadiationStation } from '@/services/radiation';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { Earthquake } from '@/services/earthquakes';
@@ -15,8 +15,9 @@ import { fetchHotspotContext, formatArticleDate, extractDomain, type GdeltArticl
 import { getNaturalEventIcon } from '@/services/eonet';
 import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot-escalation';
 import { getCableHealthRecord } from '@/services/cable-health';
+import { getAqiCategory, getStationParticulates } from '@/services/aqi';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'radiation' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'climate';
+export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'radiation' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'climate' | 'aqiCluster' | 'aqiStation';
 
 interface TechEventPopupData {
   id: string;
@@ -122,7 +123,7 @@ interface DatacenterClusterData {
 
 interface PopupData {
   type: PopupType;
-  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | CyberThreat | BgpAnomaly | NuclearFacility | EconomicCenter | GammaIrradiator | RadiationStation | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData | ClimateAnomaly;
+  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | CyberThreat | BgpAnomaly | NuclearFacility | EconomicCenter | GammaIrradiator | RadiationStation | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData | ClimateAnomaly | AQIClusterData | AQIStation;
   relatedNews?: NewsItem[];
   x: number;
   y: number;
@@ -435,6 +436,10 @@ export class MapPopup {
         return this.renderCommodityHubPopup(data.data as CommodityHubPopupData);
       case 'climate':
         return this.renderClimatePopup(data.data as ClimateAnomaly);
+      case 'aqiCluster':
+        return this.renderAqiClusterPopup(data.data as AQIClusterData);
+      case 'aqiStation':
+        return this.renderAqiStationPopup(data.data as AQIStation);
       default:
         return '';
     }
@@ -2184,6 +2189,49 @@ export class MapPopup {
     const squawk = flight.squawk ? escapeHtml(flight.squawk) : '';
     const note = flight.note ? escapeHtml(flight.note) : '';
 
+    const captureDate = flight.lastSeen
+      ? (flight.lastSeen instanceof Date ? flight.lastSeen : new Date(flight.lastSeen))
+      : null;
+    const isValidCapture = captureDate && !isNaN(captureDate.getTime());
+
+    let captureHtml = '';
+    if (isValidCapture) {
+      const now = Date.now();
+      const diffMs = Math.max(0, now - captureDate.getTime());
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+
+      let timeAgo = '';
+      let freshnessColor = '#22c55e'; // green (< 5m)
+      if (diffSec < 60) {
+        timeAgo = `${diffSec}s ago`;
+      } else if (diffMin < 60) {
+        timeAgo = `${diffMin}m ago`;
+        if (diffMin >= 15) freshnessColor = '#f59e0b';
+        else if (diffMin >= 5) freshnessColor = '#eab308';
+      } else {
+        const diffHours = Math.floor(diffMin / 60);
+        timeAgo = `${diffHours}h ago`;
+        freshnessColor = '#ef4444';
+      }
+
+      const hours = String(captureDate.getUTCHours()).padStart(2, '0');
+      const minutes = String(captureDate.getUTCMinutes()).padStart(2, '0');
+      const seconds = String(captureDate.getUTCSeconds()).padStart(2, '0');
+      const utcTime = `${hours}:${minutes}:${seconds} UTC`;
+      const fullIso = captureDate.toISOString();
+
+      captureHtml = `
+          <div class="popup-stat" title="Captured: ${escapeHtml(fullIso)}">
+            <span class="stat-label">${t('popups.militaryFlight.adsbCapture') || 'ADSB CAPTURE'}</span>
+            <span class="stat-value" style="display:inline-flex;align-items:center;gap:6px;">
+              <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${freshnessColor};box-shadow:0 0 6px ${freshnessColor};"></span>
+              ${utcTime} <span style="font-size:10px;color:var(--text-dim, #94a3b8);font-weight:normal;">(${timeAgo})</span>
+            </span>
+          </div>
+      `;
+    }
+
     return `
       <div class="popup-header military-flight ${flight.operator}">
         <span class="popup-title">${callsign}</span>
@@ -2219,6 +2267,7 @@ export class MapPopup {
             <span class="stat-value">${squawk}</span>
           </div>
           ` : ''}
+          ${captureHtml}
         </div>
         ${flight.note ? `<p class="popup-description">${note}</p>` : ''}
         <div class="popup-attribution">${t('popups.militaryFlight.attribution')}</div>
@@ -2353,7 +2402,20 @@ export class MapPopup {
     const dominantOperator = cluster.dominantOperator ? escapeHtml(cluster.dominantOperator.toUpperCase()) : '';
     const flightSummary = cluster.flights
       .slice(0, 5)
-      .map(f => `<div class="cluster-flight-item">${escapeHtml(f.callsign)} - ${escapeHtml(f.aircraftType)}</div>`)
+      .map(f => {
+        const fDate = f.lastSeen ? (f.lastSeen instanceof Date ? f.lastSeen : new Date(f.lastSeen)) : null;
+        let timeAgoStr = '';
+        if (fDate && !isNaN(fDate.getTime())) {
+          const diffSec = Math.floor(Math.max(0, Date.now() - fDate.getTime()) / 1000);
+          timeAgoStr = diffSec < 60 ? `${diffSec}s ago` : `${Math.floor(diffSec / 60)}m ago`;
+        }
+        return `
+          <div class="cluster-flight-item" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>${escapeHtml(f.callsign)} - ${escapeHtml(f.aircraftType)}</span>
+            ${timeAgoStr ? `<span style="font-size:10px;color:var(--text-dim, #94a3b8);">${escapeHtml(timeAgoStr)}</span>` : ''}
+          </div>
+        `;
+      })
       .join('');
     const moreFlights = cluster.flightCount > 5
       ? `<div class="cluster-more">${t('popups.militaryCluster.moreAircraft', { count: String(cluster.flightCount - 5) })}</div>`
@@ -2809,6 +2871,132 @@ export class MapPopup {
         <div style="margin-top: 8px; font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
           <span>Source: Open-Meteo / Copernicus ERA5</span>
           <span style="opacity: 0.85;">${escapeHtml(anomaly.period)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  private renderAqiClusterPopup(data: AQIClusterData): string {
+    const cat = getAqiCategory(data.avgAqi);
+    const badgeColor = cat.colorCss;
+    const badgeLabel = cat.label.toUpperCase();
+    const title = data.region || 'REGIONAL AIR QUALITY';
+    const items = data.variedItems || [];
+    const isSampled = data.count > items.length;
+
+    return `
+      <div class="popup-header aqi" style="border-left: 4px solid ${badgeColor};">
+        <span class="popup-title">💨 ${escapeHtml(title.toUpperCase())}</span>
+        <span class="popup-badge" style="background:${badgeColor};color:#fff;font-weight:700;">${escapeHtml(badgeLabel)}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-stats" style="grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px;">
+          <div class="popup-stat" style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px;">
+            <span class="stat-label" style="font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Avg. AQI</span>
+            <span class="stat-value" style="color:${badgeColor}; font-size:18px; font-weight:800;">${data.avgAqi}</span>
+          </div>
+          <div class="popup-stat" style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px;">
+            <span class="stat-label" style="font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Stations</span>
+            <span class="stat-value" style="font-size:18px; font-weight:800;">${data.count}</span>
+          </div>
+          <div class="popup-stat" style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px;">
+            <span class="stat-label" style="font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">AQI Range</span>
+            <span class="stat-value" style="font-size:14px; font-weight:700;">${data.minAqi} – ${data.maxAqi}</span>
+          </div>
+          <div class="popup-stat" style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px;">
+            <span class="stat-label" style="font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Spread</span>
+            <span class="stat-value" style="font-size:14px; font-weight:700;">±${Math.round((data.maxAqi - data.minAqi) / 2)} AQI</span>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim, #94a3b8);">
+            ${isSampled ? 'Top 10 Varied Measurements' : `All Reporting Stations (${items.length})`}
+          </span>
+          <span style="font-size:10px; color:var(--text-dim, #64748b);">
+            ${isSampled ? `Sampled from ${data.count} stations` : 'Complete cluster'}
+          </span>
+        </div>
+
+        <div class="aqi-cluster-list" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
+          ${items.map(st => {
+            const aqiVal = parseInt(st.aqi, 10);
+            const stCat = getAqiCategory(aqiVal);
+            const parts = getStationParticulates(st);
+            const partsSummary = parts.length > 0
+              ? parts.map(p => `<span style="display:inline-block; margin-right:8px; font-size:10px; color:var(--text-dim, #94a3b8);">${escapeHtml(p.code)}: <strong style="color:var(--text, #f1f5f9);">${p.value}</strong> ${escapeHtml(p.unit)}${p.isEstimated ? ' <span style="font-size:8px;opacity:0.75">(est.)</span>' : ''}</span>`).join('')
+              : '';
+            return `
+              <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; padding: 7px 10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                  <span style="font-weight:600; font-size:11px; color:var(--text, #f8fafc); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:210px;" title="${escapeHtml(st.station?.name || '')}">
+                    ${escapeHtml(st.station?.name || 'Monitoring Station')}
+                  </span>
+                  <span style="background:${stCat.colorCss}; color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; white-space:nowrap;">
+                    AQI ${st.aqi}
+                  </span>
+                </div>
+                ${partsSummary ? `<div style="margin-top:4px; line-height:1.3;">${partsSummary}</div>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div class="popup-attribution" style="margin-top:10px; font-size:10px; color:var(--text-dim, #64748b); text-align:center;">
+          Ground monitoring network via WAQI &bull; EPA Air Quality Index
+        </div>
+      </div>
+    `;
+  }
+
+  private renderAqiStationPopup(station: AQIStation): string {
+    const aqiNum = parseInt(station.aqi, 10);
+    const cat = getAqiCategory(aqiNum);
+    const badgeColor = cat.colorCss;
+    const name = station.station?.name || 'Air Quality Monitoring Station';
+    const parts = getStationParticulates(station);
+
+    return `
+      <div class="popup-header aqi" style="border-left: 4px solid ${badgeColor};">
+        <span class="popup-title">💨 ${escapeHtml(name.toUpperCase())}</span>
+        <span class="popup-badge" style="background:${badgeColor};color:#fff;font-weight:700;">${escapeHtml(cat.label.toUpperCase())}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-stats" style="grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px;">
+          <div class="popup-stat" style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px;">
+            <span class="stat-label" style="font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">AQI Index</span>
+            <span class="stat-value" style="color:${badgeColor}; font-size:20px; font-weight:800;">${station.aqi}</span>
+          </div>
+          <div class="popup-stat" style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px;">
+            <span class="stat-label" style="font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Health Risk</span>
+            <span class="stat-value" style="font-size:13px; font-weight:700;">${escapeHtml(cat.label)}</span>
+          </div>
+          <div class="popup-stat" style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px;">
+            <span class="stat-label" style="font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Location</span>
+            <span class="stat-value" style="font-size:12px;">${station.lat.toFixed(3)}°, ${station.lon.toFixed(3)}°</span>
+          </div>
+          <div class="popup-stat" style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px;">
+            <span class="stat-label" style="font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">Observed</span>
+            <span class="stat-value" style="font-size:12px;">${escapeHtml(station.station?.time || 'Recent')}</span>
+          </div>
+        </div>
+
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim, #94a3b8); margin-bottom:6px;">
+          Available Particulate Measurements
+        </div>
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; padding: 10px; display:flex; flex-direction:column; gap:6px;">
+          ${parts.map(p => `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11px; color:var(--text-dim, #cbd5e1);">${escapeHtml(p.label)}</span>
+              <strong style="font-size:12px; color:var(--text, #f8fafc);">${p.value} ${escapeHtml(p.unit)}${p.isEstimated ? ' <span style="font-size:9px;opacity:0.75;font-weight:normal;">(est.)</span>' : ''}</strong>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="popup-attribution" style="margin-top:10px; font-size:10px; color:var(--text-dim, #64748b); text-align:center;">
+          Ground monitoring network via WAQI &bull; EPA Air Quality Index
         </div>
       </div>
     `;

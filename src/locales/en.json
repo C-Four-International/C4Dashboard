@@ -1757,6 +1757,7 @@
       "heading": "HEADING",
       "hexCode": "HEX CODE",
       "squawk": "SQUAWK",
+      "adsbCapture": "ADSB CAPTURE",
       "attribution": "Source: OpenSky Network"
     },
     "militaryVessel": {

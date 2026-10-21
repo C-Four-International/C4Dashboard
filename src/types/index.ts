@@ -499,6 +499,14 @@ export interface Earthquake {
   url: string;
 }
 
+export interface AQIParticulateItem {
+  code: string;
+  label: string;
+  value: number;
+  unit: string;
+  isEstimated?: boolean;
+}
+
 export interface AQIStation {
   lat: number;
   lon: number;
@@ -508,6 +516,37 @@ export interface AQIStation {
     name: string;
     time: string;
   };
+  measurements?: {
+    pm25?: number;
+    pm10?: number;
+    o3?: number;
+    no2?: number;
+    so2?: number;
+    co?: number;
+    [key: string]: number | undefined;
+  };
+  iaqi?: {
+    pm25?: { v: number };
+    pm10?: { v: number };
+    o3?: { v: number };
+    no2?: { v: number };
+    so2?: { v: number };
+    co?: { v: number };
+    [key: string]: { v: number } | undefined;
+  };
+}
+
+export interface AQIClusterData {
+  id: string;
+  lat: number;
+  lon: number;
+  count: number;
+  avgAqi: number;
+  minAqi: number;
+  maxAqi: number;
+  region?: string;
+  items: AQIStation[];
+  variedItems: AQIStation[];
 }
 
 export interface Monitor {

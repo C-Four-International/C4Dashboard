@@ -38,7 +38,15 @@ import type {
   BgpAnomaly,
   CableHealthRecord,
   RegionalThreat,
+  AQIStation,
+  AQIClusterData,
 } from '@/types';
+import {
+  getAqiCategory,
+  getAqiColorRgba,
+  getStationParticulates,
+  getMostVariedStations,
+} from '@/services/aqi';
 import { calculateRegionalThreats } from '@/services/aggregate-threat';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { DisplacementFlow } from '@/services/displacement';
@@ -353,9 +361,11 @@ export class DeckGLMap {
   private countriesGeoJsonData: FeatureCollection<Geometry> | null = null;
   private usStateFeatures: any[] = [];
   private canadaProvinceFeatures: any[] = [];
-  private aqiData: import('@/types').AQIStation[] = [];
+  private aqiData: AQIStation[] = [];
   private lastAqiBounds: string = '';
   private aqiFetchPending: boolean = false;
+  private aqiSC: Supercluster | null = null;
+  private aqiSCSource: AQIStation[] | null = null;
   private gpsJammingData: import('@/services/gps-jamming').GpsJammingPoint[] = [];
   private gpsJammingFetchPending: boolean = false;
 
@@ -1773,7 +1783,7 @@ export class DeckGLMap {
     const collidableResult = result.map((layer: any) => {
       const type = layer?.constructor?.layerName;
       if (type === 'IconLayer' || type === 'TextLayer') {
-        const isExempt = layer.id === 'military-flights-layer' || layer.id === 'military-vessels-layer' || layer.id === 'threat-score-layer' || layer.id === 'military-clusters-badge';
+        const isExempt = layer.id === 'military-flights-layer' || layer.id === 'military-vessels-layer' || layer.id === 'threat-score-layer' || layer.id === 'military-clusters-badge' || layer.id.startsWith('aqi-');
         if (isExempt) return layer;
         return layer.clone({
           extensions: [...(layer.props.extensions || []), collisionExt],
@@ -1806,14 +1816,26 @@ export class DeckGLMap {
       const response = await fetch(`/api/aqi?bounds=${boundsStr}`);
       if (response.ok) {
         const json = await response.json();
-        if (json.status === 'ok' && json.data) {
+        if (json.status === 'ok' && json.data && json.data.length > 0) {
           // Filter out stations with invalid '-' AQI
           this.aqiData = json.data.filter((s: any) => s.aqi && s.aqi !== '-');
           this.render();
+          return;
         }
+      }
+      // Fallback to baseline stations if upstream returns empty or token not configured
+      if (this.aqiData.length === 0) {
+        const { BASELINE_AQI_STATIONS } = await import('@/services/aqi');
+        this.aqiData = BASELINE_AQI_STATIONS;
+        this.render();
       }
     } catch (e) {
       console.error('[DeckGLMap] Failed to fetch AQI data:', e);
+      if (this.aqiData.length === 0) {
+        const { BASELINE_AQI_STATIONS } = await import('@/services/aqi');
+        this.aqiData = BASELINE_AQI_STATIONS;
+        this.render();
+      }
     } finally {
       this.aqiFetchPending = false;
     }
@@ -1878,43 +1900,202 @@ export class DeckGLMap {
     }
   }
 
-  private createAqiLayers(aqiData: import('@/types').AQIStation[]): Layer[] {
-    const getAqiColor = (aqiStr: string): [number, number, number, number] => {
-      const aqi = parseInt(aqiStr, 10);
-      if (isNaN(aqi)) return [128, 128, 128, 200];
-      if (aqi <= 50) return [0, 153, 102, 220]; // Green
-      if (aqi <= 100) return [255, 222, 51, 220]; // Yellow
-      if (aqi <= 150) return [255, 153, 51, 220]; // Orange
-      if (aqi <= 200) return [204, 0, 51, 220]; // Red
-      if (aqi <= 300) return [102, 0, 153, 220]; // Purple
-      return [126, 0, 35, 220]; // Maroon
-    };
+  private getAqiSupercluster(aqiData: AQIStation[]): Supercluster {
+    if (this.aqiSC && this.aqiSCSource === aqiData) {
+      return this.aqiSC;
+    }
+    this.aqiSCSource = aqiData;
 
-    const scatterLayer = new ScatterplotLayer<import('@/types').AQIStation>({
-      id: 'aqi-bubbles-layer',
-      data: aqiData,
-      getPosition: d => [d.lon, d.lat],
-      getFillColor: d => getAqiColor(d.aqi),
-      getRadius: 15000,
-      radiusMinPixels: 14,
-      radiusMaxPixels: 30,
-      pickable: false
+    const points = aqiData.map((s, index) => {
+      const aqiNum = parseInt(s.aqi, 10);
+      return {
+        type: 'Feature' as const,
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [s.lon, s.lat] as [number, number],
+        },
+        properties: {
+          index,
+          uid: s.uid,
+          aqiNum: isNaN(aqiNum) ? 0 : aqiNum,
+          aqiSum: isNaN(aqiNum) ? 0 : aqiNum,
+          minAqi: isNaN(aqiNum) ? 999 : aqiNum,
+          maxAqi: isNaN(aqiNum) ? 0 : aqiNum,
+          count: 1,
+        },
+      };
     });
 
-    const textLayer = new TextLayer<import('@/types').AQIStation>({
-      id: 'aqi-text-layer',
-      data: aqiData,
-      getPosition: d => [d.lon, d.lat],
-      getText: d => String(d.aqi),
-      getSize: 12,
-      getColor: [255, 255, 255, 255],
-      getAlignmentBaseline: 'center',
-      getTextAnchor: 'middle',
-      parameters: { depthCompare: 'always' },
-      pickable: false
+    this.aqiSC = new Supercluster({
+      radius: 80,
+      maxZoom: 10,
+      map: (props: any) => ({
+        index: props.index,
+        uid: props.uid,
+        aqiNum: props.aqiNum,
+        aqiSum: props.aqiNum,
+        minAqi: props.aqiNum,
+        maxAqi: props.aqiNum,
+        count: 1,
+      }),
+      reduce: (acc: any, props: any) => {
+        acc.aqiSum = (acc.aqiSum || 0) + (props.aqiSum || 0);
+        acc.count = (acc.count || 0) + (props.count || 0);
+        acc.minAqi = Math.min(acc.minAqi ?? 999, props.minAqi ?? 999);
+        acc.maxAqi = Math.max(acc.maxAqi ?? 0, props.maxAqi ?? 0);
+      },
     });
 
-    return [scatterLayer, textLayer];
+    this.aqiSC.load(points);
+    return this.aqiSC;
+  }
+
+  private createAqiLayers(aqiData: AQIStation[]): Layer[] {
+    const zoom = this.maplibreMap?.getZoom() ?? 2;
+    const layers: Layer[] = [];
+
+    // Fading transition:
+    // zoom < 5.5: clusters fully visible (opacity 1.0), stations hidden (opacity 0.0)
+    // 5.5 <= zoom <= 7.5: cross-fade between clusters and individual stations
+    // zoom > 7.5: individual stations fully visible (opacity 1.0), clusters hidden
+    const FADE_START_ZOOM = 5.5;
+    const FADE_END_ZOOM = 7.5;
+    const t = Math.max(0, Math.min(1, (zoom - FADE_START_ZOOM) / (FADE_END_ZOOM - FADE_START_ZOOM)));
+    const clusterOpacity = 1 - t;
+    const stationOpacity = t;
+
+    const clusterBubbles: AQIClusterData[] = [];
+    const isolatedStations: AQIStation[] = [];
+
+    if (clusterOpacity > 0.01) {
+      const sc = this.getAqiSupercluster(aqiData);
+      const scZoom = Math.max(0, Math.min(10, Math.floor(zoom)));
+      const rawClusters = sc.getClusters([-180, -85, 180, 85], scZoom);
+
+      for (const f of rawClusters) {
+        const coords = f.geometry.coordinates as [number, number];
+        if (f.properties.cluster) {
+          const clusterId = f.properties.cluster_id!;
+          const leaves = sc.getLeaves(clusterId, 500);
+          const items = leaves.map(l => aqiData[l.properties.index]).filter((s): s is AQIStation => !!s);
+          const count = items.length;
+          const validNums = items.map(s => parseInt(s.aqi, 10)).filter(n => !isNaN(n));
+          const avgAqi = validNums.length > 0 ? Math.round(validNums.reduce((a, b) => a + b, 0) / validNums.length) : 0;
+          const minAqi = validNums.length > 0 ? Math.min(...validNums) : avgAqi;
+          const maxAqi = validNums.length > 0 ? Math.max(...validNums) : avgAqi;
+          const variedItems = getMostVariedStations(items, 10);
+
+          clusterBubbles.push({
+            id: `aqi-cluster-${clusterId}`,
+            lat: coords[1],
+            lon: coords[0],
+            count,
+            avgAqi,
+            minAqi,
+            maxAqi,
+            items,
+            variedItems,
+          });
+        } else {
+          const item = aqiData[f.properties.index];
+          if (item) isolatedStations.push(item);
+        }
+      }
+    }
+
+    // 1. Averaged regional cluster bubbles (larger bubbles with "Avg. AQI")
+    if (clusterOpacity > 0.01 && clusterBubbles.length > 0) {
+      const clusterScatterLayer = new ScatterplotLayer<AQIClusterData>({
+        id: 'aqi-clusters-layer',
+        data: clusterBubbles,
+        getPosition: d => [d.lon, d.lat],
+        getFillColor: d => getAqiColorRgba(d.avgAqi, clusterOpacity),
+        getRadius: 35000,
+        radiusMinPixels: 28,
+        radiusMaxPixels: 52,
+        stroked: true,
+        filled: true,
+        getLineColor: [255, 255, 255, Math.round(200 * clusterOpacity)],
+        getLineWidth: 2,
+        lineWidthUnits: 'pixels',
+        pickable: clusterOpacity > 0.35,
+      });
+
+      const clusterLabelLayer = new TextLayer<AQIClusterData>({
+        id: 'aqi-cluster-label-layer',
+        data: clusterBubbles,
+        getPosition: d => [d.lon, d.lat],
+        getText: () => 'Avg. AQI',
+        getSize: 9,
+        getColor: [255, 255, 255, Math.round(230 * clusterOpacity)],
+        getPixelOffset: [0, -8],
+        getAlignmentBaseline: 'center',
+        getTextAnchor: 'middle',
+        fontWeight: 700,
+        parameters: { depthCompare: 'always' },
+        pickable: false,
+      });
+
+      const clusterValueLayer = new TextLayer<AQIClusterData>({
+        id: 'aqi-cluster-value-layer',
+        data: clusterBubbles,
+        getPosition: d => [d.lon, d.lat],
+        getText: d => String(d.avgAqi),
+        getSize: 15,
+        getColor: [255, 255, 255, Math.round(255 * clusterOpacity)],
+        getPixelOffset: [0, 8],
+        getAlignmentBaseline: 'center',
+        getTextAnchor: 'middle',
+        fontWeight: 800,
+        parameters: { depthCompare: 'always' },
+        pickable: false,
+      });
+
+      layers.push(clusterScatterLayer, clusterLabelLayer, clusterValueLayer);
+    }
+
+    // 2. Individual station bubbles
+    // When stationOpacity > 0.01: show all stations fading in
+    // When stationOpacity <= 0.01 and clusterOpacity > 0.01: show isolated stations (count === 1)
+    const renderAllStations = stationOpacity > 0.01;
+    const activeStationData = renderAllStations ? aqiData : isolatedStations;
+    const activeStationOpacity = renderAllStations ? stationOpacity : clusterOpacity;
+
+    if (activeStationOpacity > 0.01 && activeStationData.length > 0) {
+      const stationScatterLayer = new ScatterplotLayer<AQIStation>({
+        id: 'aqi-bubbles-layer',
+        data: activeStationData,
+        getPosition: d => [d.lon, d.lat],
+        getFillColor: d => getAqiColorRgba(d.aqi, activeStationOpacity),
+        getRadius: 15000,
+        radiusMinPixels: 14,
+        radiusMaxPixels: 28,
+        stroked: true,
+        filled: true,
+        getLineColor: [255, 255, 255, Math.round(140 * activeStationOpacity)],
+        getLineWidth: 1.5,
+        lineWidthUnits: 'pixels',
+        pickable: activeStationOpacity > 0.35,
+      });
+
+      const stationTextLayer = new TextLayer<AQIStation>({
+        id: 'aqi-text-layer',
+        data: activeStationData,
+        getPosition: d => [d.lon, d.lat],
+        getText: d => String(d.aqi),
+        getSize: 12,
+        getColor: [255, 255, 255, Math.round(255 * activeStationOpacity)],
+        getAlignmentBaseline: 'center',
+        getTextAnchor: 'middle',
+        fontWeight: 700,
+        parameters: { depthCompare: 'always' },
+        pickable: false,
+      });
+
+      layers.push(stationScatterLayer, stationTextLayer);
+    }
+
+    return layers;
   }
 
   private createAgriculturalStressLayer(service: string, id: string, opacity: number = AGRICULTURAL_LAYER_OPACITY): TileLayer {
@@ -3774,8 +3955,14 @@ export class DeckGLMap {
         const op = obj.operator && obj.operator !== 'other' && obj.operator !== 'unknown' ? String(obj.operator).toUpperCase() : '';
         const origin = country && op ? `${country} (${op})` : country || op;
         const typeStr = obj.aircraftModel || obj.aircraftType || obj.type || 'Airborne Contact';
+        const captureDate = obj.lastSeen ? (obj.lastSeen instanceof Date ? obj.lastSeen : new Date(obj.lastSeen)) : null;
+        let timeAgo = '';
+        if (captureDate && !isNaN(captureDate.getTime())) {
+          const diffSec = Math.floor(Math.max(0, Date.now() - captureDate.getTime()) / 1000);
+          timeAgo = diffSec < 60 ? `${diffSec}s ago` : `${Math.floor(diffSec / 60)}m ago`;
+        }
         return {
-          html: `<div class="deckgl-tooltip"><strong>${text(obj.callsign || obj.registration || t('components.deckgl.tooltip.militaryAircraft'))}</strong><br/>${origin ? `${text(origin)} &bull; ` : ''}${text(typeStr)}</div>`
+          html: `<div class="deckgl-tooltip"><strong>${text(obj.callsign || obj.registration || t('components.deckgl.tooltip.militaryAircraft'))}</strong><br/>${origin ? `${text(origin)} &bull; ` : ''}${text(typeStr)}${timeAgo ? `<br/><span style="font-size:10px;color:var(--text-dim, #94a3b8)">ADSB: ${text(timeAgo)}</span>` : ''}</div>`
         };
       }
       case 'military-vessel-clusters-layer':
@@ -3901,6 +4088,58 @@ export class DeckGLMap {
         }
         return {
           html: `<div class="deckgl-tooltip"><strong>☢ ${text(st.name)}</strong><br/><strong>${st.cpm.toLocaleString()} CPM</strong> <small style="opacity:0.85">(GM equiv)</small> · ${doseStr}${statusBadge}${rawNote}<br/><small style="opacity:0.75">${text(st.source)}${timeStr ? ` · ${text(timeStr)}` : ''}</small></div>`,
+        };
+      }
+      case 'aqi-bubbles-layer': {
+        const station = obj as AQIStation;
+        const aqiNum = parseInt(station.aqi, 10);
+        const cat = getAqiCategory(aqiNum);
+        const name = station.station?.name || 'Monitoring Station';
+        const particulates = getStationParticulates(station);
+
+        let particulatesHtml = '';
+        if (particulates.length > 0) {
+          particulatesHtml = `
+            <div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.12);font-size:11px;">
+              <div style="color:var(--text-dim, #94a3b8);margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;font-size:9px;">Particulate Measurements</div>
+              ${particulates.map(p => `
+                <div style="display:flex;justify-content:space-between;gap:12px;line-height:1.4;">
+                  <span style="color:var(--text-dim, #cbd5e1);">${escapeHtml(p.label)}:</span>
+                  <strong style="color:var(--text, #f8fafc);">${p.value} ${escapeHtml(p.unit)}${p.isEstimated ? ' <span style="font-size:8px;opacity:0.75">(est.)</span>' : ''}</strong>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        return {
+          html: `
+            <div class="deckgl-tooltip aqi-tooltip">
+              <div style="font-weight:700;font-size:12px;margin-bottom:3px;color:var(--text, #fff);">${escapeHtml(name)}</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cat.colorCss};"></span>
+                <span style="font-size:11px;color:var(--text-dim, #cbd5e1);">AQI: <strong style="color:${cat.colorCss};font-size:12px;">${isNaN(aqiNum) ? station.aqi : aqiNum}</strong> &bull; ${escapeHtml(cat.label)}</span>
+              </div>
+              ${particulatesHtml}
+            </div>
+          `
+        };
+      }
+      case 'aqi-clusters-layer': {
+        const cluster = obj as AQIClusterData;
+        const cat = getAqiCategory(cluster.avgAqi);
+        return {
+          html: `
+            <div class="deckgl-tooltip aqi-tooltip">
+              <div style="font-weight:700;font-size:12px;margin-bottom:2px;color:var(--text, #fff);">Regional Air Quality</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cat.colorCss};"></span>
+                <span style="font-size:11px;">Avg. AQI: <strong style="color:${cat.colorCss};font-size:12px;">${cluster.avgAqi}</strong> (${escapeHtml(cat.label)})</span>
+              </div>
+              <div style="color:var(--text-dim, #94a3b8);font-size:10px;">${cluster.count} stations &bull; Range: ${cluster.minAqi}–${cluster.maxAqi}</div>
+              <div style="color:var(--accent, #60a5fa);font-size:10px;margin-top:4px;">Click to view 10 most varied measurements &rarr;</div>
+            </div>
+          `
         };
       }
       case 'spaceports-layer':
@@ -4178,6 +4417,27 @@ export class DeckGLMap {
       return;
     }
 
+    if (layerId === 'aqi-clusters-layer') {
+      const cluster = info.object as AQIClusterData;
+      this.popup.show({
+        type: 'aqiCluster',
+        data: cluster,
+        x: info.x,
+        y: info.y,
+      });
+      return;
+    }
+    if (layerId === 'aqi-bubbles-layer') {
+      const station = info.object as AQIStation;
+      this.popup.show({
+        type: 'aqiStation',
+        data: station,
+        x: info.x,
+        y: info.y,
+      });
+      return;
+    }
+
     // Map layer IDs to popup types
     const layerToPopupType: Record<string, PopupType> = {
       'conflict-zones-layer': 'conflict',
@@ -4201,6 +4461,8 @@ export class DeckGLMap {
       'natural-events-layer': 'natEvent',
       'waterways-layer': 'waterway',
       'economic-centers-layer': 'economic',
+      'aqi-clusters-layer': 'aqiCluster',
+      'aqi-bubbles-layer': 'aqiStation',
       'stock-exchanges-layer': 'stockExchange',
       'financial-centers-layer': 'financialCenter',
       'central-banks-layer': 'centralBank',
