@@ -1,0 +1,314 @@
+import { Panel } from './Panel';
+import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
+import { t } from '@/services/i18n';
+import {
+  fetchSocialIntelBriefings,
+  type SocialIntelBriefing,
+  type SocialSourcePost,
+  type SocialIntelResponse,
+} from '@/services/social-intel';
+
+type IntelFilter = 'all' | 'multisource' | 'bluesky' | 'telegram';
+
+export class SocialMediaIntelPanel extends Panel {
+  private briefings: SocialIntelBriefing[] = [];
+  private filter: IntelFilter = 'all';
+  private searchQuery = '';
+  private expandedBriefings = new Set<string>();
+  private isRefreshing = false;
+  private responseMeta: SocialIntelResponse | null = null;
+
+  constructor() {
+    super({
+      id: 'social-intel',
+      title: t('panels.socialIntel') || 'Social Media Intel',
+      showCount: true,
+      trackActivity: true,
+      infoTooltip: t('components.socialIntel.infoTooltip') || 'Live OSINT and breaking news monitor for Bluesky and Telegram. Cleans noise locally, clusters correlated events with Google AI Studio text-embedding-004, cross-references multi-source reporting, and generates air-gapped factual briefings under 25 words (cached for 3 hours).',
+    });
+
+    this.init();
+  }
+
+  private async init(): Promise<void> {
+    await this.loadData();
+  }
+
+  public async refresh(): Promise<void> {
+    await this.loadData(true);
+  }
+
+  private async loadData(forceRefresh = false): Promise<void> {
+    if (this.isRefreshing) return;
+    this.isRefreshing = true;
+
+    if (this.briefings.length === 0) {
+      this.showLoading();
+    } else {
+      this.setDataBadge('cached', 'Refreshing...');
+    }
+
+    try {
+      const data = await fetchSocialIntelBriefings(forceRefresh);
+      this.responseMeta = data;
+      this.briefings = data.briefings || [];
+      this.setCount(this.briefings.length);
+
+      const cacheState = forceRefresh ? 'live' : 'cached';
+      const detail = data.cachedUntil ? '3h TTL' : 'AI Correlated';
+      this.setDataBadge(cacheState, detail);
+
+      this.render();
+    } catch (err: any) {
+      console.error('[SocialMediaIntelPanel] Load error:', err);
+      if (this.briefings.length === 0) {
+        this.showError(t('common.failedToLoad') || 'Failed to load social media intelligence briefings.');
+      } else {
+        this.setDataBadge('unavailable', 'Sync failed');
+      }
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  private getFilteredBriefings(): SocialIntelBriefing[] {
+    return this.briefings.filter((b) => {
+      // Platform / corroboration filter
+      if (this.filter === 'multisource' && !b.isMultiSource) return false;
+      if (this.filter === 'bluesky' && !b.platforms.includes('bluesky')) return false;
+      if (this.filter === 'telegram' && !b.platforms.includes('telegram')) return false;
+
+      // Keyword search query
+      if (this.searchQuery) {
+        const q = this.searchQuery.toLowerCase();
+        const textMatch = b.briefing.toLowerCase().includes(q);
+        const sourceMatch = b.sources.some(
+          (s) => s.author.toLowerCase().includes(q) || s.cleanedText.toLowerCase().includes(q),
+        );
+        if (!textMatch && !sourceMatch) return false;
+      }
+
+      return true;
+    });
+  }
+
+  private render(): void {
+    const filtered = this.getFilteredBriefings();
+
+    const filtersHtml = `
+      <div class="social-intel-toolbar" id="social-intel-toolbar">
+        <div class="social-intel-filter-chips">
+          <button class="social-chip ${this.filter === 'all' ? 'active' : ''}" data-filter="all">
+            All (${this.briefings.length})
+          </button>
+          <button class="social-chip ${this.filter === 'multisource' ? 'active' : ''}" data-filter="multisource" title="Events corroborated by >= 2 independent sources">
+            ⚡ Corroborated (${this.briefings.filter((b) => b.isMultiSource).length})
+          </button>
+          <button class="social-chip ${this.filter === 'bluesky' ? 'active' : ''}" data-filter="bluesky">
+            🦋 Bluesky
+          </button>
+          <button class="social-chip ${this.filter === 'telegram' ? 'active' : ''}" data-filter="telegram">
+            ✈️ Telegram
+          </button>
+        </div>
+        <div class="social-intel-controls">
+          <div class="social-intel-search-wrapper">
+            <input
+              type="text"
+              class="social-intel-search-input"
+              id="social-intel-search-input"
+              placeholder="Search intel..."
+              value="${escapeHtml(this.searchQuery)}"
+            />
+            ${this.searchQuery ? '<button class="social-search-clear" id="social-search-clear">×</button>' : ''}
+          </div>
+          <button
+            class="social-intel-refresh-btn ${this.isRefreshing ? 'loading' : ''}"
+            id="social-intel-refresh-btn"
+            title="Refresh intel feed (3h cache)"
+            aria-label="Refresh intel feed"
+          >
+            ↻
+          </button>
+        </div>
+      </div>
+    `;
+
+    let contentHtml = '';
+    if (filtered.length === 0) {
+      contentHtml = `
+        <div class="social-intel-empty-state">
+          <div class="social-empty-icon">📡</div>
+          <div class="social-empty-title">${this.searchQuery ? 'No matching briefings' : 'Monitoring OSINT Channels'}</div>
+          <div class="social-empty-sub">
+            ${this.searchQuery ? 'Try clearing your search query or switching filters.' : 'Scraping prominent Bluesky and Telegram OSINT feeds for corroborated breaking events.'}
+          </div>
+        </div>
+      `;
+    } else {
+      contentHtml = `
+        <div class="social-intel-cards-list" id="social-intel-cards-list">
+          ${filtered.map((b) => this.renderBriefingCard(b)).join('')}
+        </div>
+      `;
+    }
+
+    const metaFooter = this.responseMeta ? `
+      <div class="social-intel-footer">
+        <span class="social-footer-stat">Model: ${escapeHtml(this.responseMeta.modelUsed || 'AI Studio Low-Cost')}</span>
+        <span class="social-footer-stat">Monitored: ${this.responseMeta.sourcesMonitored?.bluesky?.length || 10} Bluesky · ${this.responseMeta.sourcesMonitored?.telegram?.length || 8} Telegram</span>
+      </div>
+    ` : '';
+
+    this.content.innerHTML = `
+      <div class="social-intel-panel-inner">
+        ${filtersHtml}
+        ${contentHtml}
+        ${metaFooter}
+      </div>
+    `;
+
+    this.attachEventListeners();
+  }
+
+  private renderBriefingCard(b: SocialIntelBriefing): string {
+    const isExpanded = this.expandedBriefings.has(b.id);
+    const platformIcons = b.platforms.map((p) => (p === 'bluesky' ? '🦋' : '✈️')).join(' ');
+
+    const corroborationBadge = b.isMultiSource
+      ? `<span class="social-corroboration-badge verified" title="Corroborated by ${b.corroborationScore} independent sources">✓ ${b.corroborationScore} Sources Verified</span>`
+      : `<span class="social-corroboration-badge single" title="Single monitored source reporting">Single Monitor Signal</span>`;
+
+    return `
+      <article class="social-intel-card ${b.isMultiSource ? 'card-corroborated' : ''}" data-id="${escapeHtml(b.id)}">
+        <div class="social-intel-card-header">
+          <div class="social-card-meta-left">
+            <span class="social-freshness-dot"></span>
+            <span class="social-freshness-text" title="Generated ${escapeHtml(b.createdAt)}">${escapeHtml(b.freshness)}</span>
+            <span class="social-wordcount-chip">${b.wordCount} words</span>
+          </div>
+          <div class="social-card-meta-right">
+            ${corroborationBadge}
+            <span class="social-platform-icons">${platformIcons}</span>
+          </div>
+        </div>
+
+        <div class="social-briefing-text">
+          ${escapeHtml(b.briefing)}
+        </div>
+
+        <div class="social-card-actions">
+          <button
+            class="social-expand-sources-btn ${isExpanded ? 'expanded' : ''}"
+            data-action="toggle-expand"
+            data-id="${escapeHtml(b.id)}"
+            aria-expanded="${isExpanded ? 'true' : 'false'}"
+          >
+            <span>${b.sources.length} ${b.sources.length === 1 ? 'Source' : 'Sources'}</span>
+            <span class="social-chevron">${isExpanded ? '▲' : '▼'}</span>
+          </button>
+        </div>
+
+        ${isExpanded ? this.renderSourcesDrawer(b.sources) : ''}
+      </article>
+    `;
+  }
+
+  private renderSourcesDrawer(sources: SocialSourcePost[]): string {
+    return `
+      <div class="social-sources-drawer">
+        <div class="social-sources-title">CORROBORATING SOURCES & LINKS</div>
+        <div class="social-sources-list">
+          ${sources
+            .map((s) => {
+              const platformLabel = s.platform === 'bluesky' ? '🦋 Bluesky' : '✈️ Telegram';
+              const cleanSnippet = s.cleanedText.length > 220 ? `${s.cleanedText.slice(0, 220)}...` : s.cleanedText;
+
+              return `
+                <div class="social-source-item" data-platform="${s.platform}">
+                  <div class="social-source-header">
+                    <div class="social-source-author-wrap">
+                      <span class="social-source-platform-tag ${s.platform}">${platformLabel}</span>
+                      <span class="social-source-author">${escapeHtml(s.author)}</span>
+                    </div>
+                    <div class="social-source-right">
+                      <span class="social-source-freshness">${escapeHtml(s.freshness)}</span>
+                      <a
+                        href="${sanitizeUrl(s.url)}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="social-source-link"
+                        title="Open original post on ${s.platform}"
+                        data-action="view-source"
+                      >
+                        Open Post ↗
+                      </a>
+                    </div>
+                  </div>
+                  <div class="social-source-snippet">
+                    "${escapeHtml(cleanSnippet)}"
+                  </div>
+                </div>
+              `;
+            })
+            .join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  private attachEventListeners(): void {
+    // 1. Filter chips
+    const toolbar = this.content.querySelector('#social-intel-toolbar');
+    toolbar?.querySelectorAll('.social-chip').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const f = (btn as HTMLElement).dataset.filter as IntelFilter;
+        if (f && f !== this.filter) {
+          this.filter = f;
+          this.render();
+        }
+      });
+    });
+
+    // 2. Search input
+    const searchInput = this.content.querySelector('#social-intel-search-input') as HTMLInputElement | null;
+    searchInput?.addEventListener('input', (e) => {
+      this.searchQuery = (e.target as HTMLInputElement).value.trim();
+      this.render();
+    });
+
+    // 3. Clear search button
+    const clearBtn = this.content.querySelector('#social-search-clear');
+    clearBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.searchQuery = '';
+      this.render();
+    });
+
+    // 4. Refresh button
+    const refreshBtn = this.content.querySelector('#social-intel-refresh-btn');
+    refreshBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      void this.loadData(true);
+    });
+
+    // 5. Expand / Collapse drawers
+    const list = this.content.querySelector('#social-intel-cards-list');
+    list?.addEventListener('click', (e) => {
+      const target = (e.target as HTMLElement).closest('[data-action="toggle-expand"]') as HTMLElement | null;
+      if (target) {
+        e.stopPropagation();
+        const id = target.dataset.id;
+        if (id) {
+          if (this.expandedBriefings.has(id)) {
+            this.expandedBriefings.delete(id);
+          } else {
+            this.expandedBriefings.add(id);
+          }
+          this.render();
+        }
+      }
+    });
+  }
+}

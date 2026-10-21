@@ -465,6 +465,10 @@ export class PanelLayoutManager implements AppModule {
       const gdeltIntelPanel = new GdeltIntelPanel();
       this.ctx.panels['gdelt-intel'] = gdeltIntelPanel;
 
+      const { SocialMediaIntelPanel } = await import('@/components/SocialMediaIntelPanel');
+      const socialIntelPanel = new SocialMediaIntelPanel();
+      this.ctx.panels['social-intel'] = socialIntelPanel;
+
       /*
       const ciiPanel = new CIIPanel();
       ciiPanel.setShareStoryHandler((code, name) => {

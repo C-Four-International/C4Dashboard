@@ -16,6 +16,7 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'strategic-risk': { name: 'Strategic Risk Overview', enabled: false, priority: 1 },
   intel: { name: 'Intel Feed', enabled: true, priority: 1 },
   'gdelt-intel': { name: 'Live Intelligence', enabled: false, priority: 1 },
+  'social-intel': { name: 'Social Media Intel', enabled: true, priority: 1 },
   cascade: { name: 'Infrastructure Cascade', enabled: true, priority: 1 },
   politics: { name: 'World News', enabled: true, priority: 1 },
   us: { name: 'United States', enabled: true, priority: 1 },
@@ -637,7 +638,7 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
   // Full (geopolitical) variant
   intelligence: {
     labelKey: 'header.panelCatIntelligence',
-    panelKeys: ['strategic-risk', 'intel', 'gdelt-intel', 'cascade'],
+    panelKeys: ['strategic-risk', 'intel', 'gdelt-intel', 'social-intel', 'cascade'],
     variants: ['full'],
   },
   regionalNews: {

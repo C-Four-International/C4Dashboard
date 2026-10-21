@@ -21,6 +21,7 @@ export const DEFAULT_PANELS: Record<string, PanelConfig> = {
   'live-news': { name: 'Live News', enabled: true, priority: 1 },
   intel: { name: 'Intel Feed', enabled: true, priority: 1 },
   'gdelt-intel': { name: 'Live Intelligence', enabled: false, priority: 1 },
+  'social-intel': { name: 'Social Media Intel', enabled: true, priority: 1 },
   cii: { name: 'Country Instability', enabled: true, priority: 1 },
   cascade: { name: 'Infrastructure Cascade', enabled: true, priority: 1 },
   'strategic-risk': { name: 'Strategic Risk Overview', enabled: false, priority: 1 },

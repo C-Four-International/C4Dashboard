@@ -153,6 +153,7 @@
     "strategicRisk": "Strategic Risk Overview",
     "intel": "Intel Feed",
     "gdeltIntel": "Live Intelligence",
+    "socialIntel": "Social Media Intel",
     "cascade": "Infrastructure Cascade",
     "politics": "World News",
     "us": "United States",
@@ -1258,6 +1259,9 @@
     },
     "gdeltIntel": {
       "infoTooltip": "<strong>GDELT Intelligence</strong> Real-time global news monitoring:<ul><li>Curated topic categories (conflicts, cyber, etc.)</li><li>Articles from 100+ languages translated</li><li>Updates every 15 minutes</li></ul>Source: GDELT Project (gdeltproject.org)"
+    },
+    "socialIntel": {
+      "infoTooltip": "<strong>Social Media Intel</strong> Scrapes prominent news and OSINT accounts across Bluesky and Telegram. Cleans noise locally, uses Google AI Studio text-embedding-004 for semantic clustering and cross-referencing, and prompts low-cost LLM for air-gapped factual briefings (&lt;25 words) cached for 3 hours."
     },
     "investments": {
       "infoTooltip": "Database of Saudi Arabia and UAE foreign direct investments in global critical infrastructure. Click a row to fly to the investment on the map.",

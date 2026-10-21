@@ -706,6 +706,7 @@ const STANDALONE_API_ENDPOINTS: Record<string, string> = {
   '/api/asis': './api/asis.js',
   '/api/aviationstack': './api/aviationstack.js',
   '/api/telegram-feed': './api/telegram-feed.js',
+  '/api/social-intel': './api/social-intel.js',
   '/api/download': './api/download.js',
   '/api/fwdstart': './api/fwdstart.js',
   '/api/version': './api/version.js',
