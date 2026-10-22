@@ -2209,7 +2209,10 @@ async function gracefulShutdown(signal) {
     destroyTelegramClient();
   }
   if (typeof upstreamSocket !== 'undefined' && upstreamSocket) {
-    try { upstreamSocket.close(); } catch {}
+    try {
+      upstreamSocket.terminate();
+    } catch {}
+    upstreamSocket = null;
   }
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 6000);
