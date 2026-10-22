@@ -711,6 +711,25 @@ export class DeckGLMap {
         }
       }
 
+      if (this.maplibreMap && this.state.layers.weatherRadar && !this.mapTilerRadarLayer) {
+        if (!this.maplibreMap.getSource('rainviewer-radar-source')) {
+          this.maplibreMap.addSource('rainviewer-radar-source', {
+            type: 'raster',
+            tiles: ['https://tilecache.rainviewer.com/v2/radar/nowcast_10/256/{z}/{x}/{y}/2/1_1.png'],
+            tileSize: 256,
+          });
+        }
+        if (!this.maplibreMap.getLayer('rainviewer-radar-layer')) {
+          this.maplibreMap.addLayer({
+            id: 'rainviewer-radar-layer',
+            type: 'raster',
+            source: 'rainviewer-radar-source',
+            paint: { 'raster-opacity': 0.8 },
+          });
+        }
+        this.setLayerReady('weatherRadar', true);
+      }
+
       if (this.state.layers.waterTemperature) {
         this.updateWaterTemperatureLayer(true);
       }

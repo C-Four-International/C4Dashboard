@@ -224,8 +224,28 @@ async function syncTelegramToRedis(items) {
   }
 }
 
+let telegramPermanentlyDisabled = false;
+
+function destroyTelegramClient() {
+  const client = telegramState.client;
+  telegramState.client = null;
+  if (!client) return;
+  try { client.disconnect(); } catch {}
+  try {
+    if (client._sender) {
+      client._sender._reconnecting = false;
+      client._sender._autoReconnect = false;
+      if (client._sender._connection) {
+        try { client._sender._connection.socket?.destroy?.(); } catch {}
+        try { client._sender._connection.close?.(); } catch {}
+      }
+    }
+  } catch {}
+}
+
 async function initTelegramClientIfNeeded() {
   if (!TELEGRAM_ENABLED) return false;
+  if (telegramPermanentlyDisabled) return false;
   if (telegramState.client) return true;
 
   const apiId = parseInt(String(process.env.TELEGRAM_API_ID || ''), 10);
@@ -234,11 +254,12 @@ async function initTelegramClientIfNeeded() {
 
   if (!apiId || !apiHash || !sessionStr) return false;
 
+  let client;
   try {
     const { TelegramClient } = await import('telegram');
     const { StringSession } = await import('telegram/sessions/index.js');
 
-    const client = new TelegramClient(new StringSession(sessionStr), apiId, apiHash, {
+    client = new TelegramClient(new StringSession(sessionStr), apiId, apiHash, {
       connectionRetries: 3,
     });
 
@@ -248,7 +269,18 @@ async function initTelegramClientIfNeeded() {
     console.log('[Relay] Telegram client connected');
     return true;
   } catch (e) {
-    telegramState.lastError = `telegram init failed: ${e?.message || String(e)}`;
+    const em = e?.message || String(e);
+    if (client) {
+      telegramState.client = client;
+      destroyTelegramClient();
+    }
+    if (/AUTH_KEY_DUPLICATED/.test(em)) {
+      telegramPermanentlyDisabled = true;
+      telegramState.lastError = 'session invalidated (AUTH_KEY_DUPLICATED) — generate a new TELEGRAM_SESSION with npm run telegram:session';
+      console.error('[Relay] Telegram session permanently invalidated (AUTH_KEY_DUPLICATED). Generate a new session with: npm run telegram:session');
+      return false;
+    }
+    telegramState.lastError = `telegram init failed: ${em}`;
     console.warn('[Relay] Telegram init failed:', telegramState.lastError);
     return false;
   }
@@ -291,6 +323,17 @@ async function pollTelegramOnce() {
       const em = e?.message || String(e);
       telegramState.lastError = `poll ${handle} failed: ${em}`;
       console.warn('[Relay] Telegram poll error:', telegramState.lastError);
+      if (/AUTH_KEY_DUPLICATED/.test(em)) {
+        telegramPermanentlyDisabled = true;
+        telegramState.lastError = 'session invalidated (AUTH_KEY_DUPLICATED) — generate a new TELEGRAM_SESSION with npm run telegram:session';
+        console.error('[Relay] Telegram session permanently invalidated (AUTH_KEY_DUPLICATED). Stopping Telegram polling. Generate a new session with: npm run telegram:session');
+        destroyTelegramClient();
+        break;
+      }
+      if (/FLOOD_WAIT/.test(em)) {
+        console.warn(`[Relay] Telegram FLOOD_WAIT — stopping poll cycle early`);
+        break;
+      }
     }
   }
 
@@ -2146,3 +2189,31 @@ setInterval(() => {
     if (global.gc) global.gc();
   }
 }, 60 * 1000);
+
+// Graceful shutdown — disconnect Telegram MTProto client before container dies.
+// Railway sends SIGTERM during deploys; without this, the old container keeps
+// the Telegram session alive while the new container connects → AUTH_KEY_DUPLICATED.
+async function gracefulShutdown(signal) {
+  console.log(`[Relay] ${signal} received — shutting down gracefully`);
+  if (telegramState.client) {
+    console.log('[Relay] Disconnecting Telegram MTProto client...');
+    try {
+      await Promise.race([
+        telegramState.client.disconnect(),
+        new Promise(r => setTimeout(r, 4000)),
+      ]);
+      console.log('[Relay] Telegram client disconnected cleanly');
+    } catch (e) {
+      console.warn('[Relay] Telegram disconnect error (non-fatal):', e?.message || e);
+    }
+    destroyTelegramClient();
+  }
+  if (typeof upstreamSocket !== 'undefined' && upstreamSocket) {
+    try { upstreamSocket.close(); } catch {}
+  }
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 6000);
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
