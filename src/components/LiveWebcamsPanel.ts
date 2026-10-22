@@ -28,7 +28,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'gJsZdfSyPrM', // Western Wall Prayer Area
       'Y3v2WGY-SDc', // Western Wall Wilson's Arch
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
   {
@@ -54,7 +53,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'uDBYuEV4zjI', // Heathrow Airport 24/7
       'mNiI7CbnxyQ', // UK Coastal 4K Live
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
   {
@@ -66,7 +64,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'kboDFtMZqQI', // Champs-Élysées & Arc de Triomphe
       'CKIRyx-ZXM0', // Eiffel Tower & Seine River 8K
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
   {
@@ -78,7 +75,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'jtdyLykT_XY', // EarthCam - Mallorca
       'wiVzU1mcCTA', // EarthCam - Tamariu
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
   {
@@ -102,7 +98,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'eqJf0FloKyQ', // Neva River Palace Bridge
       'c6E86ojXhNs', // St. Petersburg Pavlov Sky
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
 
@@ -141,7 +136,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'sixP_dAJ8D4', // EarthCam - Lincoln Harbor Waterfront
       'IU_-Pl9O5jQ', // EarthCam - Midwest Wildlife Cam
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
   {
@@ -153,7 +147,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'xqdukYhcGEU', // EarthCam - Bourbon Street View
       '6tq8S2pp8PQ', // EarthCam - Southern River Cam
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
   {
@@ -177,7 +170,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'JQ_jwk_7OVE', // EarthCam - Times Square 4K
       'QxFFjXu_zqs', // EarthCam - Bourbon Street Live
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
   {
@@ -189,7 +181,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       '4LTSTw4jnZc', // EarthCam - Coastal Beach Cam
       'tAdTOOsrZBQ', // EarthCam - Anglins Pier Cam
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
   {
@@ -201,7 +192,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'wTLnC0o0UJ0', // Lawai Beach Resort Hawaii
       '5cH9Zr9cCvM', // AlohaLiveCam Hawaii Ocean Tour
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
 
@@ -227,7 +217,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'EvpdNDoG2r0', // The Peak 24/7 Live Camera
       'NdAyRlYxw3M', // Asian Maritime Bay Cam
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
   {
@@ -251,7 +240,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'j-0OhK7TDow', // Sydney Harbour Bridge & Opera House
       'H3W5vZbp0Yc', // Australian Runway Cam
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
   {
@@ -263,7 +251,6 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     fallbackVideoIds: [
       'NdAyRlYxw3M', // Pacific Bay Live Cam
       'GhNscofIqHU', // Metropolitan Live Cam
-      'zqWUG_BZlpY', // EarthCamTV 3 Live
     ],
   },
 ];
@@ -295,6 +282,7 @@ export class LiveWebcamsPanel extends Panel {
   private failedStreamsByFeed: Map<string, Set<string>> = new Map();
   private allFallbacksFailed: Set<string> = new Set();
   private allFallbacksRetryTimeout: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private healthCheckTokens: Map<string, number> = new Map();
 
   constructor() {
     super({ id: 'live-webcams', title: t('panels.liveWebcams') });
@@ -400,6 +388,7 @@ export class LiveWebcamsPanel extends Panel {
     if (!feed) return;
     const streams = this.getFeedStreams(feed);
     this.streamIndices.set(feedId, nextIdx);
+    const videoId = streams[nextIdx] || feed.fallbackVideoId;
 
     // In grid mode, update only this cell's iframe and badge directly without reloading all other iframes
     if (this.viewMode === 'grid') {
@@ -423,6 +412,7 @@ export class LiveWebcamsPanel extends Panel {
           badge.classList.remove('offline');
           badge.title = `Switch camera angle (${streams.length} available)`;
         }
+        void this.verifyStreamHealth(feedId, videoId);
         return;
       }
     } else if (this.viewMode === 'single' && this.activeFeed.id === feedId) {
@@ -444,6 +434,7 @@ export class LiveWebcamsPanel extends Panel {
         streamBtns.forEach((btn, idx) => {
           btn.classList.toggle('active', idx === nextIdx);
         });
+        void this.verifyStreamHealth(feedId, videoId);
         return;
       }
     }
@@ -498,20 +489,119 @@ export class LiveWebcamsPanel extends Panel {
       return;
     }
 
+    // Acknowledge initial delivery handshake from YouTube embed
+    if (msg.event === 'initialDelivery' && iframe.contentWindow) {
+      try {
+        iframe.contentWindow.postMessage(JSON.stringify({ event: 'listening' }), '*');
+      } catch { /* ignore */ }
+    }
+
     // Healthy / playing indicators:
     // 1. Desktop proxy: type === 'yt-ready'
     // 2. Desktop proxy: type === 'yt-state' && (state === 1 || state === 3)
     // 3. YouTube iframe API: event === 'onReady'
     // 4. YouTube iframe API: event === 'onStateChange' && (info === 1 || info === 3)
     // 5. YouTube iframe API: event === 'infoDelivery' && (playerState === 1 || playerState === 3)
+    // 6. YouTube iframe API: event === 'initialDelivery' (player successfully initialized and active)
     const isReadyOrPlaying = msg.type === 'yt-ready' ||
       msg.event === 'onReady' ||
       (msg.type === 'yt-state' && (msg.state === 1 || msg.state === 3)) ||
       (msg.event === 'onStateChange' && (msg.info === 1 || msg.info === 3)) ||
-      (msg.event === 'infoDelivery' && (msg.info?.playerState === 1 || msg.info?.playerState === 3));
+      (msg.event === 'infoDelivery' && (msg.info?.playerState === 1 || msg.info?.playerState === 3)) ||
+      (msg.event === 'initialDelivery' && !msg.info?.errorCode);
 
     if (isReadyOrPlaying) {
       this.handleStreamSuccess(feedId);
+    }
+  }
+
+  /**
+   * Checks whether a YouTube livestream is reachable and healthy.
+   * Probes YouTube's mqdefault image endpoint: valid streams return a 320x180 image (>120px wide),
+   * while dead/deleted/non-existent streams return 404 or a 120x90 placeholder.
+   */
+  public async checkStreamHealth(videoId: string): Promise<boolean> {
+    if (!videoId) return false;
+
+    // 1. Browser Image probe: client-side, zero server overhead, fast CDN response
+    if (typeof Image !== 'undefined') {
+      try {
+        const isHealthy = await new Promise<boolean>((resolve) => {
+          const img = new Image();
+          let settled = false;
+          const timer = setTimeout(() => {
+            if (!settled) {
+              settled = true;
+              img.src = '';
+              // Avoid false negative on slow network timeout
+              resolve(true);
+            }
+          }, 4500);
+
+          img.onload = () => {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timer);
+              resolve(img.naturalWidth > 120);
+            }
+          };
+
+          img.onerror = () => {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timer);
+              resolve(false);
+            }
+          };
+
+          img.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+        });
+
+        return isHealthy;
+      } catch {
+        // Fall back to fetch probe
+      }
+    }
+
+    // 2. Fallback probe via fetch (e.g. Node / unit testing or non-browser runtime)
+    if (typeof fetch !== 'undefined') {
+      try {
+        const res = await fetch(`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(4000),
+        });
+        if (res.status === 404) return false;
+        if (!res.ok) return false;
+        const len = Number(res.headers.get('content-length') || 0);
+        if (len > 0 && len <= 2000) return false;
+        return true;
+      } catch {
+        return true;
+      }
+    }
+
+    return true;
+  }
+
+  private async verifyStreamHealth(feedId: string, videoId: string): Promise<void> {
+    const token = (this.healthCheckTokens.get(feedId) ?? 0) + 1;
+    this.healthCheckTokens.set(feedId, token);
+
+    const isHealthy = await this.checkStreamHealth(videoId);
+
+    // If another health check or switch has been triggered for this feed, ignore this result
+    if (this.healthCheckTokens.get(feedId) !== token) return;
+    if (!this.isVisible || this.isIdle || document.hidden) return;
+
+    const feed = WEBCAM_FEEDS.find(f => f.id === feedId);
+    if (!feed || this.getFeedVideoId(feed) !== videoId) return;
+
+    if (isHealthy) {
+      // Working stream confirmed: stop switching and clear failure state
+      this.handleStreamSuccess(feedId);
+    } else {
+      // Stream is dead: trigger fallback switch to find a working stream
+      this.handleStreamFailure(feedId, 'stream health check failed: feed offline or unavailable');
     }
   }
 
@@ -519,8 +609,18 @@ export class LiveWebcamsPanel extends Panel {
     this.clearStreamWatchdog(feedId);
     if (!this.isVisible || this.isIdle || document.hidden) return;
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(async () => {
       this.streamWatchdogs.delete(feedId);
+      // Double check stream health before triggering failure to prevent false autoswitching on healthy streams
+      const feed = WEBCAM_FEEDS.find(f => f.id === feedId);
+      if (feed) {
+        const vid = this.getFeedVideoId(feed);
+        const healthy = await this.checkStreamHealth(vid);
+        if (healthy) {
+          this.handleStreamSuccess(feedId);
+          return;
+        }
+      }
       this.handleStreamFailure(feedId, 'watchdog timeout: stream unreachable or stalled');
     }, this.STREAM_WATCHDOG_MS);
     this.streamWatchdogs.set(feedId, timeoutId);
@@ -797,7 +897,15 @@ export class LiveWebcamsPanel extends Panel {
     iframe.addEventListener('error', () => {
       this.handleStreamFailure(feed.id, 'DOM iframe error event');
     });
+    iframe.addEventListener('load', () => {
+      try {
+        iframe.contentWindow?.postMessage(JSON.stringify({ event: 'listening' }), '*');
+        iframe.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'addEventListener', args: ['onReady'] }), '*');
+        iframe.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'addEventListener', args: ['onStateChange'] }), '*');
+      } catch { /* ignore */ }
+    });
     this.startStreamWatchdog(feed.id);
+    void this.verifyStreamHealth(feed.id, videoId);
     return iframe;
   }
 
@@ -927,6 +1035,7 @@ export class LiveWebcamsPanel extends Panel {
   }
 
   private destroyIframes(): void {
+    this.healthCheckTokens.clear();
     this.clearAllStreamWatchdogs();
     this.iframes.forEach(iframe => {
       iframe.src = 'about:blank';
@@ -1001,6 +1110,7 @@ export class LiveWebcamsPanel extends Panel {
   }
 
   public destroy(): void {
+    this.healthCheckTokens.clear();
     if (this.idleTimeout) {
       clearTimeout(this.idleTimeout);
       this.idleTimeout = null;

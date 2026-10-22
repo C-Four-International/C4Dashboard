@@ -115,4 +115,31 @@ describe('Live Webcams Automatic Fallback Livestream Switching', () => {
       'Must show offline indicator when all candidates fail and schedule recovery retry'
     );
   });
+
+  it('checks stream health after each switch and on iframe creation', () => {
+    assert.ok(
+      panelTs.includes('void this.verifyStreamHealth(feedId, videoId);') &&
+      panelTs.includes('void this.verifyStreamHealth(feed.id, videoId);') &&
+      panelTs.includes('checkStreamHealth(videoId: string)'),
+      'Must check stream health after switching and when creating iframes'
+    );
+  });
+
+  it('guards watchdog from falsely switching away from healthy streams', () => {
+    assert.ok(
+      panelTs.includes('const healthy = await this.checkStreamHealth(vid);') &&
+      panelTs.includes('if (healthy) {') &&
+      panelTs.includes('this.handleStreamSuccess(feedId);'),
+      'Watchdog must verify stream health before declaring failure so healthy streams never autoswitch'
+    );
+  });
+
+  it('stops switching once a working stream fallback is confirmed healthy', () => {
+    assert.ok(
+      panelTs.includes('if (isHealthy) {') &&
+      panelTs.includes('this.handleStreamSuccess(feedId);'),
+      'Must call handleStreamSuccess and clear watchdog when working stream fallback is verified'
+    );
+  });
 });
+
