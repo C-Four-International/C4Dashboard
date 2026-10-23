@@ -137,8 +137,8 @@ function parseAndSanitizeConflictEvents(parsed) {
     .filter(Boolean);
 }
 
-// Edge module cache: single canonical dataset cached for 2 hours to fit GDELT Cloud free plan limits
-const EDGE_CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours lengthy cache
+// Edge module cache: single canonical dataset cached for 24 hours to fit GDELT Cloud free plan limits
+const EDGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours lengthy cache
 let edgeCanonicalSnapshot = null;
 let edgeCanonicalSnapshotTime = 0;
 let edgeRateLimitUntil = 0;
@@ -192,7 +192,7 @@ export default async function handler(req) {
       const body = await response.text();
       const headers = {
         'Content-Type': response.headers.get('content-type') || 'application/json',
-        'Cache-Control': 'public, max-age=3600, s-maxage=7200, stale-while-revalidate=86400',
+        'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
         ...corsHeaders,
       };
 
@@ -223,14 +223,14 @@ export default async function handler(req) {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=3600, s-maxage=7200, stale-while-revalidate=86400',
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
           'X-Cache': cacheHeader,
           ...corsHeaders,
         },
       });
     };
 
-    // 1. Fresh cache hit (< 2 hours)
+    // 1. Fresh cache hit (< 24 hours)
     if (edgeCanonicalSnapshot && (Date.now() - edgeCanonicalSnapshotTime < EDGE_CACHE_TTL_MS)) {
       return makeResponse(edgeCanonicalSnapshot, 'HIT');
     }

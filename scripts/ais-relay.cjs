@@ -1608,8 +1608,8 @@ function handlePolymarketRequest(req, res) {
 // Lengthy 2-hour cache + 24-hour stale fallback to fit GDELT Cloud free plan limits (max ~360 calls/month worldwide)
 const humanConflictCache = new Map(); // key: query string → { data, timestamp }
 const humanConflictInFlight = new Map(); // key: query string → Promise (dedup concurrent requests)
-const HUMAN_CONFLICT_CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours lengthy cache
-const HUMAN_CONFLICT_STALE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours stale fallback
+const HUMAN_CONFLICT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours lengthy cache
+const HUMAN_CONFLICT_STALE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days stale fallback
 const HUMAN_CONFLICT_CACHE_MAX_ENTRIES = 50;
 let canonicalConflictSnapshot = null; // Single shared global snapshot of events
 let canonicalConflictSnapshotTime = 0;
@@ -1721,6 +1721,32 @@ function parseAndSanitizeConflictEvents(parsed) {
     .filter(Boolean);
 }
 
+function convertUcdpToConflictEvents(ucdpData) {
+  const events = Array.isArray(ucdpData?.events) ? ucdpData.events : [];
+  return events.map((e, idx) => {
+    const isOneSided = e.type_of_violence === 'one-sided';
+    const category = isOneSided ? 'riots' : 'battles';
+    const title = `${e.side_a || 'Armed forces'} vs ${e.side_b || 'Opposing forces'} (${e.country || 'Region'})`;
+    return {
+      id: `ucdp-${e.id || idx}`,
+      title,
+      category,
+      subcategory: e.type_of_violence,
+      subcategoryLabel: (e.type_of_violence || '').replace(/-/g, ' ').toUpperCase(),
+      date: (e.date_start || '').split('T')[0] || new Date().toISOString().split('T')[0],
+      lat: Number(e.latitude) || 0,
+      lon: Number(e.longitude) || 0,
+      country: e.country || '',
+      location: e.country || '',
+      fatalities: Math.max(0, Number(e.deaths_best || 0)),
+      actors: [e.side_a, e.side_b].filter(Boolean),
+      significance: Math.min(10, Math.max(1, Math.ceil((e.deaths_best || 1) / 5))),
+      source: 'ucdp',
+      notes: e.source_original || undefined,
+    };
+  }).filter(e => e.lat !== 0 || e.lon !== 0);
+}
+
 function handleHumanConflictRequest(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const clientCategory = (url.searchParams.get('category') || '').toLowerCase();
@@ -1752,25 +1778,30 @@ function handleHumanConflictRequest(req, res) {
 
     sendCompressed(req, res, 200, {
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=7200, s-maxage=7200, stale-while-revalidate=86400',
+      'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
       'X-Cache': cacheHeader,
       'X-Conflict-Source': sourceHeader,
     }, payload);
   };
 
-  // 1. If canonical snapshot is fresh (< 2 hours), serve immediately from in-memory cache
+  // 1. If canonical snapshot is fresh (< 24 hours), serve immediately from in-memory cache
   if (canonicalConflictSnapshot && (Date.now() - canonicalConflictSnapshotTime < HUMAN_CONFLICT_CACHE_TTL_MS)) {
     return sendFilteredSnapshot('HIT', 'railway-cache');
   }
 
-  // 2. If GDELT Cloud returned 429 and cooldown is active, serve stale snapshot to protect free plan quota
+  // 2. If GDELT Cloud returned 429/403 and cooldown is active, serve stale snapshot to protect free plan quota
   if (canonicalConflictSnapshot && (Date.now() < gdeltCloudRateLimitUntil)) {
     return sendFilteredSnapshot('STALE-COOLDOWN', 'railway-stale');
   }
 
-  // 3. If API key is missing
+  // 3. If API key is missing or exhausted, fall back to UCDP conflict feed
   if (!GDELT_API_KEY) {
     if (canonicalConflictSnapshot) return sendFilteredSnapshot('STALE-NO-KEY', 'railway-stale');
+    if (ucdpCache.data && Array.isArray(ucdpCache.data.events) && ucdpCache.data.events.length > 0) {
+      canonicalConflictSnapshot = convertUcdpToConflictEvents(ucdpCache.data);
+      canonicalConflictSnapshotTime = ucdpCache.timestamp || Date.now();
+      return sendFilteredSnapshot('UCDP-FALLBACK', 'ucdp-public');
+    }
     console.warn('[Relay] GDELT_API_KEY not configured in Railway environment');
     const fallback = JSON.stringify({
       success: false,
@@ -1831,7 +1862,25 @@ function handleHumanConflictRequest(req, res) {
           if (canonicalConflictSnapshot) {
             return resolve(canonicalConflictSnapshot);
           }
+          if (ucdpCache.data && ucdpCache.data.events?.length > 0) {
+            return resolve(convertUcdpToConflictEvents(ucdpCache.data));
+          }
           return reject(new Error('GDELT Cloud API rate limit reached (429)'));
+        }
+
+        if (response.statusCode === 403) {
+          console.warn('[Relay] GDELT Cloud programmatic starter calls exhausted (403 PROGRAMMATIC_ACCESS_DENIED). Entering 24-hr cooldown.');
+          gdeltCloudRateLimitUntil = Date.now() + 24 * 60 * 60 * 1000;
+          if (canonicalConflictSnapshot) {
+            return resolve(canonicalConflictSnapshot);
+          }
+          if (ucdpCache.data && ucdpCache.data.events?.length > 0) {
+            const fallbackEvents = convertUcdpToConflictEvents(ucdpCache.data);
+            canonicalConflictSnapshot = fallbackEvents;
+            canonicalConflictSnapshotTime = Date.now();
+            return resolve(fallbackEvents);
+          }
+          return reject(new Error('GDELT Cloud programmatic starter calls exhausted (403)'));
         }
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -1844,7 +1893,7 @@ function handleHumanConflictRequest(req, res) {
           const sanitizedEvents = parseAndSanitizeConflictEvents(parsed);
           canonicalConflictSnapshot = sanitizedEvents;
           canonicalConflictSnapshotTime = Date.now();
-          console.log(`[Relay] GDELT Cloud canonical conflict cached: ${sanitizedEvents.length} events (valid for 2 hours)`);
+          console.log(`[Relay] GDELT Cloud canonical conflict cached: ${sanitizedEvents.length} events (valid for 24 hours)`);
           try {
             require('fs').writeFileSync(CONFLICT_DISK_CACHE_FILE, JSON.stringify({
               timestamp: canonicalConflictSnapshotTime,

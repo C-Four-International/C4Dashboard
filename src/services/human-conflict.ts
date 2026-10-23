@@ -18,7 +18,7 @@ const DIRECT_RAILWAY_URL = getDirectRailwayUrl();
 
 const breaker = createCircuitBreaker<HumanConflictEvent[]>({
   name: 'Human Conflict (GDELT)',
-  cacheTtlMs: 2 * 60 * 60 * 1000, // 2-hour lengthy client cache to stay within GDELT Cloud free plan limits
+  cacheTtlMs: 24 * 60 * 60 * 1000, // 24-hour lengthy client cache to stay within GDELT Cloud free plan limits
   persistCache: true,
 });
 
