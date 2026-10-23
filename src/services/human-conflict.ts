@@ -9,7 +9,7 @@ const DIRECT_RAILWAY_URL = wsRelayUrl
 
 const breaker = createCircuitBreaker<HumanConflictEvent[]>({
   name: 'Human Conflict (GDELT)',
-  cacheTtlMs: 10 * 60 * 1000,
+  cacheTtlMs: 2 * 60 * 60 * 1000, // 2-hour lengthy client cache to stay within GDELT Cloud free plan limits
   persistCache: true,
 });
 

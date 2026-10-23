@@ -1605,10 +1605,30 @@ function handlePolymarketRequest(req, res) {
 }
 
 // ── Human Conflict proxy (queries gdeltcloud.com for protests, battles, riots, strategic developments) ──
+// Lengthy 2-hour cache + 24-hour stale fallback to fit GDELT Cloud free plan limits (max ~360 calls/month worldwide)
 const humanConflictCache = new Map(); // key: query string → { data, timestamp }
 const humanConflictInFlight = new Map(); // key: query string → Promise (dedup concurrent requests)
-const HUMAN_CONFLICT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min cache
+const HUMAN_CONFLICT_CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours lengthy cache
+const HUMAN_CONFLICT_STALE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours stale fallback
 const HUMAN_CONFLICT_CACHE_MAX_ENTRIES = 50;
+let canonicalConflictSnapshot = null; // Single shared global snapshot of events
+let canonicalConflictSnapshotTime = 0;
+let gdeltCloudRateLimitUntil = 0; // Cooldown timer if 429 occurs
+let canonicalFetchInFlight = null;
+
+// Hydrate canonical cache from OS temp storage if available (survives relay reboots)
+const CONFLICT_DISK_CACHE_FILE = path.join(require('os').tmpdir(), 'worldmonitor-gdelt-conflict-cache.json');
+try {
+  const rawDisk = readFileSync(CONFLICT_DISK_CACHE_FILE, 'utf8');
+  const diskData = JSON.parse(rawDisk);
+  if (diskData && Array.isArray(diskData.events) && diskData.timestamp) {
+    if (Date.now() - diskData.timestamp < HUMAN_CONFLICT_STALE_TTL_MS) {
+      canonicalConflictSnapshot = diskData.events;
+      canonicalConflictSnapshotTime = diskData.timestamp;
+      console.log(`[Relay] Hydrated GDELT canonical conflict cache from disk: ${canonicalConflictSnapshot.length} events (age: ${Math.round((Date.now() - canonicalConflictSnapshotTime) / 60000)}m)`);
+    }
+  }
+} catch {}
 
 function normalizeConflictCategory(rawCategory, rawSubcategory, rawTitle) {
   const combined = `${rawCategory || ''} ${rawSubcategory || ''} ${rawTitle || ''}`.toLowerCase();
@@ -1703,19 +1723,54 @@ function parseAndSanitizeConflictEvents(parsed) {
 
 function handleHumanConflictRequest(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
-  const cacheKey = url.search || '';
+  const clientCategory = (url.searchParams.get('category') || '').toLowerCase();
+  const clientCountry = (url.searchParams.get('country') || '').toLowerCase();
+  const clientLimit = Math.min(300, Math.max(1, Number(url.searchParams.get('limit') || 250)));
 
-  const cached = humanConflictCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < HUMAN_CONFLICT_CACHE_TTL_MS) {
-    return sendCompressed(req, res, 200, {
+  // Helper to filter and send canonical snapshot
+  const sendFilteredSnapshot = (cacheHeader, sourceHeader) => {
+    let events = canonicalConflictSnapshot || [];
+    if (clientCategory) {
+      const allowed = clientCategory.split(',').map(s => s.trim().toLowerCase());
+      events = events.filter(e => allowed.includes(e.category.toLowerCase()));
+    }
+    if (clientCountry) {
+      events = events.filter(e => (e.country || '').toLowerCase() === clientCountry);
+    }
+    if (events.length > clientLimit) {
+      events = events.slice(0, clientLimit);
+    }
+
+    const payload = JSON.stringify({
+      success: true,
+      count: events.length,
+      data: events,
+      cached_at: new Date(canonicalConflictSnapshotTime || Date.now()).toISOString(),
+    });
+
+    humanConflictCache.set('canonical', { data: payload, timestamp: canonicalConflictSnapshotTime });
+
+    sendCompressed(req, res, 200, {
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=300',
-      'X-Cache': 'HIT',
-      'X-Conflict-Source': 'railway-cache',
-    }, cached.data);
+      'Cache-Control': 'public, max-age=7200, s-maxage=7200, stale-while-revalidate=86400',
+      'X-Cache': cacheHeader,
+      'X-Conflict-Source': sourceHeader,
+    }, payload);
+  };
+
+  // 1. If canonical snapshot is fresh (< 2 hours), serve immediately from in-memory cache
+  if (canonicalConflictSnapshot && (Date.now() - canonicalConflictSnapshotTime < HUMAN_CONFLICT_CACHE_TTL_MS)) {
+    return sendFilteredSnapshot('HIT', 'railway-cache');
   }
 
+  // 2. If GDELT Cloud returned 429 and cooldown is active, serve stale snapshot to protect free plan quota
+  if (canonicalConflictSnapshot && (Date.now() < gdeltCloudRateLimitUntil)) {
+    return sendFilteredSnapshot('STALE-COOLDOWN', 'railway-stale');
+  }
+
+  // 3. If API key is missing
   if (!GDELT_API_KEY) {
+    if (canonicalConflictSnapshot) return sendFilteredSnapshot('STALE-NO-KEY', 'railway-stale');
     console.warn('[Relay] GDELT_API_KEY not configured in Railway environment');
     const fallback = JSON.stringify({
       success: false,
@@ -1729,23 +1784,13 @@ function handleHumanConflictRequest(req, res) {
     }, fallback);
   }
 
-  // Deduplicate in-flight requests for the same query
-  const existingFetch = humanConflictInFlight.get(cacheKey);
-  if (existingFetch) {
-    existingFetch.then(body => {
-      sendCompressed(req, res, 200, {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300',
-        'X-Cache': 'DEDUP',
-        'X-Conflict-Source': 'railway',
-      }, body);
+  // 4. In-flight request deduplication: wait for the single canonical fetch
+  if (canonicalFetchInFlight) {
+    canonicalFetchInFlight.then(() => {
+      sendFilteredSnapshot('DEDUP', 'railway');
     }).catch(err => {
-      if (cached) {
-        return sendCompressed(req, res, 200, {
-          'Content-Type': 'application/json',
-          'X-Cache': 'STALE',
-          'X-Conflict-Source': 'railway-stale',
-        }, cached.data);
+      if (canonicalConflictSnapshot) {
+        return sendFilteredSnapshot('STALE', 'railway-stale');
       }
       res.writeHead(502, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: false, error: err.message, count: 0, data: [] }));
@@ -1753,18 +1798,16 @@ function handleHumanConflictRequest(req, res) {
     return;
   }
 
+  // 5. Fetch canonical global conflict dataset from gdeltcloud.com (single query for all clients)
   const upstreamUrl = new URL('https://gdeltcloud.com/api/v2/events');
   upstreamUrl.searchParams.set('event_family', 'conflict');
-  upstreamUrl.searchParams.set('category', url.searchParams.get('category') || 'Battles,Protests,Riots,Strategic developments');
-  upstreamUrl.searchParams.set('days', url.searchParams.get('days') || '14');
-  upstreamUrl.searchParams.set('limit', url.searchParams.get('limit') || '250');
-  if (url.searchParams.get('country')) {
-    upstreamUrl.searchParams.set('country', url.searchParams.get('country'));
-  }
+  upstreamUrl.searchParams.set('category', 'Battles,Protests,Riots,Strategic developments');
+  upstreamUrl.searchParams.set('days', '14');
+  upstreamUrl.searchParams.set('limit', '300');
 
-  console.log('[Relay] Querying gdeltcloud.com conflict events (MISS):', upstreamUrl.search);
+  console.log('[Relay] Querying gdeltcloud.com canonical conflict events (MISS):', upstreamUrl.search);
 
-  const fetchPromise = new Promise((resolve, reject) => {
+  canonicalFetchInFlight = new Promise((resolve, reject) => {
     const request = https.get(upstreamUrl.toString(), {
       headers: {
         'Accept': 'application/json',
@@ -1782,6 +1825,15 @@ function handleHumanConflictRequest(req, res) {
       let rawData = '';
       stream.on('data', chunk => rawData += chunk);
       stream.on('end', () => {
+        if (response.statusCode === 429) {
+          console.warn('[Relay] GDELT Cloud returned 429 (rate-limited/quota). Entering 30-min cooldown.');
+          gdeltCloudRateLimitUntil = Date.now() + 30 * 60 * 1000;
+          if (canonicalConflictSnapshot) {
+            return resolve(canonicalConflictSnapshot);
+          }
+          return reject(new Error('GDELT Cloud API rate limit reached (429)'));
+        }
+
         if (response.statusCode < 200 || response.statusCode >= 300) {
           console.error(`[Relay] GDELT Cloud upstream returned ${response.statusCode}:`, rawData.slice(0, 200));
           return reject(new Error(`GDELT Cloud API HTTP ${response.statusCode}`));
@@ -1790,20 +1842,16 @@ function handleHumanConflictRequest(req, res) {
         try {
           const parsed = JSON.parse(rawData);
           const sanitizedEvents = parseAndSanitizeConflictEvents(parsed);
-          const resultPayload = JSON.stringify({
-            success: true,
-            count: sanitizedEvents.length,
-            data: sanitizedEvents,
-            cached_at: new Date().toISOString(),
-          });
-
-          // Bounded cache
-          if (humanConflictCache.size >= HUMAN_CONFLICT_CACHE_MAX_ENTRIES && !humanConflictCache.has(cacheKey)) {
-            const oldest = humanConflictCache.keys().next().value;
-            if (oldest) humanConflictCache.delete(oldest);
-          }
-          humanConflictCache.set(cacheKey, { data: resultPayload, timestamp: Date.now() });
-          resolve(resultPayload);
+          canonicalConflictSnapshot = sanitizedEvents;
+          canonicalConflictSnapshotTime = Date.now();
+          console.log(`[Relay] GDELT Cloud canonical conflict cached: ${sanitizedEvents.length} events (valid for 2 hours)`);
+          try {
+            require('fs').writeFileSync(CONFLICT_DISK_CACHE_FILE, JSON.stringify({
+              timestamp: canonicalConflictSnapshotTime,
+              events: sanitizedEvents,
+            }));
+          } catch {}
+          resolve(sanitizedEvents);
         } catch (err) {
           console.error('[Relay] GDELT Cloud JSON parse error:', err.message);
           reject(new Error('Invalid JSON from GDELT Cloud API'));
@@ -1819,30 +1867,20 @@ function handleHumanConflictRequest(req, res) {
     });
   });
 
-  humanConflictInFlight.set(cacheKey, fetchPromise);
-  fetchPromise
-    .then(body => {
-      sendCompressed(req, res, 200, {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300',
-        'X-Cache': 'MISS',
-        'X-Conflict-Source': 'railway',
-      }, body);
+  canonicalFetchInFlight
+    .then(() => {
+      sendFilteredSnapshot('MISS', 'railway');
     })
     .catch(err => {
       console.error('[Relay] Human Conflict error:', err.message);
-      if (cached) {
-        return sendCompressed(req, res, 200, {
-          'Content-Type': 'application/json',
-          'X-Cache': 'STALE',
-          'X-Conflict-Source': 'railway-stale',
-        }, cached.data);
+      if (canonicalConflictSnapshot) {
+        return sendFilteredSnapshot('STALE', 'railway-stale');
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: false, error: err.message, count: 0, data: [] }));
     })
     .finally(() => {
-      humanConflictInFlight.delete(cacheKey);
+      canonicalFetchInFlight = null;
     });
 }
 

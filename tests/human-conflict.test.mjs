@@ -36,20 +36,24 @@ test('Human Conflict edge proxy & client service', async (t) => {
   assert.ok(fs.existsSync(proxyPath), 'api/human-conflict.js must exist');
   const proxyCode = fs.readFileSync(proxyPath, 'utf8');
 
-  await t.test('api/human-conflict.js proxies to Railway relay with auth', () => {
+  await t.test('api/human-conflict.js proxies to Railway relay with auth and lengthy cache', () => {
     assert.match(proxyCode, /WS_RELAY_URL/);
     assert.match(proxyCode, /RELAY_SHARED_SECRET/);
     assert.match(proxyCode, /\/human-conflict/);
+    assert.match(proxyCode, /s-maxage=7200/);
+    assert.match(proxyCode, /EDGE_CACHE_TTL_MS\s*=\s*2\s*\*\s*60\s*\*\s*60\s*\*\s*1000/);
   });
 
   const servicePath = path.resolve('src/services/human-conflict.ts');
   assert.ok(fs.existsSync(servicePath), 'src/services/human-conflict.ts must exist');
   const serviceCode = fs.readFileSync(servicePath, 'utf8');
 
-  await t.test('src/services/human-conflict.ts exports fetchHumanConflictEvents with circuit breaker', () => {
+  await t.test('src/services/human-conflict.ts exports fetchHumanConflictEvents with 2-hour circuit breaker', () => {
     assert.match(serviceCode, /export async function fetchHumanConflictEvents/);
     assert.match(serviceCode, /createCircuitBreaker/);
     assert.match(serviceCode, /\/api\/human-conflict/);
+    assert.match(serviceCode, /cacheTtlMs:\s*2\s*\*\s*60\s*\*\s*60\s*\*\s*1000/);
+    assert.match(serviceCode, /persistCache:\s*true/);
   });
 });
 
@@ -85,6 +89,13 @@ test('Human Conflict layer integration in DeckGL and map layers', async (t) => {
     assert.match(loaderCode, /case 'humanConflict':/);
   });
 
+  const appPath = path.resolve('src/App.ts');
+  const appCode = fs.readFileSync(appPath, 'utf8');
+
+  await t.test('src/App.ts registers 2-hour refresh interval for human conflict', () => {
+    assert.match(appCode, /name:\s*['"]humanConflict['"].*intervalMs:\s*2\s*\*\s*60\s*\*\s*60\s*\*\s*1000/);
+  });
+
   await t.test('DeckGLMap includes humanConflict in legend with category subswatches', () => {
     assert.match(deckGlCode, /badge:\s*['"]Conflict Dot['"]/);
     assert.match(deckGlCode, /name:\s*t\(['"]components\.deckgl\.layers\.humanConflict['"]\)/);
@@ -99,7 +110,7 @@ test('Human Conflict layer integration in DeckGL and map layers', async (t) => {
 
     const enLocalesPath = path.resolve('src/locales/en.json');
     const enLocalesCode = fs.readFileSync(enLocalesPath, 'utf8');
-    assert.match(enLocalesCode, /"humanConflictDesc":\s*"[^"]+"/);
+    assert.match(enLocalesCode, /"humanConflictDesc":\s*"[^"]+\[Cache:\s*2\s*hours\]"/);
 
     const mapPath = path.resolve('src/components/Map.ts');
     const mapCode = fs.readFileSync(mapPath, 'utf8');

@@ -120,6 +120,27 @@ function parseAndSanitizeConflictEvents(parsed) {
     .filter(Boolean);
 }
 
+// Edge module cache: single canonical dataset cached for 2 hours to fit GDELT Cloud free plan limits
+const EDGE_CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours lengthy cache
+let edgeCanonicalSnapshot = null;
+let edgeCanonicalSnapshotTime = 0;
+let edgeRateLimitUntil = 0;
+let edgeCanonicalFetchInFlight = null;
+
+function filterSnapshotEvents(events, categoryParam, countryParam, limitParam) {
+  let list = Array.isArray(events) ? events : [];
+  if (categoryParam) {
+    const allowed = categoryParam.toLowerCase().split(',').map(s => s.trim());
+    list = list.filter(e => allowed.includes((e.category || '').toLowerCase()));
+  }
+  if (countryParam) {
+    const countryLower = countryParam.toLowerCase();
+    list = list.filter(e => (e.country || '').toLowerCase() === countryLower);
+  }
+  const maxLimit = Math.min(300, Math.max(1, Number(limitParam || 250)));
+  return list.slice(0, maxLimit);
+}
+
 export default async function handler(req) {
   const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');
 
@@ -154,7 +175,7 @@ export default async function handler(req) {
       const body = await response.text();
       const headers = {
         'Content-Type': response.headers.get('content-type') || 'application/json',
-        'Cache-Control': 'public, max-age=180, s-maxage=300, stale-while-revalidate=600',
+        'Cache-Control': 'public, max-age=3600, s-maxage=7200, stale-while-revalidate=86400',
         ...corsHeaders,
       };
 
@@ -170,46 +191,92 @@ export default async function handler(req) {
   // Strategy 2: Direct call to gdeltcloud.com if GDELT_API_KEY is present in runtime env
   const gdeltKey = process.env.GDELT_API_KEY;
   if (gdeltKey) {
-    try {
-      const upstreamUrl = new URL('https://gdeltcloud.com/api/v2/events');
-      upstreamUrl.searchParams.set('event_family', 'conflict');
-      upstreamUrl.searchParams.set('category', requestUrl.searchParams.get('category') || 'Battles,Protests,Riots,Strategic developments');
-      upstreamUrl.searchParams.set('days', requestUrl.searchParams.get('days') || '14');
-      upstreamUrl.searchParams.set('limit', requestUrl.searchParams.get('limit') || '250');
-      if (requestUrl.searchParams.get('country')) {
-        upstreamUrl.searchParams.set('country', requestUrl.searchParams.get('country'));
-      }
+    const clientCategory = requestUrl.searchParams.get('category') || '';
+    const clientCountry = requestUrl.searchParams.get('country') || '';
+    const clientLimit = requestUrl.searchParams.get('limit') || '250';
 
-      const upstreamResp = await fetchWithTimeout(upstreamUrl.toString(), {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${gdeltKey}`,
-          'User-Agent': 'WorldMonitor-Proxy/1.0 (+https://worldmonitor.app)',
-        },
-      }, 15000);
-
-      if (!upstreamResp.ok) {
-        throw new Error(`GDELT Cloud HTTP ${upstreamResp.status}`);
-      }
-
-      const raw = await upstreamResp.json();
-      const sanitized = parseAndSanitizeConflictEvents(raw);
-
+    const makeResponse = (events, cacheHeader) => {
+      const filtered = filterSnapshotEvents(events, clientCategory, clientCountry, clientLimit);
       return new Response(JSON.stringify({
         success: true,
-        count: sanitized.length,
-        data: sanitized,
-        cached_at: new Date().toISOString(),
+        count: filtered.length,
+        data: filtered,
+        cached_at: new Date(edgeCanonicalSnapshotTime || Date.now()).toISOString(),
       }), {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=180, s-maxage=300, stale-while-revalidate=600',
+          'Cache-Control': 'public, max-age=3600, s-maxage=7200, stale-while-revalidate=86400',
+          'X-Cache': cacheHeader,
           ...corsHeaders,
         },
       });
+    };
+
+    // 1. Fresh cache hit (< 2 hours)
+    if (edgeCanonicalSnapshot && (Date.now() - edgeCanonicalSnapshotTime < EDGE_CACHE_TTL_MS)) {
+      return makeResponse(edgeCanonicalSnapshot, 'HIT');
+    }
+
+    // 2. Upstream 429 cooldown active: serve stale snapshot to protect free plan limits
+    if (edgeCanonicalSnapshot && (Date.now() < edgeRateLimitUntil)) {
+      return makeResponse(edgeCanonicalSnapshot, 'STALE-COOLDOWN');
+    }
+
+    // 3. Deduplicate in-flight fetch
+    if (edgeCanonicalFetchInFlight) {
+      try {
+        const events = await edgeCanonicalFetchInFlight;
+        return makeResponse(events, 'DEDUP');
+      } catch {
+        if (edgeCanonicalSnapshot) return makeResponse(edgeCanonicalSnapshot, 'STALE');
+      }
+    }
+
+    // 4. Fetch canonical dataset (single query for all categories to minimize units)
+    try {
+      edgeCanonicalFetchInFlight = (async () => {
+        const upstreamUrl = new URL('https://gdeltcloud.com/api/v2/events');
+        upstreamUrl.searchParams.set('event_family', 'conflict');
+        upstreamUrl.searchParams.set('category', 'Battles,Protests,Riots,Strategic developments');
+        upstreamUrl.searchParams.set('days', '14');
+        upstreamUrl.searchParams.set('limit', '300');
+
+        const upstreamResp = await fetchWithTimeout(upstreamUrl.toString(), {
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${gdeltKey}`,
+            'User-Agent': 'WorldMonitor-Proxy/1.0 (+https://worldmonitor.app)',
+          },
+        }, 15000);
+
+        if (upstreamResp.status === 429) {
+          console.warn('[HumanConflict Proxy] GDELT Cloud 429 rate limit. Entering 30-min cooldown.');
+          edgeRateLimitUntil = Date.now() + 30 * 60 * 1000;
+          if (edgeCanonicalSnapshot) return edgeCanonicalSnapshot;
+          throw new Error('GDELT Cloud API 429 Rate Limit');
+        }
+
+        if (!upstreamResp.ok) {
+          throw new Error(`GDELT Cloud HTTP ${upstreamResp.status}`);
+        }
+
+        const raw = await upstreamResp.json();
+        const sanitized = parseAndSanitizeConflictEvents(raw);
+        edgeCanonicalSnapshot = sanitized;
+        edgeCanonicalSnapshotTime = Date.now();
+        return sanitized;
+      })();
+
+      const events = await edgeCanonicalFetchInFlight;
+      return makeResponse(events, 'MISS');
     } catch (directErr) {
       console.error('[HumanConflict Proxy] Direct gdeltcloud fetch failed:', directErr);
+      if (edgeCanonicalSnapshot) {
+        return makeResponse(edgeCanonicalSnapshot, 'STALE');
+      }
+    } finally {
+      edgeCanonicalFetchInFlight = null;
     }
   }
 
