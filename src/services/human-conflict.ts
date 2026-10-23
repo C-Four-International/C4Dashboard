@@ -2,10 +2,19 @@ import type { HumanConflictEvent } from '@/types';
 import { createCircuitBreaker } from '@/utils';
 
 const PROXY_URL = '/api/human-conflict';
-const wsRelayUrl = import.meta.env.VITE_WS_RELAY_URL || '';
-const DIRECT_RAILWAY_URL = wsRelayUrl
-  ? wsRelayUrl.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/$/, '') + '/human-conflict'
-  : '';
+function getDirectRailwayUrl(): string {
+  let raw = (import.meta.env.VITE_WS_RELAY_URL || '').trim().replace(/^["']|["']$/g, '').trim();
+  if (!raw || raw === 'undefined' || raw === 'null') return '';
+  if (raw.startsWith('wss://')) raw = 'https://' + raw.slice(6);
+  else if (raw.startsWith('ws://')) raw = 'http://' + raw.slice(5);
+  else if (!raw.startsWith('http://') && !raw.startsWith('https://')) raw = `https://${raw}`;
+  try {
+    return new URL('/human-conflict', raw).toString();
+  } catch {
+    return '';
+  }
+}
+const DIRECT_RAILWAY_URL = getDirectRailwayUrl();
 
 const breaker = createCircuitBreaker<HumanConflictEvent[]>({
   name: 'Human Conflict (GDELT)',

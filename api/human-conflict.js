@@ -2,10 +2,27 @@ import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 
 export const config = { runtime: 'edge' };
 
-function getRelayBaseUrl() {
-  const relayUrl = process.env.WS_RELAY_URL;
-  if (!relayUrl) return null;
-  return relayUrl.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/$/, '');
+export function getRelayBaseUrl() {
+  let raw = process.env.WS_RELAY_URL || process.env.VITE_WS_RELAY_URL || '';
+  if (typeof raw !== 'string') return null;
+  raw = raw.trim().replace(/^["']|["']$/g, '').trim();
+  if (!raw || raw === 'undefined' || raw === 'null') return null;
+
+  if (raw.startsWith('wss://')) {
+    raw = 'https://' + raw.slice(6);
+  } else if (raw.startsWith('ws://')) {
+    raw = 'http://' + raw.slice(5);
+  } else if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+    raw = `https://${raw}`;
+  }
+
+  try {
+    const parsed = new URL(raw);
+    return parsed.origin;
+  } catch (err) {
+    console.warn('[HumanConflict Proxy] Invalid WS_RELAY_URL configured:', raw, err?.message || err);
+    return null;
+  }
 }
 
 function getRelayHeaders(baseHeaders = {}) {
@@ -167,7 +184,7 @@ export default async function handler(req) {
   // Strategy 1: Forward to Railway relay hook
   if (relayBaseUrl) {
     try {
-      const relayUrl = `${relayBaseUrl}/human-conflict${requestUrl.search || ''}`;
+      const relayUrl = new URL(`/human-conflict${requestUrl.search || ''}`, relayBaseUrl).toString();
       const response = await fetchWithTimeout(relayUrl, {
         headers: getRelayHeaders({ Accept: 'application/json' }),
       }, 15000);

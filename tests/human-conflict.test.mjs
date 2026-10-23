@@ -44,6 +44,39 @@ test('Human Conflict edge proxy & client service', async (t) => {
     assert.match(proxyCode, /EDGE_CACHE_TTL_MS\s*=\s*2\s*\*\s*60\s*\*\s*60\s*\*\s*1000/);
   });
 
+  await t.test('api/human-conflict.js getRelayBaseUrl robustly normalizes URLs without throwing Invalid URL string', async () => {
+    const { getRelayBaseUrl } = await import('../api/human-conflict.js');
+    const origWs = process.env.WS_RELAY_URL;
+    const origVite = process.env.VITE_WS_RELAY_URL;
+
+    try {
+      // 1. Without protocol
+      process.env.WS_RELAY_URL = 'my-railway-app.up.railway.app';
+      delete process.env.VITE_WS_RELAY_URL;
+      assert.equal(getRelayBaseUrl(), 'https://my-railway-app.up.railway.app');
+
+      // 2. With quotes and trailing whitespace
+      process.env.WS_RELAY_URL = ' "https://my-railway-app.up.railway.app" ';
+      assert.equal(getRelayBaseUrl(), 'https://my-railway-app.up.railway.app');
+
+      // 3. With wss:// and path
+      process.env.WS_RELAY_URL = 'wss://my-railway-app.up.railway.app/ws';
+      assert.equal(getRelayBaseUrl(), 'https://my-railway-app.up.railway.app');
+
+      // 4. Fallback to VITE_WS_RELAY_URL
+      delete process.env.WS_RELAY_URL;
+      process.env.VITE_WS_RELAY_URL = 'fallback-relay.up.railway.app';
+      assert.equal(getRelayBaseUrl(), 'https://fallback-relay.up.railway.app');
+
+      // 5. Completely invalid string returns null instead of throwing
+      process.env.WS_RELAY_URL = '::invalid-url::';
+      assert.equal(getRelayBaseUrl(), null);
+    } finally {
+      process.env.WS_RELAY_URL = origWs;
+      process.env.VITE_WS_RELAY_URL = origVite;
+    }
+  });
+
   const servicePath = path.resolve('src/services/human-conflict.ts');
   assert.ok(fs.existsSync(servicePath), 'src/services/human-conflict.ts must exist');
   const serviceCode = fs.readFileSync(servicePath, 'utf8');
