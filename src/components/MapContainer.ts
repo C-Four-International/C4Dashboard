@@ -23,6 +23,7 @@ import type {
   MilitaryVesselCluster,
   NaturalEvent,
   UcdpGeoEvent,
+  HumanConflictEvent,
   CyberThreat,
   CableHealthRecord,
 } from '@/types';
@@ -316,6 +317,12 @@ export class MapContainer {
   public setUcdpEvents(events: UcdpGeoEvent[]): void {
     if (this.useDeckGL) {
       this.deckGLMap?.setUcdpEvents(events);
+    }
+  }
+
+  public setHumanConflictEvents(events: HumanConflictEvent[]): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.setHumanConflictEvents(events);
     }
   }
 

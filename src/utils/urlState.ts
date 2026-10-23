@@ -29,6 +29,7 @@ const LAYER_KEYS: (keyof MapLayers)[] = [
   'minerals',
   'fires',
   'ucdpEvents',
+  'humanConflict',
   'displacement',
   'climate',
   'startupHubs',

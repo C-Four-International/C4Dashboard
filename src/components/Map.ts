@@ -341,7 +341,7 @@ export class MapComponent {
       // Infrastructure
       'pipelines', 'cables', 'datacenters', 'radiation', 'irradiators', 'outages', 'bgpAnomalies',
       // Military
-      'military', 'conflicts', 'bases', 'nuclear',
+      'military', 'conflicts', 'humanConflict', 'bases', 'nuclear',
       // Shipping & Air Traffic
       'ais', 'flights', 'waterways', 'gpsJamming',
       // Natural
@@ -371,6 +371,7 @@ export class MapComponent {
       alertStatus: 'Alert Status',
       hotspots: 'components.deckgl.layers.intelHotspots',
       conflicts: 'components.deckgl.layers.conflictZones',
+      humanConflict: 'components.deckgl.layers.humanConflict',
       bases: 'components.deckgl.layers.militaryBases',
       nuclear: 'components.deckgl.layers.nuclearSites',
       irradiators: 'components.deckgl.layers.gammaIrradiators',
@@ -560,6 +561,7 @@ export class MapComponent {
         ${helpSection('military', [
       helpItem(label('militaryActivity'), 'militaryActivity', '🛡️'),
       helpItem(label('conflictZones'), 'geoConflicts', '&#9876;'),
+      helpItem(label('humanConflict'), 'humanConflictDesc', '⚔️'),
       helpItem(label('militaryBases'), 'militaryBases', '&#127963;'),
       helpItem(label('nuclearSites'), 'militaryNuclear', '🏭'),
     ])}

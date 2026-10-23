@@ -19,6 +19,7 @@ const { WebSocketServer, WebSocket } = require('ws');
 
 const AISSTREAM_URL = 'wss://stream.aisstream.io/v0/stream';
 const API_KEY = process.env.AISSTREAM_API_KEY || process.env.VITE_AISSTREAM_API_KEY;
+const GDELT_API_KEY = process.env.GDELT_API_KEY || '';
 const PORT = process.env.PORT || 3004;
 
 const DISABLE_AISSTREAM = process.env.DISABLE_AISSTREAM === 'true';
@@ -1603,6 +1604,248 @@ function handlePolymarketRequest(req, res) {
   });
 }
 
+// ── Human Conflict proxy (queries gdeltcloud.com for protests, battles, riots, strategic developments) ──
+const humanConflictCache = new Map(); // key: query string → { data, timestamp }
+const humanConflictInFlight = new Map(); // key: query string → Promise (dedup concurrent requests)
+const HUMAN_CONFLICT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min cache
+const HUMAN_CONFLICT_CACHE_MAX_ENTRIES = 50;
+
+function normalizeConflictCategory(rawCategory, rawSubcategory, rawTitle) {
+  const combined = `${rawCategory || ''} ${rawSubcategory || ''} ${rawTitle || ''}`.toLowerCase();
+  if (combined.includes('battle') || combined.includes('armed') || combined.includes('clash') || combined.includes('airstrike') || combined.includes('shelling') || combined.includes('artillery') || combined.includes('military engagement')) {
+    return 'battles';
+  }
+  if (combined.includes('riot') || combined.includes('mob') || combined.includes('looting') || combined.includes('violent demonstration') || combined.includes('unrest')) {
+    return 'riots';
+  }
+  if (combined.includes('protest') || combined.includes('demonstrat') || combined.includes('strike') || combined.includes('rally') || combined.includes('march') || combined.includes('picket')) {
+    return 'protests';
+  }
+  if (combined.includes('strategic') || combined.includes('agreement') || combined.includes('treaty') || combined.includes('troop') || combined.includes('defense') || combined.includes('military movement') || combined.includes('headquarters') || combined.includes('ceasefire') || combined.includes('surrender')) {
+    return 'strategic_developments';
+  }
+  const catLower = (rawCategory || '').toLowerCase();
+  if (catLower.includes('protest')) return 'protests';
+  if (catLower.includes('riot')) return 'riots';
+  if (catLower.includes('strategic')) return 'strategic_developments';
+  return 'battles';
+}
+
+function parseAndSanitizeConflictEvents(parsed) {
+  let list = [];
+  if (Array.isArray(parsed)) {
+    list = parsed;
+  } else if (parsed && Array.isArray(parsed.data)) {
+    list = parsed.data;
+  } else if (parsed && Array.isArray(parsed.events)) {
+    list = parsed.events;
+  } else if (parsed && Array.isArray(parsed.result)) {
+    list = parsed.result;
+  } else if (parsed && Array.isArray(parsed.features)) {
+    list = parsed.features.map(f => ({
+      id: f.id || f.properties?.id,
+      ...f.properties,
+      lat: f.geometry?.coordinates?.[1],
+      lon: f.geometry?.coordinates?.[0],
+    }));
+  }
+
+  return list
+    .map((item, idx) => {
+      const lat = Number(item.latitude ?? item.lat ?? item.geo?.latitude ?? item.geo?.lat ?? item.location?.latitude ?? item.location?.lat);
+      const lon = Number(item.longitude ?? item.lon ?? item.lng ?? item.geo?.longitude ?? item.geo?.lon ?? item.geo?.lng ?? item.location?.longitude ?? item.location?.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || (lat === 0 && lon === 0)) {
+        return null;
+      }
+
+      const rawCat = item.category || item.event_category || item.type || item.event_type || '';
+      const rawSub = item.subcategory || item.subcategory_label || item.sub_type || item.sub_event_type || '';
+      const rawTitle = item.title || item.name || item.event_name || item.notes || item.summary || '';
+      const category = normalizeConflictCategory(rawCat, rawSub, rawTitle);
+
+      const actors = Array.isArray(item.actors)
+        ? item.actors.map(String).filter(Boolean)
+        : [item.actor1, item.actor2].filter(Boolean).map(String);
+
+      const rawDate = item.event_date || item.date || item.timestamp || item.created_at || '';
+      let dateStr = '';
+      if (rawDate) {
+        try {
+          dateStr = new Date(rawDate).toISOString().split('T')[0];
+        } catch {
+          dateStr = String(rawDate).slice(0, 10);
+        }
+      }
+      if (!dateStr) {
+        dateStr = new Date().toISOString().split('T')[0];
+      }
+
+      return {
+        id: String(item.id || item.event_id || item.eventId || `gdelt-${idx}-${lat.toFixed(3)}-${lon.toFixed(3)}`),
+        title: rawTitle || `${category.replace(/_/g, ' ').toUpperCase()} in ${item.country || item.geo?.country || 'Region'}`,
+        category,
+        subcategory: rawSub || undefined,
+        subcategoryLabel: item.subcategory_label || rawSub || undefined,
+        date: dateStr,
+        lat,
+        lon,
+        country: item.country || item.geo?.country || item.country_code || '',
+        location: item.location || item.location_name || item.geo?.location || item.city || '',
+        fatalities: Math.max(0, Number(item.fatalities ?? item.deaths ?? item.deaths_best ?? 0) || 0),
+        actors: actors.length > 0 ? actors : undefined,
+        significance: Number(item.significance ?? item.goldstein_scale ?? item.severity ?? 1) || 1,
+        source: 'gdeltcloud',
+        notes: item.notes || item.summary || item.description || undefined,
+      };
+    })
+    .filter(Boolean);
+}
+
+function handleHumanConflictRequest(req, res) {
+  const url = new URL(req.url, `http://localhost:${PORT}`);
+  const cacheKey = url.search || '';
+
+  const cached = humanConflictCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < HUMAN_CONFLICT_CACHE_TTL_MS) {
+    return sendCompressed(req, res, 200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=300',
+      'X-Cache': 'HIT',
+      'X-Conflict-Source': 'railway-cache',
+    }, cached.data);
+  }
+
+  if (!GDELT_API_KEY) {
+    console.warn('[Relay] GDELT_API_KEY not configured in Railway environment');
+    const fallback = JSON.stringify({
+      success: false,
+      message: 'GDELT_API_KEY environment variable not configured on Railway relay',
+      count: 0,
+      data: [],
+    });
+    return sendCompressed(req, res, 200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=60',
+    }, fallback);
+  }
+
+  // Deduplicate in-flight requests for the same query
+  const existingFetch = humanConflictInFlight.get(cacheKey);
+  if (existingFetch) {
+    existingFetch.then(body => {
+      sendCompressed(req, res, 200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=300',
+        'X-Cache': 'DEDUP',
+        'X-Conflict-Source': 'railway',
+      }, body);
+    }).catch(err => {
+      if (cached) {
+        return sendCompressed(req, res, 200, {
+          'Content-Type': 'application/json',
+          'X-Cache': 'STALE',
+          'X-Conflict-Source': 'railway-stale',
+        }, cached.data);
+      }
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message, count: 0, data: [] }));
+    });
+    return;
+  }
+
+  const upstreamUrl = new URL('https://gdeltcloud.com/api/v2/events');
+  upstreamUrl.searchParams.set('event_family', 'conflict');
+  upstreamUrl.searchParams.set('category', url.searchParams.get('category') || 'Battles,Protests,Riots,Strategic developments');
+  upstreamUrl.searchParams.set('days', url.searchParams.get('days') || '14');
+  upstreamUrl.searchParams.set('limit', url.searchParams.get('limit') || '250');
+  if (url.searchParams.get('country')) {
+    upstreamUrl.searchParams.set('country', url.searchParams.get('country'));
+  }
+
+  console.log('[Relay] Querying gdeltcloud.com conflict events (MISS):', upstreamUrl.search);
+
+  const fetchPromise = new Promise((resolve, reject) => {
+    const request = https.get(upstreamUrl.toString(), {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${GDELT_API_KEY}`,
+        'User-Agent': 'WorldMonitor-Relay/1.0 (+https://worldmonitor.app)',
+      },
+      timeout: 15000,
+    }, (response) => {
+      const encoding = response.headers['content-encoding'];
+      let stream = response;
+      if (encoding === 'gzip' || encoding === 'deflate') {
+        stream = encoding === 'gzip' ? response.pipe(zlib.createGunzip()) : response.pipe(zlib.createInflate());
+      }
+
+      let rawData = '';
+      stream.on('data', chunk => rawData += chunk);
+      stream.on('end', () => {
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          console.error(`[Relay] GDELT Cloud upstream returned ${response.statusCode}:`, rawData.slice(0, 200));
+          return reject(new Error(`GDELT Cloud API HTTP ${response.statusCode}`));
+        }
+
+        try {
+          const parsed = JSON.parse(rawData);
+          const sanitizedEvents = parseAndSanitizeConflictEvents(parsed);
+          const resultPayload = JSON.stringify({
+            success: true,
+            count: sanitizedEvents.length,
+            data: sanitizedEvents,
+            cached_at: new Date().toISOString(),
+          });
+
+          // Bounded cache
+          if (humanConflictCache.size >= HUMAN_CONFLICT_CACHE_MAX_ENTRIES && !humanConflictCache.has(cacheKey)) {
+            const oldest = humanConflictCache.keys().next().value;
+            if (oldest) humanConflictCache.delete(oldest);
+          }
+          humanConflictCache.set(cacheKey, { data: resultPayload, timestamp: Date.now() });
+          resolve(resultPayload);
+        } catch (err) {
+          console.error('[Relay] GDELT Cloud JSON parse error:', err.message);
+          reject(new Error('Invalid JSON from GDELT Cloud API'));
+        }
+      });
+      stream.on('error', reject);
+    });
+
+    request.on('error', reject);
+    request.on('timeout', () => {
+      request.destroy();
+      reject(new Error('GDELT Cloud request timeout'));
+    });
+  });
+
+  humanConflictInFlight.set(cacheKey, fetchPromise);
+  fetchPromise
+    .then(body => {
+      sendCompressed(req, res, 200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=300',
+        'X-Cache': 'MISS',
+        'X-Conflict-Source': 'railway',
+      }, body);
+    })
+    .catch(err => {
+      console.error('[Relay] Human Conflict error:', err.message);
+      if (cached) {
+        return sendCompressed(req, res, 200, {
+          'Content-Type': 'application/json',
+          'X-Cache': 'STALE',
+          'X-Conflict-Source': 'railway-stale',
+        }, cached.data);
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message, count: 0, data: [] }));
+    })
+    .finally(() => {
+      humanConflictInFlight.delete(cacheKey);
+    });
+}
+
 // Periodic cache cleanup to prevent memory leaks
 setInterval(() => {
   const now = Date.now();
@@ -1616,6 +1859,9 @@ setInterval(() => {
   }
   for (const [key, entry] of polymarketCache) {
     if (now - entry.timestamp > POLYMARKET_CACHE_TTL_MS * 2) polymarketCache.delete(key);
+  }
+  for (const [key, entry] of humanConflictCache) {
+    if (now - entry.timestamp > HUMAN_CONFLICT_CACHE_TTL_MS * 2) humanConflictCache.delete(key);
   }
   for (const [key, bucket] of requestRateBuckets) {
     if (now >= bucket.resetAt + RELAY_RATE_LIMIT_WINDOW_MS * 2) requestRateBuckets.delete(key);
@@ -1709,6 +1955,7 @@ const server = http.createServer(async (req, res) => {
         ucdp: ucdpCache.data ? 'warm' : 'cold',
         worldbank: worldbankCache.size,
         polymarket: polymarketCache.size,
+        humanConflict: humanConflictCache.size,
       },
       auth: {
         sharedSecretEnabled: !!RELAY_SHARED_SECRET,
@@ -1982,6 +2229,8 @@ const server = http.createServer(async (req, res) => {
     handleWorldBankRequest(req, res);
   } else if (pathname.startsWith('/polymarket')) {
     handlePolymarketRequest(req, res);
+  } else if (pathname.startsWith('/human-conflict')) {
+    handleHumanConflictRequest(req, res);
   } else {
     res.writeHead(404);
     res.end();

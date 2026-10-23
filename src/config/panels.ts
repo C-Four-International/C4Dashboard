@@ -84,6 +84,7 @@ const FULL_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled in full variant)
@@ -141,6 +142,7 @@ const FULL_MOBILE_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled in full variant)
@@ -238,6 +240,7 @@ const TECH_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (enabled in tech variant)
@@ -295,6 +298,7 @@ const TECH_MOBILE_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (limited on mobile)
@@ -389,6 +393,7 @@ const FINANCE_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled in finance variant)
@@ -446,6 +451,7 @@ const FINANCE_MOBILE_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled)
@@ -519,6 +525,7 @@ const HAPPY_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled)
@@ -576,6 +583,7 @@ const HAPPY_MOBILE_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled)

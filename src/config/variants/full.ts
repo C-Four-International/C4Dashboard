@@ -84,6 +84,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   minerals: false,
   fires: false,
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled in full variant)
@@ -141,6 +142,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   minerals: false,
   fires: false,
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled in full variant)

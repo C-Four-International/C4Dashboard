@@ -599,6 +599,7 @@ export interface MapLayers {
   fires: boolean;
   // Data source layers
   ucdpEvents: boolean;
+  humanConflict: boolean;
   displacement: boolean;
   climate: boolean;
   // Tech variant layers
@@ -749,6 +750,27 @@ export interface ProtestCluster {
   startDate: Date;
   endDate: Date;
   primaryCause?: string;
+}
+
+// Human Conflict Types (GDELT Cloud API)
+export type HumanConflictCategory = 'battles' | 'protests' | 'riots' | 'strategic_developments';
+
+export interface HumanConflictEvent {
+  id: string;
+  title: string;
+  category: HumanConflictCategory;
+  subcategory?: string;
+  subcategoryLabel?: string;
+  date: string;
+  lat: number;
+  lon: number;
+  country: string;
+  location?: string;
+  fatalities?: number;
+  actors?: string[];
+  significance?: number;
+  source?: string;
+  notes?: string;
 }
 
 export interface MonitoredAirport {

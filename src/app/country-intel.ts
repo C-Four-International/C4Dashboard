@@ -336,6 +336,13 @@ export class CountryIntelManager implements AppModule {
       }).length;
     }
 
+    let humanConflicts = 0;
+    if (this.ctx.intelligenceCache.humanConflict) {
+      humanConflicts = this.ctx.intelligenceCache.humanConflict.filter((e) =>
+        e.country?.toLowerCase() === countryLower || (hasGeoShape && this.isInCountry(e.lat, e.lon, code))
+      ).length;
+    }
+
     const ciiData = getCountryData(code);
     const isTier1 = !!TIER1_COUNTRIES[code];
 
@@ -347,7 +354,7 @@ export class CountryIntelManager implements AppModule {
       earthquakes,
       displacementOutflow: ciiData?.displacementOutflow ?? 0,
       climateStress: ciiData?.climateStress ?? 0,
-      conflictEvents: ciiData?.conflicts?.length ?? 0,
+      conflictEvents: (ciiData?.conflicts?.length ?? 0) + humanConflicts,
       isTier1,
     };
   }

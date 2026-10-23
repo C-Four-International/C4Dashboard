@@ -40,6 +40,7 @@ import type {
   RegionalThreat,
   AQIStation,
   AQIClusterData,
+  HumanConflictEvent,
 } from '@/types';
 import {
   getAqiCategory,
@@ -257,6 +258,10 @@ function getOverlayColors() {
     ucdpStateBased: [255, 50, 50, 200] as [number, number, number, number],
     ucdpNonState: [255, 165, 0, 200] as [number, number, number, number],
     ucdpOneSided: [255, 255, 0, 200] as [number, number, number, number],
+    conflictBattle: [235, 45, 45, 220] as [number, number, number, number],
+    conflictRiot: [255, 95, 30, 220] as [number, number, number, number],
+    conflictProtest: [250, 180, 20, 220] as [number, number, number, number],
+    conflictStrategic: [160, 60, 230, 220] as [number, number, number, number],
   };
 }
 let COLORS = getOverlayColors();
@@ -346,6 +351,7 @@ export class DeckGLMap {
   private newsLocations: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date; items?: import('@/types').NewsItem[] }> = [];
   private newsLocationFirstSeen = new Map<string, number>();
   private ucdpEvents: UcdpGeoEvent[] = [];
+  private humanConflictEvents: HumanConflictEvent[] = [];
   private displacementFlows: DisplacementFlow[] = [];
   private climateAnomalies: ClimateAnomaly[] = [];
   private tradeRouteSegments: TradeRouteSegment[] = resolveTradeRouteSegments();
@@ -1483,6 +1489,7 @@ export class DeckGLMap {
     const filteredMilitaryFlights = this.filterByTime(this.militaryFlights, (flight) => flight.lastSeen);
     const filteredMilitaryVessels = this.filterByTime(this.militaryVessels, (vessel) => vessel.lastAisUpdate);
     const filteredUcdpEvents = this.filterByTime(this.ucdpEvents, (event) => event.date_start);
+    const filteredHumanConflict = this.filterByTime(this.humanConflictEvents, (event) => event.date);
     const filteredCyberThreats = this.filterByTime(this.cyberThreats, (threat) => threat.lastSeen || threat.firstSeen);
     const filteredFires = this.filterByTime(this.firmsFireData, (fire) => fire.acq_date);
     const filteredAqi = this.filterByTime(this.aqiData, (aqi) => aqi.station.time);
@@ -1723,6 +1730,12 @@ export class DeckGLMap {
     // UCDP georeferenced events layer
     if (mapLayers.ucdpEvents && filteredUcdpEvents.length > 0) {
       layers.push(this.createUcdpEventsLayer(filteredUcdpEvents));
+    }
+
+    // Human Conflict layer (GDELT Cloud API via Railway relay)
+    if (mapLayers.humanConflict && filteredHumanConflict.length > 0) {
+      layers.push(this.createHumanConflictLayer(filteredHumanConflict));
+      layers.push(this.createGhostLayer('human-conflict-layer', filteredHumanConflict, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
     }
 
     // Displacement flows arc layer
@@ -4288,6 +4301,37 @@ export class DeckGLMap {
           </div>`
         };
       }
+      case 'human-conflict-layer': {
+        const ev = obj as HumanConflictEvent;
+        const catLabels: Record<string, string> = {
+          battles: 'Battle / Armed Clash',
+          riots: 'Riot / Violent Demonstration',
+          protests: 'Protest / Demonstration',
+          strategic_developments: 'Strategic Development',
+        };
+        const catIcons: Record<string, string> = {
+          battles: '⚔️',
+          riots: '🔥',
+          protests: '📢',
+          strategic_developments: '♟️',
+        };
+        const icon = catIcons[ev.category] || '⚔️';
+        const label = catLabels[ev.category] || ev.category;
+        const fatStr = ev.fatalities && ev.fatalities > 0 ? `<br/><span style="color:#ef4444;font-weight:600;">Reported Fatalities: ${ev.fatalities}</span>` : '';
+        const actorsStr = ev.actors && ev.actors.length > 0 ? `<br/><small style="opacity:0.85">Actors: ${text(ev.actors.join(' vs '))}</small>` : '';
+        const locParts = [ev.location, ev.country].filter(Boolean);
+        const locStr = locParts.length > 0 ? `<br/><small style="opacity:0.75">${text(locParts.join(', '))}${ev.date ? ` · ${text(ev.date)}` : ''}</small>` : '';
+        return {
+          html: `<div class="deckgl-tooltip">
+            <strong>${icon} ${text(label)}</strong><br/>
+            ${text(ev.title)}
+            ${locStr}
+            ${fatStr}
+            ${actorsStr}
+            <br/><small style="opacity:0.6;font-size:9px;">GDELT Cloud API</small>
+          </div>`
+        };
+      }
       case 'news-locations-layer':
         return { html: `<div class="deckgl-tooltip"><strong>📰 ${t('components.deckgl.tooltip.news')}</strong><br/>${text(obj.title?.slice(0, 80) || '')}</div>` };
       case 'positive-events-layer': {
@@ -4816,6 +4860,7 @@ export class DeckGLMap {
                 { key: 'military', label: t('components.deckgl.layers.militaryActivity'), icon: '🛡️' },
                 { key: 'conflicts', label: t('components.deckgl.layers.conflictZones'), icon: '&#9876;' },
                 { key: 'bases', label: t('components.deckgl.layers.militaryBases'), icon: '&#127963;' },
+                { key: 'humanConflict', label: t('components.deckgl.layers.humanConflict') || 'Human Conflict', icon: '⚔️' },
               ],
             },
             {
@@ -5034,6 +5079,7 @@ export class DeckGLMap {
       case 'bgpAnomalies': return 'bgpAnomaliesDesc';
       case 'military': return 'militaryActivity';
       case 'conflicts': return 'geoConflicts';
+      case 'humanConflict': return 'humanConflictDesc';
       case 'bases': return 'militaryBases';
       case 'irradiators': return 'militaryIrradiators';
       case 'ais': return 'transportShipping';
@@ -5448,6 +5494,18 @@ export class DeckGLMap {
               badge: 'Zone',
               name: t('components.deckgl.layers.conflictZones'),
               desc: 'Active war theaters, contested borders, and military frontlines.',
+            },
+            {
+              shape: shapes.circle('#ef4444'),
+              badge: 'Conflict Dot',
+              name: t('components.deckgl.layers.humanConflict') || 'Human Conflict (GDELT)',
+              desc: 'Live tracking of protests, battles, riots, and strategic developments from gdeltcloud.com.',
+              subswatches: [
+                { color: '#eb2d2d', label: 'Battles' },
+                { color: '#ff5f1e', label: 'Riots' },
+                { color: '#fab414', label: 'Protests' },
+                { color: '#a03ce6', label: 'Strategic Developments' },
+              ],
             },
           ],
         },
@@ -5911,6 +5969,35 @@ export class DeckGLMap {
     });
   }
 
+  private createHumanConflictLayer(events: HumanConflictEvent[]): ScatterplotLayer<HumanConflictEvent> {
+    return new ScatterplotLayer<HumanConflictEvent>({
+      id: 'human-conflict-layer',
+      data: events,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: (d) => {
+        const base = 8000;
+        const fatBonus = Math.min(35000, Math.sqrt(Math.max(0, d.fatalities || 0)) * 5000);
+        const sigBonus = Math.min(20000, Math.max(0, d.significance || 1) * 1200);
+        return base + fatBonus + sigBonus;
+      },
+      getFillColor: (d) => {
+        switch (d.category) {
+          case 'battles': return COLORS.conflictBattle;
+          case 'riots': return COLORS.conflictRiot;
+          case 'protests': return COLORS.conflictProtest;
+          case 'strategic_developments': return COLORS.conflictStrategic;
+          default: return COLORS.conflictBattle;
+        }
+      },
+      stroked: true,
+      getLineColor: [255, 255, 255, 180] as [number, number, number, number],
+      lineWidthMinPixels: 1.5,
+      radiusMinPixels: 5,
+      radiusMaxPixels: 24,
+      pickable: true,
+    });
+  }
+
   private createDisplacementArcsLayer(): ArcLayer<DisplacementFlow> {
     const withCoords = this.displacementFlows.filter(f => f.originLat != null && f.asylumLat != null);
     const top50 = withCoords.slice(0, 50);
@@ -6171,6 +6258,11 @@ export class DeckGLMap {
 
   public setUcdpEvents(events: UcdpGeoEvent[]): void {
     this.ucdpEvents = events;
+    this.render();
+  }
+
+  public setHumanConflictEvents(events: HumanConflictEvent[]): void {
+    this.humanConflictEvents = events;
     this.render();
   }
 

@@ -114,6 +114,7 @@ const layers = {
   minerals: false,
   fires: false,
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   startupHubs: false,

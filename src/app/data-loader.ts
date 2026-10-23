@@ -61,6 +61,7 @@ import { fetchClimateAnomalies } from '@/services/climate';
 import { fetchRadiationData, getInstantRadiationStations } from '@/services/radiation';
 import { getInstantNaturalEvents } from '@/services/eonet';
 import { enrichEventsWithExposure } from '@/services/population-exposure';
+import { fetchHumanConflictEvents } from '@/services/human-conflict';
 import { debounce } from '@/utils';
 import { getAiFlowSettings } from '@/services/ai-flow-settings';
 import { t, getCurrentLanguage } from '@/services/i18n';
@@ -330,6 +331,7 @@ export class DataLoaderManager implements AppModule {
     if (SITE_VARIANT !== 'happy' && CYBER_LAYER_ENABLED && this.ctx.mapLayers.cyberThreats) tasks.push({ name: 'cyberThreats', task: runGuarded('cyberThreats', () => this.loadCyberThreats()) });
     if (SITE_VARIANT !== 'happy' && (this.ctx.mapLayers.techEvents || SITE_VARIANT === 'tech')) tasks.push({ name: 'techEvents', task: runGuarded('techEvents', () => this.loadTechEvents()) });
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.radiation) tasks.push({ name: 'radiation', task: runGuarded('radiation', () => this.loadRadiationData()) });
+    if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.humanConflict) tasks.push({ name: 'humanConflict', task: runGuarded('humanConflict', () => this.loadHumanConflict()) });
 
     if (SITE_VARIANT === 'tech') {
       tasks.push({ name: 'techReadiness', task: runGuarded('techReadiness', () => (this.ctx.panels['tech-readiness'] as TechReadinessPanel)?.refresh()) });
@@ -407,6 +409,9 @@ export class DataLoaderManager implements AppModule {
           this.ctx.map?.setLayerReady('weatherRadar', true);
           break;
         case 'ucdpEvents':
+          break;
+        case 'humanConflict':
+          await this.loadHumanConflict();
           break;
       }
     } finally {
@@ -1253,6 +1258,34 @@ export class DataLoaderManager implements AppModule {
       this.ctx.statusPanel?.updateFeed('Cyber Threats', { status: 'error', errorMessage: String(error) });
       this.ctx.statusPanel?.updateApi('Cyber Threats API', { status: 'error' });
       dataFreshness.recordError('cyber_threats', String(error));
+    }
+  }
+
+  async loadHumanConflict(forceRefresh = false): Promise<void> {
+    if (!forceRefresh && this.ctx.intelligenceCache.humanConflict) {
+      const events = this.ctx.intelligenceCache.humanConflict;
+      this.ctx.map?.setHumanConflictEvents(events);
+      this.ctx.map?.setLayerReady('humanConflict', events.length > 0);
+      this.ctx.statusPanel?.updateFeed('Human Conflict', { status: 'ok', itemCount: events.length });
+      return;
+    }
+
+    try {
+      const events = await fetchHumanConflictEvents({ limit: 250, days: 14 });
+      this.ctx.intelligenceCache.humanConflict = events;
+      this.ctx.map?.setHumanConflictEvents(events);
+      this.ctx.map?.setLayerReady('humanConflict', events.length > 0);
+      this.ctx.statusPanel?.updateFeed('Human Conflict', {
+        status: events.length > 0 ? 'ok' : 'warning',
+        itemCount: events.length,
+      });
+      if (events.length > 0) {
+        dataFreshness.recordUpdate('gdelt_conflict', events.length);
+      }
+    } catch (error) {
+      this.ctx.map?.setLayerReady('humanConflict', false);
+      this.ctx.statusPanel?.updateFeed('Human Conflict', { status: 'error', errorMessage: String(error) });
+      dataFreshness.recordError('gdelt_conflict', String(error));
     }
   }
 
