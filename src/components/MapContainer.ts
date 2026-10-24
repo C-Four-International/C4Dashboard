@@ -5,6 +5,7 @@
 import { isMobileDevice } from '@/utils';
 import { MapComponent } from './Map';
 import { DeckGLMap, type DeckMapView, type CountryClickPayload } from './DeckGLMap';
+import { MobileLayerPicker } from './MobileLayerPicker';
 import type {
   MapLayers,
   Hotspot,
@@ -74,6 +75,8 @@ export class MapContainer {
   private svgMap: MapComponent | null = null;
   private initialState: MapContainerState;
   private useDeckGL: boolean;
+  private mobileLayerPicker: MobileLayerPicker | null = null;
+  private onLayerChangeCallback: ((layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void) | null = null;
 
   constructor(container: HTMLElement, initialState: MapContainerState) {
     this.container = container;
@@ -111,6 +114,28 @@ export class MapContainer {
     this.svgMap = new MapComponent(this.container, this.initialState);
   }
 
+  private initMobileLayerPicker(): void {
+    try {
+      this.mobileLayerPicker = new MobileLayerPicker({
+        container: this.container,
+        initialLayers: this.getState().layers,
+        onLayerToggle: (layer) => {
+          this.toggleLayer(layer, 'user');
+        },
+        onResetLayers: (layers) => {
+          this.setLayers(layers);
+          if (this.onLayerChangeCallback) {
+            Object.entries(layers).forEach(([k, v]) => {
+              this.onLayerChangeCallback?.(k as keyof MapLayers, v, 'user');
+            });
+          }
+        },
+      });
+    } catch (err) {
+      console.warn('[MapContainer] Failed to initialize mobile layer picker:', err);
+    }
+  }
+
   private init(): void {
     if (this.useDeckGL) {
       console.log('[MapContainer] Initializing deck.gl map (desktop mode)');
@@ -127,6 +152,8 @@ export class MapContainer {
     } else {
       this.initSvgMap('[MapContainer] Initializing SVG map (mobile/fallback mode)');
     }
+
+    this.initMobileLayerPicker();
   }
 
   // Unified public API - delegates to active map implementation
@@ -191,6 +218,16 @@ export class MapContainer {
     } else {
       this.svgMap?.setLayers(layers);
     }
+    this.mobileLayerPicker?.setLayers(layers);
+  }
+
+  public toggleLayer(layer: keyof MapLayers, source: 'user' | 'programmatic' = 'user'): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.toggleLayer(layer);
+    } else {
+      this.svgMap?.toggleLayer(layer, source);
+    }
+    this.mobileLayerPicker?.setLayers(this.getState().layers);
   }
 
   public getState(): MapContainerState {
@@ -456,10 +493,15 @@ export class MapContainer {
   }
 
   public setOnLayerChange(callback: (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void): void {
+    this.onLayerChangeCallback = callback;
+    const wrappedCallback = (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => {
+      callback(layer, enabled, source);
+      this.mobileLayerPicker?.setLayers(this.getState().layers);
+    };
     if (this.useDeckGL) {
-      this.deckGLMap?.setOnLayerChange(callback);
+      this.deckGLMap?.setOnLayerChange(wrappedCallback);
     } else {
-      this.svgMap?.setOnLayerChange(callback);
+      this.svgMap?.setOnLayerChange(wrappedCallback);
     }
   }
 
@@ -511,6 +553,7 @@ export class MapContainer {
     } else {
       this.svgMap?.setLayerLoading(layer, loading);
     }
+    this.mobileLayerPicker?.setLayerLoading(layer, loading);
   }
 
   public setLayerReady(layer: keyof MapLayers, hasData: boolean): void {
@@ -519,6 +562,7 @@ export class MapContainer {
     } else {
       this.svgMap?.setLayerReady(layer, hasData);
     }
+    this.mobileLayerPicker?.setLayerReady(layer, hasData);
   }
 
   public flashAssets(assetType: AssetType, ids: string[]): void {
@@ -644,6 +688,8 @@ export class MapContainer {
   }
 
   public destroy(): void {
+    this.mobileLayerPicker?.destroy();
+    this.mobileLayerPicker = null;
     if (this.useDeckGL) {
       this.deckGLMap?.destroy();
     } else {
