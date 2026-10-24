@@ -115,7 +115,6 @@ export class MobileLayerPicker {
             { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '🔌' },
             { key: 'pipelines', label: t('components.deckgl.layers.pipelines'), icon: '🛢️' },
             { key: 'radiation', label: t('components.deckgl.layers.radiation'), icon: '☢️' },
-            { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '📶' },
             { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '⚓' },
           ],
         },
@@ -196,7 +195,6 @@ export class MobileLayerPicker {
           { key: 'radiation', label: t('components.deckgl.layers.radiation'), icon: '☢️' },
           { key: 'irradiators', label: t('components.deckgl.layers.gammaIrradiators'), icon: '⚠️' },
           { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '💎' },
-          { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '📶' },
         ],
       },
       {
