@@ -24,10 +24,11 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Jerusalem',
     country: 'Israel',
     region: 'middle-east',
-    fallbackVideoId: 'LMHUcDktP-w', // Western Wall Main Plaza
+    fallbackVideoId: '77akujLn4k8', // EarthCam - Western Wall Live (24/7)
     fallbackVideoIds: [
-      'gJsZdfSyPrM', // Western Wall Prayer Area
-      'Y3v2WGY-SDc', // Western Wall Wilson's Arch
+      'AKGqd20ik_A', // Western Wall, The Kotel Live
+      'zp6LNSoq000', // Western Wall, Temple Archaeological Park
+      'LdS7TXNmQgQ', // Jerusalem Skyline 24/7 Live
     ],
   },
   {
