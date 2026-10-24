@@ -173,5 +173,6 @@ export * from './analysis-constants';
 export { getCSSColor, invalidateColorCache } from './theme-colors';
 export { getStoredTheme, getCurrentTheme, setTheme, applyStoredTheme } from './theme-manager';
 export type { Theme } from './theme-manager';
+export { computeNightPolygons } from './daynight';
 
 import { getCurrentLanguage } from '../services/i18n';

@@ -121,9 +121,9 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   nuclear: false,
   irradiators: false,
   radiation: false,
-  sanctions: true,
+  sanctions: false,
   weather: true,
-  weatherRadar: true,
+  weatherRadar: false,
   aqi: false,
   gpsJamming: false,
   agriculturalStressDI: false, agriculturalStressASI: false, agriculturalStressVCI: false,
@@ -164,7 +164,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   speciesRecovery: false,
   renewableInstallations: false,
   tradeRoutes: false,
-  dayNight: false, threatScore: false,
+  dayNight: true, threatScore: false,
 };
 
 export const VARIANT_CONFIG: VariantConfig = {

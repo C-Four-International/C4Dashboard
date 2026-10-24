@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import * as topojson from 'topojson-client';
 import { escapeHtml } from '@/utils/sanitize';
-import { getCSSColor } from '@/utils';
+import { getCSSColor, getCurrentTheme, computeNightPolygons } from '@/utils';
 import type { Topology, GeometryCollection } from 'topojson-specification';
 import type { Feature, Geometry } from 'geojson';
 import type { MapLayers, Hotspot, NewsItem, InternetOutage, RelatedAsset, AssetType, AisDisruptionEvent, AisDensityZone, CableAdvisory, RepairShip, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, CyberThreat, CableHealthRecord } from '@/types';
@@ -159,6 +159,9 @@ export class MapComponent {
   private lastRenderTime = 0;
   private readonly MIN_RENDER_INTERVAL_MS = 100;
   private healthCheckIntervalId: ReturnType<typeof setInterval> | null = null;
+  private cachedNightPolygons: [number, number][][] | null = null;
+  private cachedNightPolygonsAt = 0;
+  private dayNightIntervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor(container: HTMLElement, initialState: MapState) {
     this.container = container;
@@ -205,6 +208,10 @@ export class MapComponent {
       this.baseRendered = false;
       this.render();
     });
+
+    if (this.state.layers.dayNight) {
+      this.startDayNightTimer();
+    }
   }
 
   private setupResizeObserver(): void {
@@ -234,6 +241,7 @@ export class MapComponent {
 
   public destroy(): void {
     document.removeEventListener('visibilitychange', this.boundVisibilityHandler);
+    this.stopDayNightTimer();
     if (this.healthCheckIntervalId) {
       clearInterval(this.healthCheckIntervalId);
       this.healthCheckIntervalId = null;
@@ -344,8 +352,8 @@ export class MapComponent {
       'military', 'conflicts', 'humanConflict', 'bases', 'nuclear',
       // Shipping & Air Traffic
       'ais', 'flights', 'waterways', 'gpsJamming',
-      // Natural
-      'natural', 'waterTemperature', 'weather', 'fires', 'aqi',
+      // Natural & Day/Night
+      'dayNight', 'natural', 'waterTemperature', 'weather', 'fires', 'aqi',
       // Additional geopolitical/economic
       'sanctions', 'protests', 'economic',
     ];
@@ -990,6 +998,11 @@ export class MapComponent {
     // Setup projection for dynamic elements
     const projection = this.getProjection(width, height);
 
+    // Day/Night terminator layer — rendered first in dynamic layers (background, behind markers)
+    if (this.state.layers.dayNight) {
+      this.renderDayNight(projection);
+    }
+
     // Update country fills (sanctions toggle without rebuilding geometry)
     this.updateCountryFills();
 
@@ -1034,6 +1047,69 @@ export class MapComponent {
     }
 
     this.applyTransform();
+  }
+
+  private startDayNightTimer(): void {
+    if (this.dayNightIntervalId) return;
+    const MS_5MIN = 5 * 60 * 1000;
+    this.dayNightIntervalId = setInterval(() => {
+      if (!this.state.layers.dayNight) return;
+      this.cachedNightPolygons = null;
+      this.render();
+    }, MS_5MIN);
+  }
+
+  private stopDayNightTimer(): void {
+    if (this.dayNightIntervalId) {
+      clearInterval(this.dayNightIntervalId);
+      this.dayNightIntervalId = null;
+    }
+  }
+
+  private getNightPolygons(): [number, number][][] {
+    const now = Date.now();
+    if (this.cachedNightPolygons && now - this.cachedNightPolygonsAt < 5 * 60 * 1000) {
+      return this.cachedNightPolygons;
+    }
+    const polygons = computeNightPolygons(now);
+    this.cachedNightPolygons = polygons;
+    this.cachedNightPolygonsAt = now;
+    return polygons;
+  }
+
+  private renderDayNight(projection: d3.GeoProjection): void {
+    if (!this.dynamicLayerGroup) return;
+
+    const polygons = this.getNightPolygons();
+    const path = d3.geoPath().projection(projection);
+
+    const isLight = getCurrentTheme() === 'light';
+    const fillColor = isLight
+      ? 'rgba(10, 20, 60, 0.22)'
+      : 'rgba(0, 5, 25, 0.38)';
+
+    const group = this.dynamicLayerGroup.append('g').attr('class', 'daynight-layer');
+
+    polygons.forEach((poly) => {
+      const feature: GeoJSON.Feature<GeoJSON.Polygon> = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Polygon',
+          coordinates: [poly],
+        },
+      };
+      const d = path(feature);
+      if (d) {
+        group
+          .append('path')
+          .attr('class', 'daynight-path')
+          .attr('d', d)
+          .attr('fill', fillColor)
+          .attr('stroke', 'none')
+          .style('pointer-events', 'none');
+      }
+    });
   }
 
   private renderGrid(
@@ -3116,6 +3192,14 @@ export class MapComponent {
       btn?.classList.remove('loading');
     }
 
+    if (layer === 'dayNight') {
+      if (this.state.layers.dayNight) {
+        this.startDayNightTimer();
+      } else {
+        this.stopDayNightTimer();
+      }
+    }
+
     this.onLayerChange?.(layer, this.state.layers[layer], source);
     // Defer render to next frame to avoid blocking the click handler
     requestAnimationFrame(() => this.render());
@@ -3575,6 +3659,11 @@ export class MapComponent {
 
   public setLayers(layers: MapLayers): void {
     this.state.layers = { ...layers };
+    if (this.state.layers.dayNight) {
+      this.startDayNightTimer();
+    } else {
+      this.stopDayNightTimer();
+    }
     this.syncLayerButtons();
     this.render();
   }

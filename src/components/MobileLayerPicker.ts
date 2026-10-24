@@ -46,7 +46,7 @@ export class MobileLayerPicker {
 
   private buildCategories(): MobileLayerCategory[] {
     if (SITE_VARIANT === 'tech') {
-      return [
+      const techCategories: MobileLayerCategory[] = [
         {
           id: 'general-intel',
           title: 'General Intel',
@@ -72,34 +72,31 @@ export class MobileLayerPicker {
             { key: 'datacenters', label: t('components.deckgl.layers.aiDataCenters'), icon: '🖥️' },
             { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '🔌' },
             { key: 'radiation', label: t('components.deckgl.layers.radiation'), icon: '☢️' },
-            { key: 'bgpAnomalies', label: t('components.deckgl.layers.bgpAnomalies'), icon: '📡' },
           ],
         },
         {
           id: 'signals-air',
-          title: 'Aviation & Signals',
+          title: 'Aviation',
           layers: [
             { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '✈️' },
-            { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '📡' },
           ],
         },
         {
           id: 'natural',
           title: 'Natural & Climate',
           layers: [
-            { key: 'weatherRadar', label: 'Weather Radar', icon: '🌦️' },
+            { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '🌍' },
             { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '⛈️' },
-            { key: 'waterTemperature', label: t('components.deckgl.layers.waterTemperature') || 'Water Surface Temp', icon: '🌊' },
-            { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
             { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '🔥' },
             { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '🌋' },
           ],
         },
       ];
+      return techCategories.filter(c => c.layers.length > 0);
     }
 
     if (SITE_VARIANT === 'finance') {
-      return [
+      const financeCategories: MobileLayerCategory[] = [
         {
           id: 'financial-markets',
           title: 'Financial Markets',
@@ -113,14 +110,12 @@ export class MobileLayerPicker {
         },
         {
           id: 'infra-trade',
-          title: 'Infrastructure & Trade',
+          title: 'Infrastructure',
           layers: [
-            { key: 'tradeRoutes', label: t('components.deckgl.layers.tradeRoutes'), icon: '🚢' },
             { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '🔌' },
             { key: 'pipelines', label: t('components.deckgl.layers.pipelines'), icon: '🛢️' },
             { key: 'radiation', label: t('components.deckgl.layers.radiation'), icon: '☢️' },
             { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '📶' },
-            { key: 'bgpAnomalies', label: t('components.deckgl.layers.bgpAnomalies'), icon: '📡' },
             { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '⚓' },
           ],
         },
@@ -130,25 +125,23 @@ export class MobileLayerPicker {
           layers: [
             { key: 'alertStatus', label: 'Alert Status', icon: '⚠️' },
             { key: 'flights', label: t('components.deckgl.layers.flightDelays'), icon: '✈️' },
-            { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '📡' },
           ],
         },
         {
           id: 'natural',
           title: 'Natural & Climate',
           layers: [
-            { key: 'weatherRadar', label: 'Weather Radar', icon: '🌦️' },
+            { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '🌍' },
             { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '⛈️' },
-            { key: 'waterTemperature', label: t('components.deckgl.layers.waterTemperature') || 'Water Surface Temp', icon: '🌊' },
-            { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
             { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '🌋' },
           ],
         },
       ];
+      return financeCategories.filter(c => c.layers.length > 0);
     }
 
     if (SITE_VARIANT === 'happy') {
-      return [
+      const happyCategories: MobileLayerCategory[] = [
         {
           id: 'positive-signals',
           title: 'Well-being & Kindness',
@@ -164,25 +157,22 @@ export class MobileLayerPicker {
           id: 'natural',
           title: 'Natural Environment',
           layers: [
-            { key: 'weatherRadar', label: 'Weather Radar', icon: '🌦️' },
+            { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '🌍' },
             { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '⛈️' },
-            { key: 'waterTemperature', label: t('components.deckgl.layers.waterTemperature') || 'Water Surface Temp', icon: '🌊' },
-            { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
-            { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '📡' },
           ],
         },
       ];
+      return happyCategories.filter(c => c.layers.length > 0);
     }
 
     // Default 'full' (geopolitical) variant
-    return [
+    const fullCategories: MobileLayerCategory[] = [
       {
         id: 'general-intel',
         title: 'General Intel',
         layers: [
           { key: 'alertStatus', label: 'Alert Status', icon: '⚠️' },
           { key: 'hotspots', label: t('components.deckgl.layers.intelHotspots'), icon: '🎯' },
-          { key: 'threatScore', label: 'Threat Score', icon: '🔴' },
         ],
       },
       {
@@ -192,7 +182,6 @@ export class MobileLayerPicker {
           { key: 'military', label: t('components.deckgl.layers.militaryActivity'), icon: '🛡️' },
           { key: 'conflicts', label: t('components.deckgl.layers.conflictZones'), icon: '⚔️' },
           { key: 'bases', label: t('components.deckgl.layers.militaryBases'), icon: '🏛️' },
-          { key: 'humanConflict', label: t('components.deckgl.layers.humanConflict') || 'Human Conflict', icon: '⚔️' },
           { key: 'nuclear', label: t('components.deckgl.layers.nuclearSites'), icon: '🏭' },
         ],
       },
@@ -208,8 +197,6 @@ export class MobileLayerPicker {
           { key: 'irradiators', label: t('components.deckgl.layers.gammaIrradiators'), icon: '⚠️' },
           { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '💎' },
           { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '📶' },
-          { key: 'bgpAnomalies', label: t('components.deckgl.layers.bgpAnomalies'), icon: '📡' },
-          { key: 'agriculturalStressASI', label: 'Agricultural Index', icon: '🌾' },
         ],
       },
       {
@@ -219,17 +206,6 @@ export class MobileLayerPicker {
           { key: 'ais', label: t('components.deckgl.layers.shipTraffic'), icon: '🚢' },
           { key: 'flights', label: 'Aviation', icon: '✈️' },
           { key: 'waterways', label: t('components.deckgl.layers.strategicWaterways'), icon: '⚓' },
-          { key: 'tradeRoutes', label: t('components.deckgl.layers.tradeRoutes'), icon: '🧭' },
-          { key: 'gpsJamming', label: t('components.deckgl.layers.gpsJamming'), icon: '📡' },
-        ],
-      },
-      {
-        id: 'geopolitical',
-        title: 'Geopolitical & Economic',
-        layers: [
-          { key: 'sanctions', label: t('components.deckgl.layerHelp.labels.sanctions'), icon: '🏛️' },
-          { key: 'protests', label: t('components.deckgl.layers.protests') || 'Social Unrest', icon: '📢' },
-          { key: 'economic', label: t('components.deckgl.layers.economicCenters'), icon: '💰' },
         ],
       },
       {
@@ -237,18 +213,15 @@ export class MobileLayerPicker {
         title: 'Natural & Climate',
         layers: [
           { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '🌍' },
-          { key: 'weatherRadar', label: 'Weather Radar', icon: '🌦️' },
           { key: 'weather', label: 'Weather Alerts', icon: '⛈️' },
-          { key: 'waterTemperature', label: t('components.deckgl.layers.waterTemperature') || 'Water Surface Temp', icon: '🌊' },
           { key: 'climate', label: t('components.deckgl.layers.climateAnomalies'), icon: '🌡️' },
-          { key: 'aqi', label: 'Air Quality', icon: '💨' },
           { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '🔥' },
           { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '🌋' },
-          { key: 'agriculturalStressDI', label: 'Drought Intensity', icon: '🌾' },
-          { key: 'agriculturalStressVCI', label: 'Vegetation Conditions', icon: '🌱' },
         ],
       },
     ];
+
+    return fullCategories.filter(c => c.layers.length > 0);
   }
 
   private init(): void {
@@ -318,6 +291,15 @@ export class MobileLayerPicker {
             <button type="button" class="mobile-layer-sheet-reset-btn" title="Reset to default layers">Reset</button>
             <button type="button" class="mobile-layer-sheet-close-btn" aria-label="Close layers">&times;</button>
           </div>
+        </div>
+
+        <div class="mobile-layer-sheet-disclaimer">
+          <svg class="mobile-layer-disclaimer-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>Mobile View Active - Some layers available only on Desktop Browsers</span>
         </div>
 
         <div class="mobile-layer-sheet-search-wrap">
