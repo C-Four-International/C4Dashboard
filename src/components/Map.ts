@@ -1525,10 +1525,6 @@ export class MapComponent {
         div.className = `radiation-marker ${station.status}`;
         div.style.left = `${pos[0]}px`;
         div.style.top = `${pos[1]}px`;
-        div.style.position = 'absolute';
-        div.style.transform = 'translate(-50%, -50%)';
-        div.style.cursor = 'pointer';
-        div.style.zIndex = '15';
         const color = station.status === 'high' ? '#ff3333' : station.status === 'elevated' ? '#ffaa00' : '#00e6b4';
         div.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="${color}"><circle cx="12" cy="12" r="8" fill-opacity="0.3"/><circle cx="12" cy="12" r="4"/><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" fill-opacity="0.8"/></svg>`;
         const rawText = station.rawCpm && station.rawCpm !== station.cpm ? ` · ${station.rawCpm.toLocaleString()} raw NaI` : '';
