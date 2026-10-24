@@ -214,7 +214,6 @@ export class MobileLayerPicker {
         layers: [
           { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '🌍' },
           { key: 'weather', label: 'Weather Alerts', icon: '⛈️' },
-          { key: 'climate', label: t('components.deckgl.layers.climateAnomalies'), icon: '🌡️' },
           { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '🔥' },
           { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '🌋' },
         ],
@@ -347,8 +346,8 @@ export class MobileLayerPicker {
           </div>
           <div class="mobile-layer-items-grid">
             ${category.layers.map(layer => {
-              const isActive = Boolean(this.currentLayers[layer.key]);
-              return `
+        const isActive = Boolean(this.currentLayers[layer.key]);
+        return `
                 <div class="mobile-layer-item ${isActive ? 'active' : ''}" data-layer="${layer.key}" role="button" tabindex="0">
                   <div class="mobile-layer-item-left">
                     <span class="mobile-layer-item-icon">${layer.icon}</span>
@@ -359,7 +358,7 @@ export class MobileLayerPicker {
                   </div>
                 </div>
               `;
-            }).join('')}
+      }).join('')}
           </div>
         </div>
       `;
