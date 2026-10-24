@@ -9347,6 +9347,35 @@ a.prediction-link:hover {
     max-height: 400px;
   }
 
+  /* Social Media Intel Panel on mobile: expanded scrollable height for posts */
+  .panel[data-panel="social-intel"] {
+    min-height: 270px;
+    max-height: 480px;
+  }
+
+  .panel[data-panel="social-intel"] .panel-content {
+    min-height: 270px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel[data-panel="social-intel"] .social-intel-panel-inner {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .panel[data-panel="social-intel"] .social-intel-cards-list {
+    min-height: 270px;
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* Make map section smaller on mobile to show panels */
   .map-section {
     height: 40vh !important;
