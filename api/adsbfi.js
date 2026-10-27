@@ -52,25 +52,42 @@ export default async function handler(req, res) {
   }
 
   try {
-    const upstreamUrl = 'https://api.adsb.lol/v2/mil';
+    const upstreams = [
+      'https://opendata.adsb.fi/api/v2/mil',
+      'https://api.adsb.lol/v2/mil',
+    ];
 
-    const response = await fetch(upstreamUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'WorldMonitor/EdgeProxy',
-      },
-      // Give ADSB 10 seconds to respond before giving up
-      signal: AbortSignal.timeout(10000) 
-    });
+    let response = null;
+    let lastStatus = 502;
+    for (const upstreamUrl of upstreams) {
+      try {
+        const resp = await fetch(upstreamUrl, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'WorldMonitor/EdgeProxy',
+          },
+          // 8 second timeout per upstream
+          signal: AbortSignal.timeout(8000),
+        });
+        if (resp.ok) {
+          response = resp;
+          break;
+        } else {
+          lastStatus = resp.status;
+        }
+      } catch {
+        // Try next upstream
+      }
+    }
 
-    if (!response.ok) {
+    if (!response || !response.ok) {
       if (cachedData) {
         return send(200, cachedData, {
           'Cache-Control': 'public, max-age=300, s-maxage=300',
           'X-Cache': 'STALE',
         });
       }
-      return send(response.status, { error: `ADSB.lol returned ${response.status}` });
+      return send(lastStatus, { error: `ADSB upstream returned ${lastStatus}` });
     }
 
     const data = await response.json();

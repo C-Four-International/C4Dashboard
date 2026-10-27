@@ -437,14 +437,14 @@ async function fetchFromTar1090(url: string, sourceName: string): Promise<Milita
  */
 async function fetchFromFallbackSources(): Promise<MilitaryFlight[]> {
   const [adsbFiResult] = await Promise.allSettled([
-    fetchFromTar1090('/api/adsbfi', 'ADSB.lol')
+    fetchFromTar1090('/api/adsbfi', 'ADSB.fi')
   ]);
 
   const allFlights: MilitaryFlight[] = [];
   const seenHexCodes = new Set<string>();
 
   if (adsbFiResult.status === 'fulfilled') {
-    console.log(`[Military Flights] ADSB.lol fallback succeeded, returned ${adsbFiResult.value.length} flights`);
+    console.log(`[Military Flights] ADSB.fi fallback succeeded, returned ${adsbFiResult.value.length} flights`);
     for (const flight of adsbFiResult.value) {
       if (!seenHexCodes.has(flight.hexCode)) {
         seenHexCodes.add(flight.hexCode);
@@ -452,11 +452,7 @@ async function fetchFromFallbackSources(): Promise<MilitaryFlight[]> {
       }
     }
   } else {
-    console.error(`[Military Flights] ADSB.lol fallback completely failed:`, adsbFiResult.reason);
-  }
-
-  if (allFlights.length === 0 && adsbFiResult.status === 'rejected') {
-    throw new Error('All fallback sources failed');
+    console.warn(`[Military Flights] ADSB.fi fallback failed:`, adsbFiResult.reason);
   }
 
   return allFlights;

@@ -1427,7 +1427,16 @@ export class DeckGLMap {
     const filteredEarthquakes = this.filterByTime(this.earthquakes, (eq) => eq.occurredAt);
     const filteredNaturalEvents = this.filterByTime(this.naturalEvents, (event) => event.date);
     const filteredWeatherAlerts = this.filterByTime(this.weatherAlerts, (alert) => alert.onset);
-    const filteredOutages = this.filterByTime(this.outages, (outage) => outage.pubDate || (outage as any).detectedAt);
+    const filteredOutages = this.state.timeRange === 'all'
+      ? this.outages
+      : this.outages.filter((outage) => {
+          // Ongoing disruptions are happening right now, always keep
+          if (!outage.endDate && !(outage as any).endedAt) return true;
+          const endTs = this.parseTime(outage.endDate || (outage as any).endedAt || outage.pubDate || (outage as any).detectedAt);
+          if (endTs == null) return true;
+          const cutoff = Date.now() - this.getTimeRangeMs();
+          return endTs >= cutoff;
+        });
     const filteredCableAdvisories = this.filterByTime(this.cableAdvisories, (advisory) => advisory.reported);
     const filteredFlightDelays = this.filterByTime(this.flightDelays, (delay) => delay.updatedAt);
     const filteredMilitaryFlights = this.filterByTime(this.militaryFlights, (flight) => flight.lastSeen);
@@ -2843,11 +2852,19 @@ export class DeckGLMap {
       getIcon: () => 'cross',
       iconAtlas: MARKER_ICONS.cross,
       iconMapping: { cross: { x: 0, y: 0, width: 32, height: 32, mask: true } },
-      getSize: 12,
-      getColor: COLORS.outage,
+      getSize: (d: any) => {
+        if (d.severity === 'total') return 16;
+        if (d.severity === 'major') return 14;
+        return 12;
+      },
+      getColor: (d: any) => {
+        if (d.severity === 'total') return [255, 40, 40, 240] as [number, number, number, number];
+        if (d.severity === 'major') return [255, 110, 40, 220] as [number, number, number, number];
+        return [255, 180, 20, 200] as [number, number, number, number];
+      },
       sizeScale: 1,
-      sizeMinPixels: 7,
-      sizeMaxPixels: 16,
+      sizeMinPixels: 9,
+      sizeMaxPixels: 20,
       pickable: true,
     });
   }
