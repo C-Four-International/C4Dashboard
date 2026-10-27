@@ -23,6 +23,7 @@ import {
   fetchProtestEvents,
   getProtestStatus,
   fetchFlightDelays,
+  fetchFaaNotams,
   fetchMilitaryFlights,
   fetchMilitaryVessels,
   initMilitaryVesselStream,
@@ -65,6 +66,7 @@ import { enrichEventsWithExposure } from '@/services/population-exposure';
 import { fetchHumanConflictEvents } from '@/services/human-conflict';
 import { debounce } from '@/utils';
 import { getAiFlowSettings } from '@/services/ai-flow-settings';
+import { isDesktopRuntime } from '@/services/runtime';
 import { t, getCurrentLanguage } from '@/services/i18n';
 import { canQueueAiClassification, AI_CLASSIFY_MAX_PER_FEED } from '@/services/ai-classify-queue';
 import { classifyWithAI } from '@/services/threat-classifier';
@@ -369,6 +371,7 @@ export class DataLoaderManager implements AppModule {
     if (SITE_VARIANT !== 'happy' && CYBER_LAYER_ENABLED && this.ctx.mapLayers.cyberThreats) tasks.push({ name: 'cyberThreats', task: runGuarded('cyberThreats', () => this.loadCyberThreats()) });
     if (SITE_VARIANT !== 'happy' && (this.ctx.mapLayers.techEvents || SITE_VARIANT === 'tech')) tasks.push({ name: 'techEvents', task: runGuarded('techEvents', () => this.loadTechEvents()) });
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.radiation) tasks.push({ name: 'radiation', task: runGuarded('radiation', () => this.loadRadiationData()) });
+    if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.outages) tasks.push({ name: 'outages', task: runGuarded('outages', () => this.loadOutages()) });
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.humanConflict) tasks.push({ name: 'humanConflict', task: runGuarded('humanConflict', () => this.loadHumanConflict()) });
 
     if (SITE_VARIANT === 'tech') {
@@ -1484,6 +1487,24 @@ export class DataLoaderManager implements AppModule {
         itemCount: delays.length,
       });
       this.ctx.statusPanel?.updateApi('FAA', { status: 'ok' });
+
+      // On desktop runtime, load FAA NOTAMs via NASA DIP catalog
+      if (isDesktopRuntime()) {
+        try {
+          const notams = await fetchFaaNotams();
+          this.ctx.map?.setNotams(notams);
+          if (notams.length > 0) {
+            this.ctx.map?.setLayerReady('flights', true);
+            const totalCount = delays.length + notams.length;
+            this.ctx.statusPanel?.updateFeed('Flights', {
+              status: 'ok',
+              itemCount: totalCount,
+            });
+          }
+        } catch (notamErr) {
+          console.warn('[DataLoader] Failed to load FAA NOTAMs from NASA DIP catalog:', notamErr);
+        }
+      }
     } catch (error) {
       this.ctx.map?.setLayerReady('flights', false);
       this.ctx.statusPanel?.updateFeed('Flights', { status: 'error', errorMessage: String(error) });

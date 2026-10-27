@@ -1,6 +1,7 @@
 import type { ConflictZone, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, NuclearFacility, EconomicCenter, GammaIrradiator, Pipeline, UnderseaCable, CableAdvisory, RepairShip, InternetOutage, AIDataCenter, AisDisruptionEvent, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, Port, Spaceport, CriticalMineralProject, CyberThreat, BgpAnomaly, AQIStation, AQIClusterData } from '@/types';
 import type { RadiationStation } from '@/services/radiation';
 import type { AirportDelayAlert } from '@/services/aviation';
+import type { FaaNotam } from '@/services/notams';
 import type { Earthquake } from '@/services/earthquakes';
 import type { WeatherAlert } from '@/services/weather';
 import { type ClimateAnomaly, getSeverityIcon } from '@/services/climate';
@@ -17,7 +18,7 @@ import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot
 import { getCableHealthRecord } from '@/services/cable-health';
 import { getAqiCategory, getStationParticulates } from '@/services/aqi';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'radiation' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'climate' | 'aqiCluster' | 'aqiStation';
+export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'radiation' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'notam' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'climate' | 'aqiCluster' | 'aqiStation';
 
 interface TechEventPopupData {
   id: string;
@@ -396,6 +397,8 @@ export class MapPopup {
         return this.renderProtestClusterPopup(data.data as ProtestClusterData);
       case 'flight':
         return this.renderFlightPopup(data.data as AirportDelayAlert);
+      case 'notam':
+        return this.renderNotamPopup(data.data as FaaNotam);
       case 'militaryFlight':
         return this.renderMilitaryFlightPopup(data.data as MilitaryFlight);
       case 'militaryVessel':
@@ -1112,6 +1115,59 @@ export class MapPopup {
     `;
   }
 
+  private renderNotamPopup(notam: FaaNotam): string {
+    const typeIcons: Record<string, string> = {
+      tfr: '🛑',
+      prohibited: '⛔',
+      restricted: '⚠️',
+      danger: '⚡',
+      moa: '✈️',
+      closure: '🔒',
+    };
+    const icon = typeIcons[notam.type] || '⚠️';
+    const typeClass = escapeHtml(notam.type);
+    const radiusKm = Math.round(notam.radiusNm * 1.852);
+    const diameterKm = Math.round(notam.radiusNm * 2 * 1.852);
+
+    return `
+      <div class="popup-header notam ${typeClass}">
+        <span class="popup-icon">${icon}</span>
+        <span class="popup-title">${escapeHtml(notam.notamNumber)} · ${escapeHtml(notam.typeLabel)}</span>
+        <span class="popup-badge ${typeClass}">${escapeHtml(notam.type.toUpperCase())}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-subtitle">${escapeHtml(notam.name)}</div>
+        <div class="popup-location">${escapeHtml(notam.locationName)} · ${notam.lat.toFixed(4)}°, ${notam.lon.toFixed(4)}°</div>
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">Coverage Area</span>
+            <span class="stat-value alert">${notam.radiusNm} NM (${radiusKm} km · ⌀ ${diameterKm} km)</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Altitude Limits</span>
+            <span class="stat-value">${escapeHtml(notam.lowerAlt)} to ${escapeHtml(notam.upperAlt)}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Effective Window</span>
+            <span class="stat-value">${escapeHtml(notam.effectiveStart.replace('T', ' ').replace('Z', ' UTC'))} to ${escapeHtml(notam.effectiveEnd.replace('T', ' ').replace('Z', ' UTC'))}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Airspace Classification</span>
+            <span class="stat-value">${escapeHtml(notam.typeLabel)}</span>
+          </div>
+          <div class="popup-stat" style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+            <span class="stat-label">Context & Reason</span>
+            <span class="stat-value" style="white-space: normal; line-height: 1.4; text-align: left;">${escapeHtml(notam.reason)}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Data Catalog</span>
+            <span class="stat-value">FAA SWIM via NASA Digital Information Platform (DIP) [6h Cache]</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
   private renderCyberThreatPopup(threat: CyberThreat): string {
     const severityClass = escapeHtml(threat.severity);

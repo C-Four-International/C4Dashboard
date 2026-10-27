@@ -24,6 +24,7 @@ export * from './wildfires';
 export * from './climate';
 export * from './unrest';
 export * from './aviation';
+export * from './notams';
 export * from './military-flights';
 export * from './military-vessels';
 export * from './usni-fleet';

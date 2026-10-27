@@ -50,6 +50,7 @@ import {
 } from '@/services/aqi';
 import { calculateRegionalThreats } from '@/services/aggregate-threat';
 import type { AirportDelayAlert } from '@/services/aviation';
+import { type FaaNotam, getNotamColor } from '@/services/notams';
 import type { DisplacementFlow } from '@/services/displacement';
 import type { Earthquake } from '@/services/earthquakes';
 import type { ClimateAnomaly } from '@/services/climate';
@@ -347,6 +348,7 @@ export class DeckGLMap {
   private radiationData: RadiationStation[] = [];
   private techEvents: TechEventMarker[] = [];
   private flightDelays: AirportDelayAlert[] = [];
+  private notams: FaaNotam[] = [];
   private news: NewsItem[] = [];
   private newsLocations: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date; items?: import('@/types').NewsItem[] }> = [];
   private newsLocationFirstSeen = new Map<string, number>();
@@ -1598,6 +1600,11 @@ export class DeckGLMap {
       layers.push(this.createFlightDelaysLayer(filteredFlightDelays));
     }
 
+    // FAA NOTAMs layer (temporary flight restrictions, restricted, danger, prohibited, MOAs, closures)
+    if (mapLayers.flights && this.notams.length > 0) {
+      layers.push(this.createNotamsLayer(this.notams));
+    }
+
     // Protests layer (Supercluster-based deck.gl layers)
     if (mapLayers.protests && this.protests.length > 0) {
       layers.push(...this.createProtestClusterLayers());
@@ -2693,6 +2700,22 @@ export class DeckGLMap {
       },
       radiusMinPixels: 4,
       radiusMaxPixels: 15,
+      pickable: true,
+    });
+  }
+
+  private createNotamsLayer(notams: FaaNotam[]): ScatterplotLayer {
+    return new ScatterplotLayer({
+      id: 'notams-layer',
+      data: notams,
+      getPosition: (d: FaaNotam) => [d.lon, d.lat],
+      getRadius: (d: FaaNotam) => Math.max(d.radiusNm * 1852, 4000),
+      getFillColor: (d: FaaNotam) => getNotamColor(d.type).fill,
+      getLineColor: (d: FaaNotam) => getNotamColor(d.type).stroke,
+      stroked: true,
+      filled: true,
+      lineWidthMinPixels: 1.5,
+      radiusMinPixels: 6,
       pickable: true,
     });
   }
@@ -4170,6 +4193,12 @@ export class DeckGLMap {
       }
       case 'flight-delays-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)} (${text(obj.iata)})</strong><br/>${text(obj.severity)}: ${text(obj.reason || obj.delayType)}</div>` };
+      case 'notams-layer': {
+        const notam = obj as FaaNotam;
+        return {
+          html: `<div class="deckgl-tooltip"><strong>${text(notam.typeLabel)}</strong><br/>NOTAM: <strong>${text(notam.notamNumber)}</strong><br/><small>${text(notam.name)} · ${notam.radiusNm} NM · ${text(notam.lowerAlt)} - ${text(notam.upperAlt)}</small></div>`,
+        };
+      }
 
       case 'minerals-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.mineral)} - ${text(obj.country)}<br/>${text(obj.operator)}</div>` };
@@ -4521,6 +4550,7 @@ export class DeckGLMap {
       'spaceports-layer': 'spaceport',
       'ports-layer': 'port',
       'flight-delays-layer': 'flight',
+      'notams-layer': 'notam',
       'startup-hubs-layer': 'startupHub',
       'tech-hqs-layer': 'techHQ',
       'accelerators-layer': 'accelerator',
@@ -4673,6 +4703,7 @@ export class DeckGLMap {
             { key: 'datacenters', label: t('components.deckgl.layers.aiDataCenters'), icon: '&#128421;' },
             { key: 'cables', label: t('components.deckgl.layers.underseaCables'), icon: '&#128268;' },
             { key: 'radiation', label: t('components.deckgl.layers.radiation'), icon: '&#9762;' },
+            { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '&#128225;' },
             { key: 'bgpAnomalies', label: t('components.deckgl.layers.bgpAnomalies'), icon: '&#128256;' },
           ],
         },
@@ -4791,6 +4822,7 @@ export class DeckGLMap {
                 { key: 'irradiators', label: t('components.deckgl.layers.gammaIrradiators'), icon: '&#9888;' },
                 { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '&#128142;' },
                 { key: 'nuclear', label: t('components.deckgl.layers.nuclearSites'), icon: '🏭' },
+                { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '&#128225;' },
                 { key: 'agriculturalStressASI', label: 'Agricultural Index', icon: '&#127806;' },
                 { key: 'bgpAnomalies', label: t('components.deckgl.layers.bgpAnomalies'), icon: '&#128256;' },
               ],
@@ -5231,12 +5263,37 @@ export class DeckGLMap {
                 { color: '#ef4444', label: 'High' },
               ],
             },
+            {
+              shape: shapes.cross('#ef4444'),
+              badge: 'Cross',
+              name: t('components.deckgl.layers.internetOutages'),
+              desc: 'Major regional and national connectivity disruptions, ISP traffic anomalies, and submarine cable cuts tracked via Cloudflare Radar. [Cache: 3 hours]',
+              subswatches: [
+                { color: '#ef4444', label: 'Total' },
+                { color: '#f97316', label: 'Major' },
+                { color: '#eab308', label: 'Partial' },
+              ],
+            },
           ],
         },
         {
           title: 'Aviation & Natural',
           items: [
             { shape: shapes.circle('#f59e0b'), badge: 'Dot', name: t('components.deckgl.layers.flightDelays'), desc: 'Commercial airport ground stops and FAA delay advisories.' },
+            {
+              shape: shapes.tacticalCircle('#ef4444'),
+              badge: 'Bubble Area',
+              name: 'Airspace Restrictions (FAA NOTAMs)',
+              desc: 'FAA Temporary Flight Restrictions (TFR), restricted, danger, prohibited, MOAs, and closures via NASA DIP catalog sized by coverage area.',
+              subswatches: [
+                { color: '#ef4444', label: 'TFR' },
+                { color: '#dc2626', label: 'Prohibited' },
+                { color: '#f97316', label: 'Restricted' },
+                { color: '#eab308', label: 'Danger' },
+                { color: '#3b82f6', label: 'MOA' },
+                { color: '#a855f7', label: 'Closure' },
+              ],
+            },
             { shape: shapes.circle('#ef4444'), badge: 'Thermal Dot', name: t('components.deckgl.layers.fires'), desc: 'NASA FIRMS active wildfire and industrial heat detections.' },
             { shape: shapes.circle('#06b6d4'), badge: 'Beacon', name: t('components.deckgl.layers.naturalEvents'), desc: 'Seismic events and severe weather alerts near tech clusters.' },
           ],
@@ -5351,6 +5408,37 @@ export class DeckGLMap {
               badge: 'Path Line',
               name: t('components.deckgl.layers.pipelines'),
               desc: 'Strategic transnational crude oil, refined petroleum, and natural gas transmission pipelines.',
+            },
+            {
+              shape: shapes.circle('#f59e0b'),
+              badge: 'Dot',
+              name: t('components.deckgl.layers.flightDelays'),
+              desc: 'Commercial airport ground stops, FAA flight delay advisories, and airspace congestion.',
+            },
+            {
+              shape: shapes.tacticalCircle('#ef4444'),
+              badge: 'Bubble Area',
+              name: 'Airspace Restrictions (FAA NOTAMs)',
+              desc: 'FAA Temporary Flight Restrictions (TFR), restricted, danger, prohibited airspace, MOAs, and closures via NASA DIP catalog sized by coverage radius.',
+              subswatches: [
+                { color: '#ef4444', label: 'TFR' },
+                { color: '#dc2626', label: 'Prohibited' },
+                { color: '#f97316', label: 'Restricted' },
+                { color: '#eab308', label: 'Danger' },
+                { color: '#3b82f6', label: 'MOA' },
+                { color: '#a855f7', label: 'Closure' },
+              ],
+            },
+            {
+              shape: shapes.cross('#ef4444'),
+              badge: 'Cross',
+              name: t('components.deckgl.layers.internetOutages'),
+              desc: 'Major regional and national connectivity disruptions, ISP traffic anomalies, and submarine cable cuts tracked via Cloudflare Radar. [Cache: 3 hours]',
+              subswatches: [
+                { color: '#ef4444', label: 'Total' },
+                { color: '#f97316', label: 'Major' },
+                { color: '#eab308', label: 'Partial' },
+              ],
             },
           ],
         },
@@ -6160,6 +6248,11 @@ export class DeckGLMap {
 
   public setFlightDelays(delays: AirportDelayAlert[]): void {
     this.flightDelays = delays;
+    this.render();
+  }
+
+  public setNotams(notams: FaaNotam[]): void {
+    this.notams = notams;
     this.render();
   }
 

@@ -29,6 +29,7 @@ import type {
   CableHealthRecord,
 } from '@/types';
 import type { AirportDelayAlert } from '@/services/aviation';
+import type { FaaNotam } from '@/services/notams';
 import type { DisplacementFlow } from '@/services/displacement';
 import type { RadiationStation } from '@/services/radiation';
 import type { Earthquake } from '@/services/earthquakes';
@@ -300,6 +301,14 @@ export class MapContainer {
       this.deckGLMap?.setFlightDelays(delays);
     } else {
       this.svgMap?.setFlightDelays(delays);
+    }
+  }
+
+  public setNotams(notams: FaaNotam[]): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.setNotams(notams);
+    } else {
+      this.svgMap?.setNotams(notams);
     }
   }
 

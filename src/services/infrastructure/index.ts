@@ -19,8 +19,11 @@ import { isFeatureAvailable } from '../runtime-config';
 
 // ---- Client + Circuit Breakers ----
 
+// 3-hour cache TTL (3 * 60 * 60 * 1000 ms) for Cloudflare Radar outages
+export const OUTAGES_CACHE_TTL_MS = 3 * 60 * 60 * 1000;
+
 const client = new InfrastructureServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
-const outageBreaker = createCircuitBreaker<ListInternetOutagesResponse>({ name: 'Internet Outages', cacheTtlMs: 5 * 60 * 1000, persistCache: true });
+const outageBreaker = createCircuitBreaker<ListInternetOutagesResponse>({ name: 'Internet Outages', cacheTtlMs: OUTAGES_CACHE_TTL_MS, persistCache: true });
 const statusBreaker = createCircuitBreaker<ListServiceStatusesResponse>({ name: 'Service Statuses', cacheTtlMs: 5 * 60 * 1000, persistCache: true });
 
 const emptyOutageFallback: ListInternetOutagesResponse = { outages: [], pagination: undefined };

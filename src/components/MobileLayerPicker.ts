@@ -195,6 +195,7 @@ export class MobileLayerPicker {
           { key: 'radiation', label: t('components.deckgl.layers.radiation'), icon: '☢️' },
           { key: 'irradiators', label: t('components.deckgl.layers.gammaIrradiators'), icon: '⚠️' },
           { key: 'minerals', label: t('components.deckgl.layers.criticalMinerals'), icon: '💎' },
+          { key: 'outages', label: t('components.deckgl.layers.internetOutages'), icon: '📡' },
         ],
       },
       {

@@ -6,6 +6,7 @@ import type { Topology, GeometryCollection } from 'topojson-specification';
 import type { Feature, Geometry } from 'geojson';
 import type { MapLayers, Hotspot, NewsItem, InternetOutage, RelatedAsset, AssetType, AisDisruptionEvent, AisDensityZone, CableAdvisory, RepairShip, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, CyberThreat, CableHealthRecord } from '@/types';
 import type { AirportDelayAlert } from '@/services/aviation';
+import { type FaaNotam, getNotamColor } from '@/services/notams';
 import type { Earthquake } from '@/services/earthquakes';
 import type { TechHubActivity } from '@/services/tech-activity';
 import type { GeoHubActivity } from '@/services/geo-activity';
@@ -127,6 +128,7 @@ export class MapComponent {
   private healthByCableId: Record<string, CableHealthRecord> = {};
   private protests: SocialUnrestEvent[] = [];
   private flightDelays: AirportDelayAlert[] = [];
+  private notams: FaaNotam[] = [];
   private militaryFlights: MilitaryFlight[] = [];
   private militaryFlightClusters: MilitaryFlightCluster[] = [];
   private militaryVessels: MilitaryVessel[] = [];
@@ -2557,6 +2559,45 @@ export class MapComponent {
 
         this.overlays.appendChild(div);
       });
+
+      // FAA NOTAM Airspace Bubbles
+      if (this.notams.length > 0) {
+        this.notams.forEach((notam) => {
+          const pos = projection([notam.lon, notam.lat]);
+          if (!pos) return;
+
+          const div = document.createElement('div');
+          div.className = `notam-marker ${notam.type}`;
+          div.style.position = 'absolute';
+          div.style.left = `${pos[0]}px`;
+          div.style.top = `${pos[1]}px`;
+          const colorCfg = getNotamColor(notam.type);
+          const pxRadius = Math.max(14, Math.min(100, Math.round(notam.radiusNm * 0.75 * this.state.zoom)));
+          div.style.width = `${pxRadius * 2}px`;
+          div.style.height = `${pxRadius * 2}px`;
+          div.style.marginLeft = `-${pxRadius}px`;
+          div.style.marginTop = `-${pxRadius}px`;
+          div.style.borderRadius = '50%';
+          div.style.backgroundColor = `rgba(${colorCfg.fill[0]}, ${colorCfg.fill[1]}, ${colorCfg.fill[2]}, 0.35)`;
+          div.style.border = `1.5px solid rgba(${colorCfg.stroke[0]}, ${colorCfg.stroke[1]}, ${colorCfg.stroke[2]}, 0.85)`;
+          div.style.cursor = 'pointer';
+          div.style.pointerEvents = 'auto';
+          div.title = `${notam.typeLabel} - ${notam.notamNumber}: ${notam.name}`;
+
+          div.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const rect = this.container.getBoundingClientRect();
+            this.popup.show({
+              type: 'notam',
+              data: notam,
+              x: e.clientX - rect.left,
+              y: e.clientY - rect.top,
+            });
+          });
+
+          this.overlays.appendChild(div);
+        });
+      }
     }
 
     // Military Tracking (flights and vessels)
@@ -3709,6 +3750,11 @@ export class MapComponent {
 
   public setFlightDelays(delays: AirportDelayAlert[]): void {
     this.flightDelays = delays;
+    this.render();
+  }
+
+  public setNotams(notams: FaaNotam[]): void {
+    this.notams = notams;
     this.render();
   }
 
