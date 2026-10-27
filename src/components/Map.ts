@@ -2929,6 +2929,18 @@ export class MapComponent {
       label.textContent = event.name;
       div.appendChild(label);
 
+      const isEagle = Boolean(
+        event.source?.toLowerCase().includes('eagle') ||
+        event.id?.startsWith('eagle-') ||
+        event.description?.includes('eagleintelmari.com') ||
+        event.description?.includes('Eagle Intelligence')
+      );
+      if (isEagle) {
+        const rawSeverity = String(event.severity || 'low').toLowerCase();
+        const severityLabel = rawSeverity.charAt(0).toUpperCase() + rawSeverity.slice(1);
+        div.title = `AIS Chokepoint\n${t('popups.severity')}: ${severityLabel}\n${t('popups.source')}: eagleintelmari.com`;
+      }
+
       div.addEventListener('click', (e) => {
         e.stopPropagation();
         const rect = this.container.getBoundingClientRect();

@@ -4219,8 +4219,28 @@ export class DeckGLMap {
 
       case 'minerals-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.mineral)} - ${text(obj.country)}<br/>${text(obj.operator)}</div>` };
-      case 'ais-disruptions-layer':
-        return { html: `<div class="deckgl-tooltip"><strong>AIS ${text(obj.type || t('components.deckgl.tooltip.disruption'))}</strong><br/>${text(obj.severity)} ${t('popups.severity')}<br/>${text(obj.description)}</div>` };
+      case 'ais-disruptions-layer': {
+        const isEagle = Boolean(
+          obj.id?.startsWith('eagle-') ||
+          obj.sourceUrl?.includes('eagleintelmari.com') ||
+          obj.pageUrl?.includes('eagleintelmari.com') ||
+          obj.source?.toLowerCase().includes('eagle') ||
+          obj.description?.includes('eagleintelmari.com') ||
+          obj.description?.includes('Eagle Intelligence')
+        );
+
+        if (isEagle) {
+          const rawSeverity = String(obj.severity || 'low').toLowerCase();
+          const severityLabel = rawSeverity.charAt(0).toUpperCase() + rawSeverity.slice(1);
+          const severityColor = rawSeverity === 'high' ? '#ff4d4d' : rawSeverity === 'elevated' ? '#ffaa00' : '#eab308';
+          return {
+            html: `<div class="deckgl-tooltip"><strong>AIS Chokepoint</strong><br/>${t('popups.severity')}: <span style="color:${severityColor};font-weight:600;">${text(severityLabel)}</span><br/><small style="opacity:0.85;">${t('popups.source')}: eagleintelmari.com</small></div>`,
+          };
+        }
+
+        const fallbackType = obj.type === 'chokepoint_congestion' ? 'Chokepoint' : obj.type === 'gap_spike' ? 'Gap Spike' : obj.type || t('components.deckgl.tooltip.disruption');
+        return { html: `<div class="deckgl-tooltip"><strong>AIS ${text(fallbackType)}</strong><br/>${text(obj.severity)} ${t('popups.severity')}<br/>${text(obj.description)}</div>` };
+      }
       case 'cable-advisories-layer': {
         const cableName = UNDERSEA_CABLES.find(c => c.id === obj.cableId)?.name || obj.cableId;
         return { html: `<div class="deckgl-tooltip"><strong>${text(cableName)}</strong><br/>${text(obj.severity || t('components.deckgl.tooltip.advisory'))}<br/>${text(obj.description)}</div>` };
