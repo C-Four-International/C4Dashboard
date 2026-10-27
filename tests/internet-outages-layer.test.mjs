@@ -60,4 +60,24 @@ describe('Internet Outages Infrastructure Layer with 3-Hour Cache', () => {
     assert.ok(loaderSrc.includes("if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.outages) tasks.push({ name: 'outages', task: runGuarded('outages', () => this.loadOutages()) })"), 'data-loader must load outages in loadInitialData when active');
     assert.ok(loaderSrc.includes('case \'outages\':'), 'data-loader must handle outages toggle in onLayerToggled');
   });
+
+  it('includes internet outages layer in MobileLayerPicker across variants', () => {
+    const mobilePickerSrc = readSrc('src/components/MobileLayerPicker.ts');
+
+    // Check techCategories
+    const techCategoryMatch = mobilePickerSrc.match(/techCategories:\s*MobileLayerCategory\[\]\s*=\s*\[([\s\S]*?)\];/);
+    assert.ok(techCategoryMatch, 'Must find techCategories');
+    assert.ok(techCategoryMatch[1].includes("key: 'outages'"), 'techCategories must include outages layer');
+
+    // Check financeCategories
+    const financeCategoryMatch = mobilePickerSrc.match(/financeCategories:\s*MobileLayerCategory\[\]\s*=\s*\[([\s\S]*?)\];/);
+    assert.ok(financeCategoryMatch, 'Must find financeCategories');
+    assert.ok(financeCategoryMatch[1].includes("key: 'outages'"), 'financeCategories must include outages layer');
+
+    // Check fullCategories
+    const fullCategoryMatch = mobilePickerSrc.match(/fullCategories:\s*MobileLayerCategory\[\]\s*=\s*\[([\s\S]*?)\];/);
+    assert.ok(fullCategoryMatch, 'Must find fullCategories');
+    assert.ok(fullCategoryMatch[1].includes("key: 'outages'"), 'fullCategories must include outages layer');
+  });
 });
+
