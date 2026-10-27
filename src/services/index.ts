@@ -13,6 +13,7 @@ export * from './economic';
 export * from './infrastructure';
 export * from './cyber';
 export * from './maritime';
+export * from './aisstream';
 export * from './cable-activity';
 export * from './cable-health';
 export * from './conflict';

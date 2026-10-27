@@ -74,6 +74,7 @@ let memoryCache = {
   data: null,
   expiresAt: 0,
 };
+let lastKnownGoodData = null;
 
 // In-flight request deduplication to prevent stampedes & redundant CPU execution
 let inFlightPromise = null;
@@ -341,7 +342,7 @@ async function fetchBlueskyAuthorPosts(actor, authHeader) {
   }
 
   try {
-    const res = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(7000) });
+    const res = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(3500) });
     if (!res.ok) return [];
     const data = await res.json();
     if (!data.feed || !Array.isArray(data.feed)) return [];
@@ -541,7 +542,7 @@ async function fetchTelegramChannelPosts(channel) {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
       },
-      signal: AbortSignal.timeout(4500),
+      signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) return [];
     const html = await res.text();
@@ -610,25 +611,21 @@ async function fetchTelethonRedisPosts() {
 }
 
 // Ingest all candidate accounts across Bluesky and Telegram (with Railway proxy worker & fallback)
-async function ingestAllPosts() {
-  const bskyKey = process.env.BLUESKY_API_KEY;
-  const tgKey = process.env.TELEGRAM_API_KEY;
-
-  // 1. Fetch from pre-existing Railway proxy worker if configured
+async function ingestTelegramPosts(tgKey) {
   let tgPosts = [];
   if (process.env.WS_RELAY_URL) {
     tgPosts = await fetchRailwayTelegramFeed(TELEGRAM_CHANNELS, tgKey);
   }
 
-  // 2. Fetch from Upstash Redis cache (if Railway did not return posts)
   if (tgPosts.length === 0) {
     tgPosts = await fetchTelethonRedisPosts();
   }
 
-  // 3. If Railway/Redis returned fewer than 6 posts, scrape directly via Telegram Web Widget preview
   if (tgPosts.length < 6) {
+    // Only scrape top 12 primary channels to prevent edge gateway timeout
+    const channelsToScrape = TELEGRAM_CHANNELS.slice(0, 12);
     const previewResults = await Promise.allSettled(
-      TELEGRAM_CHANNELS.map(ch => fetchTelegramChannelPosts(ch))
+      channelsToScrape.map(ch => fetchTelegramChannelPosts(ch))
     );
     for (const r of previewResults) {
       if (r.status === 'fulfilled' && Array.isArray(r.value)) {
@@ -637,13 +634,15 @@ async function ingestAllPosts() {
     }
   }
 
-  // 4. Also check Telegram Bot API if configured
   if (tgKey) {
     const botPosts = await fetchTelegramBotUpdates(tgKey);
     if (botPosts.length > 0) tgPosts.push(...botPosts);
   }
 
-  // 5. Fetch Bluesky author feeds
+  return tgPosts;
+}
+
+async function ingestBlueskyPosts(bskyKey) {
   const authHeader = await getBlueskyAuthHeader(bskyKey);
   const bskyResults = await Promise.allSettled(
     BLUESKY_ACCOUNTS.map(account => fetchBlueskyAuthorPosts(account, authHeader))
@@ -655,6 +654,19 @@ async function ingestAllPosts() {
       bskyPosts.push(...r.value);
     }
   }
+
+  return bskyPosts;
+}
+
+async function ingestAllPosts() {
+  const bskyKey = process.env.BLUESKY_API_KEY;
+  const tgKey = process.env.TELEGRAM_API_KEY;
+
+  // Ingest Telegram and Bluesky concurrently
+  const [tgPosts, bskyPosts] = await Promise.all([
+    ingestTelegramPosts(tgKey),
+    ingestBlueskyPosts(bskyKey),
+  ]);
 
   return [...tgPosts, ...bskyPosts];
 }
@@ -677,7 +689,7 @@ async function batchEmbedTexts(texts, geminiKey) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests }),
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(4000),
     });
 
     if (!res.ok) {
@@ -706,8 +718,8 @@ STRICT PROTOCOL:
 4. Tone: Telegraphic, objective wire-service intelligence style (e.g. 'Ukrainian air defenses intercepted 14 drones over Kharkiv; power infrastructure sustained minor damage.').
 5. Formatting: Output ONLY the raw factual briefing in English. No preambles, titles, translation notes, source citations, quotes, or markdown formatting.`;
 
-  // Use Google AI Studio's lowest cost models: gemini-1.5-flash-8b ($0.0375/1M tokens) with fallbacks
-  const models = ['gemini-1.5-flash-8b', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
+  // Use Google AI Studio's lowest cost models: gemini-1.5-flash-8b with gemini-2.0-flash-lite fallback
+  const models = ['gemini-1.5-flash-8b', 'gemini-2.0-flash-lite'];
 
   for (const model of models) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
@@ -723,7 +735,7 @@ STRICT PROTOCOL:
             maxOutputTokens: 60,
           },
         }),
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(3500),
       });
 
       if (res.ok) {
@@ -816,7 +828,7 @@ export async function translateTextWithGoogle(text, targetLang = 'en') {
           target: targetLang,
           format: 'text',
         }),
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(3000),
       });
 
       if (res.ok) {
@@ -831,30 +843,32 @@ export async function translateTextWithGoogle(text, targetLang = 'en') {
     }
   }
 
-  // 2. Google Pre-Trained Neural Translation Engine (client=gtx)
-  try {
-    const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(trimmed)}`;
-    const res = await fetch(gtxUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'WorldMonitor/1.0 (Google-Pretrained-Translation-Hook)',
-        'Accept': 'application/json',
-      },
-      signal: AbortSignal.timeout(6000),
-    });
+  // 2. Google Pre-Trained Neural Translation Engine (client=gtx with dict-chrome-ex fallback)
+  for (const client of ['gtx', 'dict-chrome-ex']) {
+    try {
+      const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=${client}&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(trimmed)}`;
+      const res = await fetch(gtxUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(3000),
+      });
 
-    if (res.ok) {
-      const json = await res.json();
-      if (Array.isArray(json) && Array.isArray(json[0])) {
-        const parts = json[0].map(item => (Array.isArray(item) ? item[0] : '')).filter(Boolean);
-        const translated = parts.join('').trim();
-        if (translated.length > 0) {
-          return storeTranslation(cacheKey, decodeHtmlEntities(translated));
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json) && Array.isArray(json[0])) {
+          const parts = json[0].map(item => (Array.isArray(item) ? item[0] : '')).filter(Boolean);
+          const translated = parts.join('').trim();
+          if (translated.length > 0) {
+            return storeTranslation(cacheKey, decodeHtmlEntities(translated));
+          }
         }
       }
+    } catch {
+      // Try next client or fallback
     }
-  } catch {
-    // Fall through to Tier 3
   }
 
   // 3. Gemini 1.5 Flash Translation Fallback
@@ -897,7 +911,7 @@ export async function batchTranslateWithGoogle(texts, targetLang = 'en') {
   const uniqueTexts = Array.from(new Set(texts.map(t => (t || '').trim()).filter(Boolean)));
   const translationMap = new Map();
 
-  const CONCURRENCY = 5;
+  const CONCURRENCY = 8;
   for (let i = 0; i < uniqueTexts.length; i += CONCURRENCY) {
     const chunk = uniqueTexts.slice(i, i + CONCURRENCY);
     await Promise.allSettled(
@@ -1144,9 +1158,9 @@ async function buildSocialIntelBriefings() {
 
   // Balanced selection: Corroborated multi-source events first, followed by balanced breaking Telegram OSINT & Bluesky signals
   const finalClusters = [
-    ...corroboratedClusters.slice(0, 14),
-    ...singleTgClusters.slice(0, 10),
-    ...singleBskyClusters.slice(0, 10),
+    ...corroboratedClusters.slice(0, 12),
+    ...singleTgClusters.slice(0, 6),
+    ...singleBskyClusters.slice(0, 6),
   ];
 
   // 5. Batch-translate foreign posts in final clusters via Google Pre-Trained Translation
@@ -1159,9 +1173,9 @@ async function buildSocialIntelBriefings() {
     }
   }
 
-  if (foreignPosts.length > 0) {
+  if (foreignPosts.length > 0 && !geminiKey) {
     try {
-      const uniqueTexts = Array.from(new Set(foreignPosts.map(p => p.cleanedText)));
+      const uniqueTexts = Array.from(new Set(foreignPosts.map(p => p.cleanedText))).slice(0, 10);
       const translatedList = await batchTranslateWithGoogle(uniqueTexts, 'en');
       const textMap = new Map();
       uniqueTexts.forEach((orig, idx) => {
@@ -1180,58 +1194,84 @@ async function buildSocialIntelBriefings() {
     }
   }
 
-  // 6. Briefing Generation (< 25 words)
+  // 6. Briefing Generation (< 25 words) - parallelized with bounded concurrency
   const briefings = [];
   let modelUsedOverall = 'local-corroborator';
+  const CONCURRENCY = 6;
 
-  for (let i = 0; i < finalClusters.length; i++) {
-    const cluster = finalClusters[i];
-    const distinctAuthors = new Set(cluster.map(p => `${p.platform}:${p.author}`));
-    const isMultiSource = distinctAuthors.size >= 2;
+  for (let i = 0; i < finalClusters.length; i += CONCURRENCY) {
+    const chunk = finalClusters.slice(i, i + CONCURRENCY);
+    const chunkResults = await Promise.allSettled(
+      chunk.map(async (cluster, chunkIdx) => {
+        const clusterIndex = i + chunkIdx;
+        const distinctAuthors = new Set(cluster.map(p => `${p.platform}:${p.author}`));
+        const isMultiSource = distinctAuthors.size >= 2;
 
-    let res = null;
-    if (geminiKey) {
-      res = await generateAirGappedBriefing(cluster, geminiKey);
+        let res = null;
+        if (geminiKey) {
+          try {
+            res = await generateAirGappedBriefing(cluster, geminiKey);
+          } catch {
+            // fallback
+          }
+        }
+        if (!res) {
+          try {
+            res = await generateBriefingWithGoogleTranslation(cluster);
+          } catch {
+            // fallback
+          }
+        }
+        if (!res) {
+          res = generateLocalBriefingFallback(cluster);
+        }
+
+        const platforms = Array.from(new Set(cluster.map(p => p.platform)));
+        const latestPostDate = cluster.reduce((latest, p) => {
+          const pTime = new Date(p.publishedAt).getTime();
+          return pTime > latest ? pTime : latest;
+        }, 0);
+
+        const wordCount = res.briefing.split(/\s+/).filter(Boolean).length;
+
+        return {
+          clusterIndex,
+          modelUsed: res.modelUsed,
+          briefingItem: {
+            id: `briefing-${clusterIndex}-${Date.now().toString(36)}`,
+            briefing: res.briefing,
+            wordCount,
+            createdAt: latestPostDate > 0 ? new Date(latestPostDate).toISOString() : new Date().toISOString(),
+            freshness: formatTimeAgo(latestPostDate),
+            sources: cluster.map(p => ({
+              id: p.id,
+              platform: p.platform,
+              author: p.author,
+              authorName: p.authorName,
+              url: p.url,
+              publishedAt: p.publishedAt,
+              freshness: formatTimeAgo(new Date(p.publishedAt).getTime()),
+              rawText: p.rawText,
+              cleanedText: p.cleanedText,
+              translatedText: p.translatedText || null,
+              isTranslated: !!p.isTranslated,
+            })),
+            platforms,
+            corroborationScore: distinctAuthors.size,
+            isMultiSource,
+          },
+        };
+      })
+    );
+
+    for (const r of chunkResults) {
+      if (r.status === 'fulfilled' && r.value) {
+        if (r.value.modelUsed && r.value.modelUsed !== 'local-corroborator') {
+          modelUsedOverall = r.value.modelUsed;
+        }
+        briefings.push(r.value.briefingItem);
+      }
     }
-    if (!res) {
-      res = await generateBriefingWithGoogleTranslation(cluster);
-    }
-    if (!res) {
-      res = generateLocalBriefingFallback(cluster);
-    }
-    modelUsedOverall = res.modelUsed;
-
-    const platforms = Array.from(new Set(cluster.map(p => p.platform)));
-    const latestPostDate = cluster.reduce((latest, p) => {
-      const pTime = new Date(p.publishedAt).getTime();
-      return pTime > latest ? pTime : latest;
-    }, 0);
-
-    const wordCount = res.briefing.split(/\s+/).filter(Boolean).length;
-
-    briefings.push({
-      id: `briefing-${i}-${Date.now().toString(36)}`,
-      briefing: res.briefing,
-      wordCount,
-      createdAt: latestPostDate > 0 ? new Date(latestPostDate).toISOString() : new Date().toISOString(),
-      freshness: formatTimeAgo(latestPostDate),
-      sources: cluster.map(p => ({
-        id: p.id,
-        platform: p.platform,
-        author: p.author,
-        authorName: p.authorName,
-        url: p.url,
-        publishedAt: p.publishedAt,
-        freshness: formatTimeAgo(new Date(p.publishedAt).getTime()),
-        rawText: p.rawText,
-        cleanedText: p.cleanedText,
-        translatedText: p.translatedText || null,
-        isTranslated: !!p.isTranslated,
-      })),
-      platforms,
-      corroborationScore: distinctAuthors.size,
-      isMultiSource,
-    });
   }
 
   return {
@@ -1393,16 +1433,27 @@ export default async function handler(req) {
     }
   }
 
-  // 4. Generate fresh briefings (with singleflight promise)
+  // 4. Generate fresh briefings with singleflight deduplication & execution safety deadline
+  const BUILD_TIMEOUT_MS = 9500;
+  let timerId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timerId = setTimeout(() => reject(new Error('SocialIntel build deadline exceeded')), BUILD_TIMEOUT_MS);
+    if (timerId && timerId.unref) timerId.unref();
+  });
+
   try {
-    inFlightPromise = buildSocialIntelBriefings();
-    const freshData = await inFlightPromise;
+    if (!inFlightPromise) {
+      inFlightPromise = buildSocialIntelBriefings();
+    }
+    const freshData = await Promise.race([inFlightPromise, timeoutPromise]);
+    clearTimeout(timerId);
 
     // Store in memory cache
     memoryCache = {
       data: freshData,
       expiresAt: Date.now() + CACHE_TTL_MS,
     };
+    lastKnownGoodData = freshData;
 
     // Store in Upstash Redis cache (asynchronous, non-blocking)
     setRedisCache(redisKey, freshData, CACHE_TTL_SECONDS).catch(() => {});
@@ -1417,15 +1468,75 @@ export default async function handler(req) {
       },
     });
   } catch (err) {
-    console.error('[SocialIntel] Fatal handler error:', err);
+    clearTimeout(timerId);
+    console.warn('[SocialIntel] Fresh build timeout or error, evaluating fallbacks:', err?.message || err);
+
+    // Stale fallback from in-memory cache
+    if (lastKnownGoodData && Array.isArray(lastKnownGoodData.briefings) && lastKnownGoodData.briefings.length > 0) {
+      return new Response(JSON.stringify(lastKnownGoodData), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=300',
+          'X-Cache-Status': 'STALE-FALLBACK',
+          ...corsHeaders,
+        },
+      });
+    }
+
+    // Stale fallback from Redis cache
+    try {
+      const staleRedis = await getRedisCache(redisKey);
+      if (staleRedis && Array.isArray(staleRedis.briefings) && staleRedis.briefings.length > 0) {
+        lastKnownGoodData = staleRedis;
+        return new Response(JSON.stringify(staleRedis), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=300',
+            'X-Cache-Status': 'STALE-REDIS-FALLBACK',
+            ...corsHeaders,
+          },
+        });
+      }
+    } catch {
+      // Continue to degraded fallback
+    }
+
+    // Graceful degradation response instead of 504 Gateway Timeout
     return new Response(JSON.stringify({
-      error: 'Failed to generate social media intelligence briefings',
-      details: err.message,
+      briefings: [],
+      totalPostsScraped: 0,
+      totalSubstantivePosts: 0,
+      generatedAt: new Date().toISOString(),
+      cachedUntil: new Date().toISOString(),
+      cacheExpiresInSeconds: 0,
+      modelUsed: 'unavailable',
+      sourcesMonitored: {
+        bluesky: BLUESKY_ACCOUNTS,
+        telegram: TELEGRAM_CHANNELS,
+      },
+      warning: 'Live ingestion timed out; retrying in background',
     }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=30, s-maxage=30',
+        'X-Cache-Status': 'DEGRADED-FALLBACK',
+        ...corsHeaders,
+      },
     });
   } finally {
-    inFlightPromise = null;
+    if (inFlightPromise) {
+      inFlightPromise.then((data) => {
+        if (data && Array.isArray(data.briefings) && data.briefings.length > 0) {
+          lastKnownGoodData = data;
+          memoryCache = { data, expiresAt: Date.now() + CACHE_TTL_MS };
+          setRedisCache(redisKey, data, CACHE_TTL_SECONDS).catch(() => {});
+        }
+      }).catch(() => {}).finally(() => {
+        inFlightPromise = null;
+      });
+    }
   }
 }

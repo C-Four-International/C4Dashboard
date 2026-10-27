@@ -12,8 +12,10 @@ import {
   isAisConfigured,
   initAisStream,
   getAisStatus,
+  ensureAisSnapshot,
   type AisPositionData,
 } from './maritime';
+import { getAisStreamApiKey } from './aisstream';
 import { fetchUSNIFleetReport, mergeUSNIWithAIS } from './usni-fleet';
 
 // Cache for API responses
@@ -25,6 +27,35 @@ const vesselHistory = new Map<string, { positions: [number, number][]; lastUpdat
 const HISTORY_MAX_POINTS = 30;
 const HISTORY_CLEANUP_INTERVAL = 10 * 60 * 1000; // 10 minutes
 const VESSEL_STALE_TIME = 60 * 60 * 1000; // 1 hour - consider vessel stale
+
+// Real-time update listeners
+export type MilitaryVesselsListener = (vessels: MilitaryVessel[], clusters: MilitaryVesselCluster[]) => void;
+const vesselUpdateListeners = new Set<MilitaryVesselsListener>();
+let notifyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleVesselsUpdateNotification(): void {
+  if (notifyDebounceTimer) return;
+  notifyDebounceTimer = setTimeout(() => {
+    notifyDebounceTimer = null;
+    if (vesselUpdateListeners.size === 0) return;
+    const vessels = Array.from(trackedVessels.values());
+    const clusters = clusterVessels(vessels);
+    for (const listener of vesselUpdateListeners) {
+      try {
+        listener(vessels, clusters);
+      } catch {
+        // Ignore listener error
+      }
+    }
+  }, 1000);
+}
+
+export function onMilitaryVesselsUpdated(listener: MilitaryVesselsListener): () => void {
+  vesselUpdateListeners.add(listener);
+  return () => {
+    vesselUpdateListeners.delete(listener);
+  };
+}
 
 // Tracking state
 let isTracking = false;
@@ -189,12 +220,35 @@ function matchKnownVessel(name: string): typeof KNOWN_NAVAL_VESSELS[number] | un
     }
   }
 
-  // Check for common naval prefixes
-  const navalPrefixes = ['USS ', 'HMS ', 'HMCS ', 'HMAS ', 'INS ', 'JS ', 'ROKS ', 'TCG '];
-  for (const prefix of navalPrefixes) {
-    if (normalized.startsWith(prefix)) {
-      // Known pattern but not in our database
-      return undefined;
+  // Check for common naval prefixes and identify warship / operator
+  const navalPrefixRules: Array<{
+    prefix: string;
+    operator: MilitaryOperator | 'other';
+    country: string;
+    vesselType: MilitaryVesselType;
+  }> = [
+    { prefix: 'USS ', operator: 'usn', country: 'USA', vesselType: 'destroyer' },
+    { prefix: 'USNS ', operator: 'usn', country: 'USA', vesselType: 'auxiliary' },
+    { prefix: 'HMS ', operator: 'rn', country: 'UK', vesselType: 'destroyer' },
+    { prefix: 'HMCS ', operator: 'other', country: 'Canada', vesselType: 'patrol' },
+    { prefix: 'HMAS ', operator: 'other', country: 'Australia', vesselType: 'patrol' },
+    { prefix: 'FGS ', operator: 'gaf', country: 'Germany', vesselType: 'destroyer' },
+    { prefix: 'FS ', operator: 'faf', country: 'France', vesselType: 'destroyer' },
+    { prefix: 'ROKS ', operator: 'other', country: 'South Korea', vesselType: 'destroyer' },
+    { prefix: 'JS ', operator: 'other', country: 'Japan', vesselType: 'destroyer' },
+    { prefix: 'TCG ', operator: 'other', country: 'Turkey', vesselType: 'patrol' },
+    { prefix: 'INS ', operator: 'other', country: 'India', vesselType: 'destroyer' },
+    { prefix: 'RFS ', operator: 'vks', country: 'Russia', vesselType: 'destroyer' },
+  ];
+
+  for (const rule of navalPrefixRules) {
+    if (normalized.startsWith(rule.prefix)) {
+      return {
+        name: normalized,
+        operator: rule.operator,
+        country: rule.country,
+        vesselType: rule.vesselType,
+      };
     }
   }
 
@@ -405,6 +459,7 @@ function processAisPosition(data: AisPositionData): void {
 
   const previousSize = trackedVessels.size;
   trackedVessels.set(mmsi, vessel);
+  scheduleVesselsUpdateNotification();
 
   // Clear stale caches when first vessels arrive or when we hit significant milestones
   // This ensures cached empty results don't block fresh data
@@ -566,9 +621,21 @@ export async function fetchMilitaryVessels(): Promise<{
     //   console.log(`[Military Vessels] Returning cached base vessels: ${vessels.length}`);
     // } else {
       // Initialize stream if not running
-      if (!isTracking && isAisConfigured()) {
+      if (!isTracking && isMilitaryVesselTrackingConfigured()) {
         console.log('[Military Vessels] Initializing stream from fetchMilitaryVessels...');
         initMilitaryVesselStream();
+      }
+
+      // If no tracked vessels are in memory yet, await initial AIS snapshot
+      if (trackedVessels.size === 0 && isAisConfigured()) {
+        try {
+          await Promise.race([
+            ensureAisSnapshot(),
+            new Promise((resolve) => setTimeout(resolve, 3500)),
+          ]);
+        } catch {
+          // Continue even if snapshot fails or times out
+        }
       }
 
       // Clean up old data
@@ -642,5 +709,5 @@ export function getDarkVessels(): MilitaryVessel[] {
  * Check if AIS stream is configured
  */
 export function isMilitaryVesselTrackingConfigured(): boolean {
-  return isAisConfigured();
+  return isAisConfigured() || Boolean(getAisStreamApiKey());
 }

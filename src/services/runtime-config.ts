@@ -342,6 +342,22 @@ export function getSecretState(key: RuntimeSecretKey): { present: boolean; valid
   return { present: true, valid: validateSecret(key, state.value).valid, source: state.source };
 }
 
+export function getSecretValue(key: RuntimeSecretKey): string | null {
+  const state = runtimeConfig.secrets[key];
+  if (state?.value && state.value.trim()) {
+    return state.value.trim();
+  }
+  const envVal = (import.meta as { env?: Record<string, unknown> }).env?.[key];
+  if (typeof envVal === 'string' && envVal.trim()) {
+    return envVal.trim();
+  }
+  const viteVal = (import.meta as { env?: Record<string, unknown> }).env?.[`VITE_${key}`];
+  if (typeof viteVal === 'string' && viteVal.trim()) {
+    return viteVal.trim();
+  }
+  return null;
+}
+
 export function isFeatureAvailable(featureId: RuntimeFeatureId): boolean {
   if (!isFeatureEnabled(featureId)) return false;
 

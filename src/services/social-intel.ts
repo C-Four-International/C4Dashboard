@@ -121,15 +121,14 @@ const socialIntelCircuitBreaker = createCircuitBreaker<SocialIntelResponse>({
   persistCache: true,
 });
 
-function getStoredCache(): SocialIntelResponse | null {
+function getStoredCache(allowStale = false): SocialIntelResponse | null {
   try {
     const raw = localStorage.getItem(STORAGE_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { data: SocialIntelResponse; expiresAt: number };
-    if (parsed.expiresAt && parsed.expiresAt > Date.now()) {
+    if (allowStale || (parsed.expiresAt && parsed.expiresAt > Date.now())) {
       return parsed.data;
     }
-    localStorage.removeItem(STORAGE_CACHE_KEY);
   } catch {
     // Ignore storage parse errors
   }
@@ -151,14 +150,9 @@ function setStoredCache(data: SocialIntelResponse): void {
 export async function fetchSocialIntelBriefings(forceRefresh = false): Promise<SocialIntelResponse> {
   if (forceRefresh) {
     socialIntelCircuitBreaker.clearCache();
-    try {
-      localStorage.removeItem(STORAGE_CACHE_KEY);
-    } catch {
-      // Ignore
-    }
   } else {
     // Check client storage cache (valid for 3 hours)
-    const cached = getStoredCache();
+    const cached = getStoredCache(false);
     if (cached && cached.briefings && cached.briefings.length > 0) {
       return cached;
     }
@@ -166,22 +160,38 @@ export async function fetchSocialIntelBriefings(forceRefresh = false): Promise<S
 
   return socialIntelCircuitBreaker.execute(async () => {
     const url = `/api/social-intel${forceRefresh ? '?fresh=1' : ''}`;
-    const res = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-      },
-      signal: AbortSignal.timeout(25000),
-    });
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(12000),
+      });
 
-    if (!res.ok) {
-      throw new Error(`Social intel service error: HTTP ${res.status}`);
-    }
+      if (!res.ok) {
+        // Fall back to stale cache on 504 Gateway Timeout or server errors
+        const stale = getStoredCache(true);
+        if (stale && stale.briefings && stale.briefings.length > 0) {
+          console.warn(`[SocialIntel] HTTP ${res.status} received, serving stale cached briefings.`);
+          return stale;
+        }
+        throw new Error(`Social intel service error: HTTP ${res.status}`);
+      }
 
-    const data = (await res.json()) as SocialIntelResponse;
-    if (data && Array.isArray(data.briefings)) {
-      setStoredCache(data);
+      const data = (await res.json()) as SocialIntelResponse;
+      if (data && Array.isArray(data.briefings) && data.briefings.length > 0) {
+        setStoredCache(data);
+      }
+      return data;
+    } catch (err) {
+      // Fall back to stale cache on network/timeout aborts
+      const stale = getStoredCache(true);
+      if (stale && stale.briefings && stale.briefings.length > 0) {
+        console.warn('[SocialIntel] Fetch failed, serving stale cached briefings:', err);
+        return stale;
+      }
+      throw err;
     }
-    return data;
   }, defaultEmptyResponse);
 }
 

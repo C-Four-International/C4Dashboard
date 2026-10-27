@@ -27,6 +27,7 @@ import {
   fetchMilitaryVessels,
   initMilitaryVesselStream,
   isMilitaryVesselTrackingConfigured,
+  onMilitaryVesselsUpdated,
   fetchUSNIFleetReport,
   updateBaseline,
   calculateDeviation,
@@ -166,6 +167,7 @@ export class DataLoaderManager implements AppModule {
   private radiationDataLoaded = false;
   private firmsLoaded = false;
   private naturalEventsLoaded = false;
+  private militaryVesselsListenerRegistered = false;
 
   constructor(ctx: AppContext, callbacks: DataLoaderCallbacks) {
     this.ctx = ctx;
@@ -222,6 +224,42 @@ export class DataLoaderManager implements AppModule {
       this.lastGoodDigest = envelope.data;
       return envelope.data;
     } catch { return null; }
+  }
+
+  private ensureMilitaryVesselsListener(): void {
+    if (this.militaryVesselsListenerRegistered) return;
+    this.militaryVesselsListenerRegistered = true;
+
+    onMilitaryVesselsUpdated((vessels, clusters) => {
+      if (!this.ctx.intelligenceCache.military) {
+        this.ctx.intelligenceCache.military = {
+          flights: [],
+          flightClusters: [],
+          vessels,
+          vesselClusters: clusters,
+        };
+      } else {
+        this.ctx.intelligenceCache.military.vessels = vessels;
+        this.ctx.intelligenceCache.military.vesselClusters = clusters;
+      }
+
+      if (this.ctx.mapLayers.military) {
+        this.ctx.map?.setMilitaryVessels(vessels, clusters);
+        this.ctx.map?.updateMilitaryForEscalation(
+          this.ctx.intelligenceCache.military.flights || [],
+          vessels
+        );
+        const militaryCount = (this.ctx.intelligenceCache.military.flights?.length || 0) + vessels.length;
+        this.ctx.statusPanel?.updateFeed('Military', {
+          status: militaryCount > 0 ? 'ok' : 'warning',
+          itemCount: militaryCount,
+        });
+      }
+
+      ingestVessels(vessels);
+      signalAggregator.ingestVessels(vessels);
+      ingestMilitaryForCII(this.ctx.intelligenceCache.military.flights || [], vessels);
+    });
   }
 
   private shouldShowIntelligenceNotifications(): boolean {
@@ -1049,6 +1087,7 @@ export class DataLoaderManager implements AppModule {
           return;
         }
         if (isMilitaryVesselTrackingConfigured()) {
+          this.ensureMilitaryVesselsListener();
           initMilitaryVesselStream();
         }
         const [flightData, vesselData] = await Promise.all([
@@ -1474,6 +1513,7 @@ export class DataLoaderManager implements AppModule {
     }
     try {
       if (isMilitaryVesselTrackingConfigured()) {
+        this.ensureMilitaryVesselsListener();
         initMilitaryVesselStream();
       }
       const [flightData, vesselData] = await Promise.all([
