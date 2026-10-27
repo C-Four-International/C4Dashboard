@@ -39,6 +39,7 @@ interface CloudflareOutage {
   linkedUrl: string;
   locationsDetails: Array<{ name: string; code: string }>;
   asnsDetails: Array<{ asn: string; name: string; location: { code: string; name: string } }>;
+  entities?: Array<{ entityType: string; entityValue: string; entityName: string; entityLocation: string | null }>;
   outage: { outageCause: string; outageType: string };
 }
 
@@ -67,20 +68,20 @@ const COUNTRY_COORDS: Record<string, [number, number]> = {
   SV:[13.79,-88.90],ER:[15.18,39.78],EE:[58.60,25.01],ET:[9.15,40.49],
   FI:[61.92,25.75],FR:[46.23,2.21],GA:[-0.80,11.61],GM:[13.44,-15.31],
   GE:[42.32,43.36],DE:[51.17,10.45],GH:[7.95,-1.02],GR:[39.07,21.82],
-  GT:[15.78,-90.23],GN:[9.95,-9.70],HT:[18.97,-72.29],HN:[15.20,-86.24],
+  GT:[15.78,-90.23],GN:[9.95,-9.70],GU:[13.44,144.79],HT:[18.97,-72.29],HN:[15.20,-86.24],
   HK:[22.32,114.17],HU:[47.16,19.50],IN:[20.59,78.96],ID:[-0.79,113.92],
   IR:[32.43,53.69],IQ:[33.22,43.68],IE:[53.14,-7.69],IL:[31.05,34.85],
   IT:[41.87,12.57],CI:[7.54,-5.55],JP:[36.20,138.25],JO:[30.59,36.24],
   KZ:[48.02,66.92],KE:[-0.02,37.91],KW:[29.31,47.48],KG:[41.20,74.77],
   LA:[19.86,102.50],LV:[56.88,24.60],LB:[33.85,35.86],LY:[26.34,17.23],
   LT:[55.17,23.88],LU:[49.82,6.13],MG:[-18.77,46.87],MW:[-13.25,34.30],
-  MY:[4.21,101.98],ML:[17.57,-4.00],MR:[21.01,-10.94],MX:[23.63,-102.55],
+  MY:[4.21,101.98],ML:[17.57,-4.00],MO:[22.20,113.54],MR:[21.01,-10.94],MX:[23.63,-102.55],
   MD:[47.41,28.37],MN:[46.86,103.85],MA:[31.79,-7.09],MZ:[-18.67,35.53],
   MM:[21.92,95.96],NA:[-22.96,18.49],NP:[28.39,84.12],NL:[52.13,5.29],
   NZ:[-40.90,174.89],NI:[12.87,-85.21],NE:[17.61,8.08],NG:[9.08,8.68],
   KP:[40.34,127.51],NO:[60.47,8.47],OM:[21.47,55.98],PK:[30.38,69.35],
   PS:[31.95,35.23],PA:[8.54,-80.78],PG:[-6.32,143.96],PY:[-23.44,-58.44],
-  PE:[-9.19,-75.02],PH:[12.88,121.77],PL:[51.92,19.15],PT:[39.40,-8.22],
+  PE:[-9.19,-75.02],PH:[12.88,121.77],PL:[51.92,19.15],PR:[18.22,-66.59],PT:[39.40,-8.22],
   QA:[25.35,51.18],RO:[45.94,24.97],RU:[61.52,105.32],RW:[-1.94,29.87],
   SA:[23.89,45.08],SN:[14.50,-14.45],RS:[44.02,21.01],SL:[8.46,-11.78],
   SG:[1.35,103.82],SK:[48.67,19.70],SI:[46.15,14.99],SO:[5.15,46.20],
@@ -90,13 +91,35 @@ const COUNTRY_COORDS: Record<string, [number, number]> = {
   TH:[15.87,100.99],TG:[8.62,0.82],TT:[10.69,-61.22],TN:[33.89,9.54],
   TR:[38.96,35.24],TM:[38.97,59.56],UG:[1.37,32.29],UA:[48.38,31.17],
   AE:[23.42,53.85],GB:[55.38,-3.44],US:[37.09,-95.71],UY:[-32.52,-55.77],
-  UZ:[41.38,64.59],VE:[6.42,-66.59],VN:[14.06,108.28],YE:[15.55,48.52],
+  UZ:[41.38,64.59],VE:[6.42,-66.59],VI:[18.34,-64.93],VN:[14.06,108.28],YE:[15.55,48.52],
   ZM:[-13.13,27.85],ZW:[-19.02,29.15],
 };
 
 // ========================================================================
 // Helpers
 // ========================================================================
+
+function extractCountryCode(raw: CloudflareOutage): string | null {
+  if (raw.locations && raw.locations.length > 0 && raw.locations[0]) {
+    return raw.locations[0].toUpperCase();
+  }
+  for (const ent of raw.entities || []) {
+    if (ent.entityLocation && ent.entityLocation.length === 2) {
+      return ent.entityLocation.toUpperCase();
+    }
+  }
+  for (const asn of raw.asnsDetails || []) {
+    if (asn.location?.code && asn.location.code.length === 2) {
+      return asn.location.code.toUpperCase();
+    }
+  }
+  const combined = `${raw.description || ''} ${raw.entities?.map((e: any) => e.entityName).join(' ') || ''}`.toLowerCase();
+  if (combined.includes('europe-west2') || combined.includes('london') || combined.includes('united kingdom')) return 'GB';
+  if (combined.includes('ukraine') || combined.includes('crimea') || combined.includes('sevastopol')) return 'UA';
+  if (combined.includes('russia') || combined.includes('moscow')) return 'RU';
+  if (combined.includes('united states') || combined.includes('alaska')) return 'US';
+  return null;
+}
 
 function mapOutageSeverity(outageType: string | undefined): OutageSeverity {
   if (outageType === 'NATIONWIDE') return 'OUTAGE_SEVERITY_TOTAL';
@@ -120,7 +143,7 @@ export async function listInternetOutages(
 ): Promise<ListInternetOutagesResponse> {
   try {
     const result = await cachedFetchJson<ListInternetOutagesResponse>(REDIS_CACHE_KEY, REDIS_CACHE_TTL, async () => {
-      const token = process.env.CLOUDFLARE_API_TOKEN;
+      const token = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_RADAR_API_TOKEN || process.env.CF_RADAR_API_TOKEN;
       if (!token) return null;
 
       const response = await fetch(
@@ -136,16 +159,23 @@ export async function listInternetOutages(
       if (data.configured === false || !data.success || data.errors?.length) return null;
 
       const outages: InternetOutage[] = [];
+      const countryOccurrences = new Map<string, number>();
 
       for (const raw of data.result?.annotations || []) {
-        if (!raw.locations?.length) continue;
-        const countryCode = raw.locations[0];
+        const countryCode = extractCountryCode(raw);
         if (!countryCode) continue;
 
         const coords = COUNTRY_COORDS[countryCode];
         if (!coords) continue;
 
-        const countryName = raw.locationsDetails?.[0]?.name ?? countryCode;
+        const seenCount = countryOccurrences.get(countryCode) || 0;
+        countryOccurrences.set(countryCode, seenCount + 1);
+        const jitterLat = seenCount === 0 ? 0 : ((seenCount % 4) - 1.5) * 0.4;
+        const jitterLon = seenCount === 0 ? 0 : (((seenCount + 1) % 4) - 1.5) * 0.4;
+
+        const countryName = raw.locationsDetails?.[0]?.name
+          || raw.entities?.find((e: any) => e.entityLocation === countryCode)?.entityName
+          || countryCode;
 
         const categories: string[] = ['Cloudflare Radar'];
         if (raw.outage?.outageCause) categories.push(raw.outage.outageCause.replace(/_/g, ' '));
@@ -162,7 +192,7 @@ export async function listInternetOutages(
           detectedAt: toEpochMs(raw.startDate),
           country: countryName,
           region: '',
-          location: { latitude: coords[0], longitude: coords[1] },
+          location: { latitude: coords[0] + jitterLat, longitude: coords[1] + jitterLon },
           severity: mapOutageSeverity(raw.outage?.outageType),
           categories,
           cause: raw.outage?.outageCause || '',

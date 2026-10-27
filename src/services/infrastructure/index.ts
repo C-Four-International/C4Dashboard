@@ -15,7 +15,6 @@ import {
 } from '@/generated/client/worldmonitor/infrastructure/v1/service_client';
 import type { InternetOutage } from '@/types';
 import { createCircuitBreaker } from '@/utils';
-import { isFeatureAvailable } from '../runtime-config';
 
 // ---- Client + Circuit Breakers ----
 
@@ -71,30 +70,18 @@ function toOutage(proto: ProtoOutage): InternetOutage {
 // Internet Outages -- replaces src/services/outages.ts
 // ========================================================================
 
-let outagesConfigured: boolean | null = null;
+let outagesConfigured: boolean | null = true;
 
 export function isOutagesConfigured(): boolean | null {
   return outagesConfigured;
 }
 
 export async function fetchInternetOutages(): Promise<InternetOutage[]> {
-  if (!isFeatureAvailable('internetOutages')) {
-    outagesConfigured = false;
-    return [];
-  }
-
   const resp = await outageBreaker.execute(async () => {
     return client.listInternetOutages({
       country: '',
     });
   }, emptyOutageFallback);
-
-  if (resp.outages.length === 0) {
-    // Could be not configured or just no current outages -- keep previous state
-    // unless we've never fetched before
-    if (outagesConfigured === null) outagesConfigured = false;
-    return [];
-  }
 
   outagesConfigured = true;
   return resp.outages.map(toOutage);

@@ -79,5 +79,18 @@ describe('Internet Outages Infrastructure Layer with 3-Hour Cache', () => {
     assert.ok(fullCategoryMatch, 'Must find fullCategories');
     assert.ok(fullCategoryMatch[1].includes("key: 'outages'"), 'fullCategories must include outages layer');
   });
+
+  it('keeps outages layer toggle visible and robustly extracts location from entities and asns', () => {
+    const appSrc = readSrc('src/App.ts');
+    assert.ok(!appSrc.includes("hideLayerToggle('outages')"), 'App.ts must never hide the outages layer toggle');
+
+    const serverHandlerSrc = readSrc('server/worldmonitor/infrastructure/v1/list-internet-outages.ts');
+    assert.ok(serverHandlerSrc.includes('extractCountryCode'), 'Server must use extractCountryCode to handle annotations with empty locations array');
+    assert.ok(serverHandlerSrc.includes('entities'), 'Server must inspect entities for location');
+
+    const deckSrc = readSrc('src/components/DeckGLMap.ts');
+    assert.ok(deckSrc.includes('outage.pubDate || (outage as any).detectedAt'), 'DeckGLMap must support pubDate and detectedAt in time filtering');
+    assert.ok(deckSrc.includes("d.lon ?? d.location?.longitude ?? 0"), 'DeckGLMap must extract position robustly from lon or location.longitude');
+  });
 });
 

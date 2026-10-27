@@ -1427,7 +1427,7 @@ export class DeckGLMap {
     const filteredEarthquakes = this.filterByTime(this.earthquakes, (eq) => eq.occurredAt);
     const filteredNaturalEvents = this.filterByTime(this.naturalEvents, (event) => event.date);
     const filteredWeatherAlerts = this.filterByTime(this.weatherAlerts, (alert) => alert.onset);
-    const filteredOutages = this.filterByTime(this.outages, (outage) => outage.pubDate);
+    const filteredOutages = this.filterByTime(this.outages, (outage) => outage.pubDate || (outage as any).detectedAt);
     const filteredCableAdvisories = this.filterByTime(this.cableAdvisories, (advisory) => advisory.reported);
     const filteredFlightDelays = this.filterByTime(this.flightDelays, (delay) => delay.updatedAt);
     const filteredMilitaryFlights = this.filterByTime(this.militaryFlights, (flight) => flight.lastSeen);
@@ -1556,7 +1556,7 @@ export class DeckGLMap {
     // Internet outages layer + ghost for easier picking
     if (mapLayers.outages && filteredOutages.length > 0) {
       layers.push(this.createOutagesLayer(filteredOutages));
-      layers.push(this.createGhostLayer('outages-layer', filteredOutages, d => [d.lon, d.lat], { radiusMinPixels: 12 }));
+      layers.push(this.createGhostLayer('outages-layer', filteredOutages, (d: any) => [d.lon ?? d.location?.longitude ?? 0, d.lat ?? d.location?.latitude ?? 0], { radiusMinPixels: 12 }));
     }
 
     // Cyber threat IOC layer
@@ -2839,7 +2839,7 @@ export class DeckGLMap {
     return new IconLayer({
       id: 'outages-layer',
       data: outages,
-      getPosition: (d) => [d.lon, d.lat],
+      getPosition: (d: any) => [d.lon ?? d.location?.longitude ?? 0, d.lat ?? d.location?.latitude ?? 0],
       getIcon: () => 'cross',
       iconAtlas: MARKER_ICONS.cross,
       iconMapping: { cross: { x: 0, y: 0, width: 32, height: 32, mask: true } },
@@ -4257,7 +4257,7 @@ export class DeckGLMap {
         };
       }
       case 'outages-layer':
-        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.asn || t('components.deckgl.tooltip.internetOutage'))}</strong><br/>${text(obj.country)}</div>` };
+        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.title || obj.asn || t('components.deckgl.tooltip.internetOutage'))}</strong><br/>${text(obj.country)}${obj.cause ? ` · ${text(obj.cause)}` : ''}</div>` };
       case 'cyber-threats-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${t('popups.cyberThreat.title')}</strong><br/>${text(obj.severity || t('components.deckgl.tooltip.medium'))} · ${text(obj.country || t('popups.unknown'))}</div>` };
       case 'bgp-anomalies-layer': {

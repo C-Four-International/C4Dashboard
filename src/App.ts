@@ -8,7 +8,7 @@ import {
   STORAGE_KEYS,
   SITE_VARIANT,
 } from '@/config';
-import { initDB, cleanOldSnapshots, isAisConfigured, initAisStream, isOutagesConfigured, disconnectAisStream } from '@/services';
+import { initDB, cleanOldSnapshots, isAisConfigured, initAisStream, disconnectAisStream } from '@/services';
 import { mlWorker } from '@/services/ml-worker';
 import { getAiFlowSettings, subscribeAiFlowChange } from '@/services/ai-flow-settings';
 import { startLearning } from '@/services/country-instability';
@@ -384,9 +384,6 @@ export class App {
     // Hide unconfigured layers after first data load
     if (!isAisConfigured()) {
       this.state.map?.hideLayerToggle('ais');
-    }
-    if (isOutagesConfigured() === false) {
-      this.state.map?.hideLayerToggle('outages');
     }
 
     // Phase 7: Refresh scheduling
