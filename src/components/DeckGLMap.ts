@@ -4871,7 +4871,7 @@ export class DeckGLMap {
                 { key: 'military', label: t('components.deckgl.layers.militaryActivity'), icon: '🛡️' },
                 { key: 'conflicts', label: t('components.deckgl.layers.conflictZones'), icon: '&#9876;' },
                 { key: 'bases', label: t('components.deckgl.layers.militaryBases'), icon: '&#127963;' },
-                { key: 'humanConflict', label: t('components.deckgl.layers.humanConflict') || 'Human Conflict', icon: '⚔️' },
+                { key: 'humanConflict', label: t('components.deckgl.layers.humanConflict') || 'Human Conflict', icon: '💥' },
               ],
             },
             {
@@ -5565,7 +5565,7 @@ export class DeckGLMap {
             {
               shape: shapes.circle('#ef4444'),
               badge: 'Conflict Dot',
-              name: t('components.deckgl.layers.humanConflict') || 'Human Conflict (GDELT)',
+              name: t('components.deckgl.layers.humanConflict') || 'Human Conflict',
               desc: 'Live tracking of protests, battles, riots, and strategic developments from gdeltcloud.com.',
               subswatches: [
                 { color: '#eb2d2d', label: 'Battles' },
