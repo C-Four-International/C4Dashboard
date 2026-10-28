@@ -3384,15 +3384,15 @@ body.playback-mode .status-dot {
   font-weight: bold;
 }
 
-.layer-toggles:not(.deckgl-layer-toggles) {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  z-index: 100;
-  max-width: 300px;
+.layer-toggles:not(.deckgl-layer-toggles),
+.svg-mode .layer-toggles {
+  display: none !important;
+}
+
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) and (max-width: 1200px), (max-height: 500px) {
+  .layer-toggles {
+    display: none !important;
+  }
 }
 
 .layer-toggles:not(.deckgl-layer-toggles) .layer-toggle {
@@ -9397,7 +9397,7 @@ a.prediction-link:hover {
     display: none !important;
   }
 
-  /* Hide layer toggle buttons on mobile - use fixed layers */
+  /* Hide layer toggle buttons on mobile and wider-screen mobile devices - use expandable mobile layer picker */
   .layer-toggles {
     display: none !important;
   }

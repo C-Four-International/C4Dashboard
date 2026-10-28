@@ -2,13 +2,13 @@
    Mobile Layer Picker — Floating FAB & Slide-up Categorized Bottom Sheet
    ========================================================================== */
 
-/* Hidden on desktop (> 768px) */
+/* Hidden on desktop (> 1024px with fine pointer) unless in svg-mode */
 .mobile-layer-fab,
 .mobile-layer-picker-overlay {
   display: none !important;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px), (hover: none) and (pointer: coarse), (max-height: 500px) {
   /* Floating Action Button on mobile map */
   .mobile-layer-fab {
     position: absolute;
@@ -116,6 +116,9 @@
     border-top: 1px solid var(--border-strong, #3a3a3a);
     border-radius: 20px 20px 0 0;
     max-height: 82vh;
+    max-width: 640px;
+    width: 100%;
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
     box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.7);
@@ -518,6 +521,19 @@
     transform: scale(0.97);
     opacity: 0.9;
   }
+
+  @media (max-height: 500px) {
+    .mobile-layer-picker-sheet {
+      max-height: 94vh;
+    }
+    .mobile-layer-sheet-body {
+      max-height: 48vh;
+    }
+  }
+}
+
+.svg-mode .mobile-layer-fab {
+  display: flex !important;
 }
 
 /* Light theme overrides */

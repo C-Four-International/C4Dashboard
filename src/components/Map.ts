@@ -192,7 +192,6 @@ export class MapComponent {
     container.appendChild(this.wrapper);
     container.appendChild(this.createControls());
     container.appendChild(this.createTimeSlider());
-    container.appendChild(this.createLayerToggles());
     container.appendChild(this.createLegend());
     this.healthCheckIntervalId = setInterval(() => this.runHealthCheck(), 30000);
 
@@ -339,7 +338,7 @@ export class MapComponent {
 
 
 
-  private createLayerToggles(): HTMLElement {
+  public createLayerToggles(): HTMLElement {
     const toggles = document.createElement('div');
     toggles.className = 'layer-toggles';
     toggles.id = 'layerToggles';

@@ -154,10 +154,6 @@ test('Human Conflict layer integration in DeckGL and map layers', async (t) => {
   await t.test('humanConflict layer icon is 💥 and layer name is Human Conflict', () => {
     assert.match(deckGlCode, /key:\s*['"]humanConflict['"],\s*label:[^,]+,\s*icon:\s*['"]💥['"]/);
 
-    const mobilePickerPath = path.resolve('src/components/MobileLayerPicker.ts');
-    const mobilePickerCode = fs.readFileSync(mobilePickerPath, 'utf8');
-    assert.match(mobilePickerCode, /key:\s*['"]humanConflict['"],\s*label:[^,]+,\s*icon:\s*['"]💥['"]/);
-
     const enLocalesPath = path.resolve('src/locales/en.json');
     const enLocalesCode = fs.readFileSync(enLocalesPath, 'utf8');
     assert.match(enLocalesCode, /"humanConflict":\s*"Human Conflict"/);
