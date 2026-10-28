@@ -182,7 +182,6 @@ export class MobileLayerPicker {
         layers: [
           { key: 'military', label: t('components.deckgl.layers.militaryActivity'), icon: '🛡️' },
           { key: 'conflicts', label: t('components.deckgl.layers.conflictZones'), icon: '⚔️' },
-          { key: 'humanConflict', label: t('components.deckgl.layers.humanConflict') || 'Human Conflict', icon: '💥' },
           { key: 'bases', label: t('components.deckgl.layers.militaryBases'), icon: '🏛️' },
           { key: 'nuclear', label: t('components.deckgl.layers.nuclearSites'), icon: '🏭' },
         ],
