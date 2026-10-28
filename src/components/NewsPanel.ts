@@ -15,6 +15,14 @@ const VIRTUAL_SCROLL_THRESHOLD = 15;
 /** Summary cache TTL in milliseconds (10 minutes) */
 const SUMMARY_CACHE_TTL = 10 * 60 * 1000;
 
+const NON_ENGLISH_CHARS_REGEX = /[\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0590-\u05FF\u4E00-\u9FFF\uAC00-\uD7AF\u3040-\u30FF\u0E00-\u0E7F\u0370-\u03FF\u00C0-\u00FF\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF¿¡]/;
+
+function isNonEnglishPost(text?: string, lang?: string): boolean {
+  if (lang && lang.toLowerCase() !== 'en' && lang.toLowerCase() !== 'auto') return true;
+  if (!text) return false;
+  return NON_ENGLISH_CHARS_REGEX.test(text);
+}
+
 /** Prepared cluster data for rendering */
 interface PreparedCluster {
   cluster: ClusteredEvent;
@@ -48,7 +56,22 @@ export class NewsPanel extends Panel {
     this.createDeviationIndicator();
     this.createSummarizeButton();
     this.setupActivityTracking();
+    this.setupTranslationHandling();
     this.initWindowedList();
+  }
+
+  private setupTranslationHandling(): void {
+    this.content.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('.item-translate-btn') as HTMLElement | null;
+      if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const text = btn.dataset.text;
+        if (text) {
+          void this.handleTranslate(btn, text);
+        }
+      }
+    });
   }
 
   private initWindowedList(): void {
@@ -174,10 +197,23 @@ export class NewsPanel extends Panel {
 
   private async handleTranslate(element: HTMLElement, text: string): Promise<void> {
     const currentLang = getCurrentLanguage();
-    if (currentLang === 'en') return; // Assume news is mostly English, no need to translate if UI is English (or add detection later)
+    const sourceLang = element.dataset.lang || 'auto';
+    const targetLang = currentLang || 'en';
 
-    const titleEl = element.closest('.item')?.querySelector('.item-title') as HTMLElement;
+    const titleEl = element.closest('.item')?.querySelector('.item-title') as HTMLElement | null;
     if (!titleEl) return;
+
+    // Toggle back to original text if already translated
+    if (element.classList.contains('translated')) {
+      const original = titleEl.dataset.original;
+      if (original) {
+        titleEl.textContent = original;
+        element.classList.remove('translated');
+        element.innerHTML = '文';
+        element.title = targetLang === 'en' ? 'Translate to English (Google API)' : (t('components.newsPanel.translate') || 'Translate');
+      }
+      return;
+    }
 
     const originalText = titleEl.textContent || '';
 
@@ -186,16 +222,16 @@ export class NewsPanel extends Panel {
     element.style.pointerEvents = 'none';
 
     try {
-      const translated = await translateText(text, currentLang);
-      if (translated) {
+      const translated = await translateText(text, targetLang, sourceLang);
+      if (translated && translated !== text) {
         titleEl.textContent = translated;
         titleEl.dataset.original = originalText;
         element.innerHTML = '✓';
-        element.title = 'Original: ' + originalText;
+        const srcLabel = sourceLang && sourceLang !== 'auto' ? ` (${sourceLang.toUpperCase()})` : '';
+        element.title = `Original${srcLabel}: ${originalText}`;
         element.classList.add('translated');
       } else {
         element.innerHTML = '文';
-        // Shake animation or error state could be added here
       }
     } catch (e) {
       console.error('Translation failed', e);
@@ -324,7 +360,9 @@ export class NewsPanel extends Panel {
         <a class="item-title" href="${sanitizeUrl(item.link)}" target="_blank" rel="noopener">${escapeHtml(item.title)}</a>
         <div class="item-time">
           ${formatTime(item.pubDate)}
-          ${getCurrentLanguage() !== 'en' ? `<button class="item-translate-btn" title="Translate" data-text="${escapeHtml(item.title)}">文</button>` : ''}
+          ${(getCurrentLanguage() !== 'en' || isNonEnglishPost(item.title, item.lang))
+            ? `<button class="item-translate-btn" title="${getCurrentLanguage() === 'en' ? 'Translate to English (Google API)' : (t('components.newsPanel.translate') || 'Translate')}" data-text="${escapeHtml(item.title)}" data-lang="${escapeHtml(item.lang || '')}">文</button>`
+            : ''}
         </div>
       </div>
     `
@@ -529,7 +567,9 @@ export class NewsPanel extends Panel {
         <div class="cluster-meta">
           <span class="top-sources">${topSourcesHtml}</span>
           <span class="item-time">${formatTime(cluster.lastUpdated)}</span>
-          ${getCurrentLanguage() !== 'en' ? `<button class="item-translate-btn" title="Translate" data-text="${escapeHtml(cluster.primaryTitle)}">文</button>` : ''}
+          ${(getCurrentLanguage() !== 'en' || isNonEnglishPost(cluster.primaryTitle, cluster.lang || cluster.allItems?.find(i => i.lang)?.lang))
+            ? `<button class="item-translate-btn" title="${getCurrentLanguage() === 'en' ? 'Translate to English (Google API)' : (t('components.newsPanel.translate') || 'Translate')}" data-text="${escapeHtml(cluster.primaryTitle)}" data-lang="${escapeHtml(cluster.lang || cluster.allItems?.find(i => i.lang)?.lang || '')}">文</button>`
+            : ''}
         </div>
         ${relatedAssetsHtml}
       </div>
@@ -569,15 +609,6 @@ export class NewsPanel extends Panel {
       });
     });
 
-    // Translation buttons
-    const translateBtns = this.content.querySelectorAll<HTMLElement>('.item-translate-btn');
-    translateBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const text = btn.dataset.text;
-        if (text) this.handleTranslate(btn, text);
-      });
-    });
   }
 
   private getLocalizedAssetLabel(type: RelatedAsset['type']): string {

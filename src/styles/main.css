@@ -2610,6 +2610,33 @@ canvas,
   margin-top: 4px;
 }
 
+.item-translate-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1;
+  padding: 1px 5px;
+  margin-inline-start: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  vertical-align: middle;
+}
+
+.item-translate-btn:hover {
+  background: var(--overlay-subtle);
+  color: var(--accent);
+  border-color: var(--border-strong);
+}
+
+.item-translate-btn.translated {
+  background: rgba(0, 255, 136, 0.15);
+  color: var(--green);
+  border-color: rgba(0, 255, 136, 0.35);
+  font-weight: 600;
+}
+
 /* Clustering */
 .source-count {
   background: var(--accent);

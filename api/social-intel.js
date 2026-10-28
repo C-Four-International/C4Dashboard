@@ -764,9 +764,17 @@ STRICT PROTOCOL:
 // Regex detecting non-Latin alphabets (Cyrillic, Arabic, Hebrew, CJK, Hangul, Katakana/Hiragana, Thai, Greek)
 export const NON_ENGLISH_REGEX = /[\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0590-\u05FF\u4E00-\u9FFF\uAC00-\uD7AF\u3040-\u30FF\u0E00-\u0E7F\u0370-\u03FF]/;
 
+// Extended regex detecting non-Latin alphabets or Latin characters with accents/diacritics (Spanish, German, French, etc.)
+export const NON_ENGLISH_CHARS_REGEX = /[\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0590-\u05FF\u4E00-\u9FFF\uAC00-\uD7AF\u3040-\u30FF\u0E00-\u0E7F\u0370-\u03FF\u00C0-\u00FF\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF¿¡]/;
+
 export function hasNonEnglishText(text) {
   if (!text || typeof text !== 'string') return false;
   return NON_ENGLISH_REGEX.test(text);
+}
+
+export function hasNonEnglishCharacters(text) {
+  if (!text || typeof text !== 'string') return false;
+  return NON_ENGLISH_CHARS_REGEX.test(text);
 }
 
 function decodeHtmlEntities(str) {
@@ -798,18 +806,27 @@ function storeTranslation(key, val) {
  * using Google Cloud Translation API Basic v2 with automatic fallback to Google's
  * pre-trained neural machine translation engine and Gemini 1.5 Flash.
  */
-export async function translateTextWithGoogle(text, targetLang = 'en') {
+export async function translateTextWithGoogle(text, targetLang = 'en', sourceLang = 'auto') {
   if (!text || typeof text !== 'string' || !text.trim()) {
     return '';
   }
 
   const trimmed = text.trim();
-  // If target is English and snippet contains only English/Latin characters, return directly
-  if (targetLang === 'en' && !hasNonEnglishText(trimmed)) {
+  const normalizedSource = (sourceLang || 'auto').toLowerCase();
+  const normalizedTarget = (targetLang || 'en').toLowerCase();
+
+  // If source and target are identical and specified, return directly
+  if (normalizedSource !== 'auto' && normalizedSource === normalizedTarget) {
     return trimmed;
   }
 
-  const cacheKey = `${targetLang}:${trimmed}`;
+  // If target is English, skip only if source is explicitly English, or if source is auto and text has no foreign characters
+  const isExplicitlyNonEnglish = normalizedSource !== 'auto' && normalizedSource !== 'en';
+  if (normalizedTarget === 'en' && !isExplicitlyNonEnglish && !hasNonEnglishCharacters(trimmed)) {
+    return trimmed;
+  }
+
+  const cacheKey = `${normalizedTarget}:${normalizedSource}:${trimmed}`;
   if (translationCache.has(cacheKey)) {
     return translationCache.get(cacheKey);
   }
@@ -825,7 +842,8 @@ export async function translateTextWithGoogle(text, targetLang = 'en') {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           q: trimmed,
-          target: targetLang,
+          target: normalizedTarget,
+          ...(normalizedSource !== 'auto' ? { source: normalizedSource } : {}),
           format: 'text',
         }),
         signal: AbortSignal.timeout(3000),
@@ -846,7 +864,8 @@ export async function translateTextWithGoogle(text, targetLang = 'en') {
   // 2. Google Pre-Trained Neural Translation Engine (client=gtx with dict-chrome-ex fallback)
   for (const client of ['gtx', 'dict-chrome-ex']) {
     try {
-      const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=${client}&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(trimmed)}`;
+      const slParam = normalizedSource !== 'auto' ? encodeURIComponent(normalizedSource) : 'auto';
+      const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=${client}&sl=${slParam}&tl=${encodeURIComponent(normalizedTarget)}&dt=t&q=${encodeURIComponent(trimmed)}`;
       const res = await fetch(gtxUrl, {
         method: 'GET',
         headers: {

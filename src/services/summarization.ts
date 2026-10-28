@@ -261,17 +261,74 @@ async function generateSummaryInternal(
 
 
 /**
- * Translate text using the fallback chain (via SummarizeArticle RPC with mode='translate')
+ * Translate text using Google's non-LLM translation API hook (with automatic fallback
+ * to Google's pre-trained neural translation engine and LLM providers).
  * @param text Text to translate
- * @param targetLang Target language code (e.g., 'fr', 'es')
+ * @param targetLang Target language code (defaults to 'en')
+ * @param sourceLang Optional source language code (e.g., 'es', 'de', 'ru', 'auto')
  */
 export async function translateText(
   text: string,
-  targetLang: string,
+  targetLang: string = 'en',
+  sourceLang?: string,
   onProgress?: ProgressCallback
 ): Promise<string | null> {
-  if (!text) return null;
+  const trimmed = text?.trim();
+  if (!trimmed) return null;
 
+  const target = targetLang || 'en';
+  const source = sourceLang && sourceLang !== 'auto' ? sourceLang : undefined;
+
+  // 1. Google Pre-Trained Translation API Hook (non-LLM: Cloud Translation v2 & Neural Translation)
+  try {
+    const params = new URLSearchParams({
+      text: trimmed,
+      target,
+    });
+    if (source) {
+      params.set('source', source);
+    }
+    const res = await fetch(`/api/translate?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.translatedText && typeof data.translatedText === 'string') {
+        const translated = data.translatedText.trim();
+        if (translated && translated !== trimmed) {
+          return translated;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[translateText] Google translation via /api/translate failed, trying direct pre-trained engine fallback:', err);
+  }
+
+  // 2. Direct Google Pre-Trained Neural Translation Engine (client=gtx) fallback
+  try {
+    const sl = source ? encodeURIComponent(source) : 'auto';
+    const tl = encodeURIComponent(target);
+    const q = encodeURIComponent(trimmed);
+    const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${q}`;
+    const gtxRes = await fetch(gtxUrl, {
+      signal: AbortSignal.timeout(6000),
+    });
+    if (gtxRes.ok) {
+      const json = await gtxRes.json();
+      if (Array.isArray(json) && Array.isArray(json[0])) {
+        const parts = json[0].map((item: any) => (Array.isArray(item) ? item[0] : '')).filter(Boolean);
+        const translated = parts.join('').trim();
+        if (translated && translated !== trimmed) {
+          return translated;
+        }
+      }
+    }
+  } catch {
+    // Continue to LLM fallback below
+  }
+
+  // 3. Fallback to LLM providers if available
   const totalSteps = API_PROVIDERS.length;
   for (const [i, providerDef] of API_PROVIDERS.entries()) {
     if (!isFeatureAvailable(providerDef.featureId)) continue;
@@ -281,11 +338,11 @@ export async function translateText(
       const resp = await summaryBreaker.execute(async () => {
         return newsClient.summarizeArticle({
           provider: providerDef.provider,
-          headlines: [text],
+          headlines: [trimmed],
           mode: 'translate',
           geoContext: '',
-          variant: targetLang,
-          lang: '',
+          variant: target,
+          lang: source || '',
         });
       }, emptySummaryFallback);
 

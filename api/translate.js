@@ -28,6 +28,7 @@ export default async function handler(req) {
   const url = new URL(req.url);
   let text = url.searchParams.get('text') || url.searchParams.get('q') || '';
   let target = url.searchParams.get('target') || url.searchParams.get('tl') || 'en';
+  let source = url.searchParams.get('source') || url.searchParams.get('from') || url.searchParams.get('sl') || 'auto';
 
   if (req.method === 'POST') {
     try {
@@ -35,6 +36,9 @@ export default async function handler(req) {
       if (body.text) text = body.text;
       if (body.q) text = body.q;
       if (body.target) target = body.target;
+      if (body.source) source = body.source;
+      if (body.from) source = body.from;
+      if (body.sl) source = body.sl;
     } catch {
       // Ignore JSON parse error, fall back to query params
     }
@@ -48,12 +52,13 @@ export default async function handler(req) {
   }
 
   try {
-    const translatedText = await translateTextWithGoogle(text, target);
+    const translatedText = await translateTextWithGoogle(text, target, source);
     return new Response(
       JSON.stringify({
         originalText: text,
         translatedText,
         targetLanguage: target,
+        sourceLanguage: source,
         provider: 'google-pretrained-translation-api',
       }),
       {

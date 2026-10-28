@@ -98,6 +98,8 @@ export class SocialMediaIntelPanel extends Panel {
   }
 
   private getFilteredBriefings(): SocialIntelBriefing[] {
+    const query = this.searchQuery.trim().toLowerCase();
+
     return this.briefings.filter((b) => {
       // Platform / corroboration filter
       if (this.filter === 'multisource' && !b.isMultiSource) return false;
@@ -105,14 +107,13 @@ export class SocialMediaIntelPanel extends Panel {
       if (this.filter === 'telegram' && !b.platforms.includes('telegram')) return false;
 
       // Keyword search query
-      if (this.searchQuery) {
-        const q = this.searchQuery.toLowerCase();
-        const textMatch = b.briefing.toLowerCase().includes(q);
+      if (query) {
+        const textMatch = b.briefing.toLowerCase().includes(query);
         const sourceMatch = b.sources.some(
           (s) =>
-            s.author.toLowerCase().includes(q) ||
-            s.cleanedText.toLowerCase().includes(q) ||
-            (s.translatedText && s.translatedText.toLowerCase().includes(q)),
+            s.author.toLowerCase().includes(query) ||
+            s.cleanedText.toLowerCase().includes(query) ||
+            (s.translatedText && s.translatedText.toLowerCase().includes(query)),
         );
         if (!textMatch && !sourceMatch) return false;
       }
@@ -122,8 +123,18 @@ export class SocialMediaIntelPanel extends Panel {
   }
 
   private render(): void {
-    const filtered = this.getFilteredBriefings();
+    const inner = this.content.querySelector('.social-intel-panel-inner');
+    if (!inner) {
+      this.renderFull();
+      return;
+    }
 
+    this.updateToolbar();
+    this.updateCardsList();
+    this.updateFooter();
+  }
+
+  private renderFull(): void {
     const blueskyCount = this.briefings.filter((b) => b.platforms.includes('bluesky')).length;
     const telegramCount = this.briefings.filter((b) => b.platforms.includes('telegram')).length;
     const corroboratedCount = this.briefings.filter((b) => b.isMultiSource).length;
@@ -153,7 +164,13 @@ export class SocialMediaIntelPanel extends Panel {
               placeholder="Search intel..."
               value="${escapeHtml(this.searchQuery)}"
             />
-            ${this.searchQuery ? '<button class="social-search-clear" id="social-search-clear">×</button>' : ''}
+            <button
+              class="social-search-clear"
+              id="social-search-clear"
+              style="display: ${this.searchQuery ? '' : 'none'};"
+              title="Clear search"
+              aria-label="Clear search"
+            >×</button>
           </div>
           <button
             class="social-intel-refresh-btn ${this.isRefreshing ? 'loading' : ''}"
@@ -165,35 +182,19 @@ export class SocialMediaIntelPanel extends Panel {
       </div>
     `;
 
-    let contentHtml = '';
-    if (filtered.length === 0) {
-      contentHtml = `
-        <div class="social-intel-empty-state">
-          <div class="social-empty-icon">📡</div>
-          <div class="social-empty-title">${this.searchQuery ? 'No matching briefings' : 'Monitoring OSINT Channels'}</div>
-          <div class="social-empty-sub">
-            ${this.searchQuery ? 'Try clearing your search query or switching filters.' : 'Scraping prominent Bluesky and Telegram OSINT feeds for corroborated breaking events.'}
-          </div>
-        </div>
-      `;
-    } else {
-      contentHtml = `
-        <div class="social-intel-cards-list" id="social-intel-cards-list">
-          ${filtered.map((b) => this.renderBriefingCard(b)).join('')}
-        </div>
-      `;
-    }
+    const filtered = this.getFilteredBriefings();
+    const contentHtml = `
+      <div class="social-intel-cards-list" id="social-intel-cards-list">
+        ${filtered.length === 0 ? this.renderEmptyState() : filtered.map((b) => this.renderBriefingCard(b)).join('')}
+      </div>
+    `;
 
     const metaFooter = this.responseMeta ? `
-      <div class="social-intel-footer">
+      <div class="social-intel-footer" id="social-intel-footer">
         <span class="social-footer-stat">Model: ${escapeHtml(this.responseMeta.modelUsed || 'AI Studio Low-Cost')}</span>
         <span class="social-footer-stat">Monitored: ${this.responseMeta.sourcesMonitored?.bluesky?.length || 10} Bluesky · ${this.responseMeta.sourcesMonitored?.telegram?.length || 8} Telegram</span>
       </div>
     ` : '';
-
-    const cardsList = this.content.querySelector('#social-intel-cards-list');
-    const prevCardsScrollTop = cardsList?.scrollTop ?? 0;
-    const prevContentScrollTop = this.content.scrollTop;
 
     this.content.innerHTML = `
       <div class="social-intel-panel-inner">
@@ -204,13 +205,91 @@ export class SocialMediaIntelPanel extends Panel {
     `;
 
     this.attachEventListeners();
+  }
 
-    if (prevContentScrollTop > 0) {
-      this.content.scrollTop = prevContentScrollTop;
+  private renderEmptyState(): string {
+    const isSearch = !!this.searchQuery.trim();
+    return `
+      <div class="social-intel-empty-state">
+        <div class="social-empty-icon">📡</div>
+        <div class="social-empty-title">${isSearch ? 'No matching briefings' : 'Monitoring OSINT Channels'}</div>
+        <div class="social-empty-sub">
+          ${isSearch ? 'Try clearing your search query or switching filters.' : 'Scraping prominent Bluesky and Telegram OSINT feeds for corroborated breaking events.'}
+        </div>
+      </div>
+    `;
+  }
+
+  private updateToolbar(): void {
+    const blueskyCount = this.briefings.filter((b) => b.platforms.includes('bluesky')).length;
+    const telegramCount = this.briefings.filter((b) => b.platforms.includes('telegram')).length;
+    const corroboratedCount = this.briefings.filter((b) => b.isMultiSource).length;
+
+    const allBtn = this.content.querySelector<HTMLElement>('.social-chip[data-filter="all"]');
+    if (allBtn) allBtn.textContent = `All (${this.briefings.length})`;
+
+    const multiBtn = this.content.querySelector<HTMLElement>('.social-chip[data-filter="multisource"]');
+    if (multiBtn) multiBtn.textContent = `⚡ Corroborated (${corroboratedCount})`;
+
+    const blueskyBtn = this.content.querySelector<HTMLElement>('.social-chip[data-filter="bluesky"]');
+    if (blueskyBtn) blueskyBtn.textContent = `🦋 Bluesky (${blueskyCount})`;
+
+    const telegramBtn = this.content.querySelector<HTMLElement>('.social-chip[data-filter="telegram"]');
+    if (telegramBtn) telegramBtn.textContent = `✈️ Telegram (${telegramCount})`;
+
+    this.content.querySelectorAll<HTMLElement>('.social-chip').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.filter === this.filter);
+    });
+
+    const searchInput = this.content.querySelector<HTMLInputElement>('#social-intel-search-input');
+    if (searchInput && document.activeElement !== searchInput && searchInput.value !== this.searchQuery) {
+      searchInput.value = this.searchQuery;
     }
-    const newCardsList = this.content.querySelector('#social-intel-cards-list');
-    if (newCardsList && prevCardsScrollTop > 0) {
-      newCardsList.scrollTop = prevCardsScrollTop;
+
+    const clearBtn = this.content.querySelector<HTMLElement>('#social-search-clear');
+    if (clearBtn) {
+      clearBtn.style.display = this.searchQuery ? '' : 'none';
+    }
+  }
+
+  private updateCardsList(): void {
+    const cardsList = this.content.querySelector('#social-intel-cards-list');
+    if (!cardsList) {
+      this.render();
+      return;
+    }
+
+    const filtered = this.getFilteredBriefings();
+    if (filtered.length === 0) {
+      cardsList.innerHTML = this.renderEmptyState();
+    } else {
+      cardsList.innerHTML = filtered.map((b) => this.renderBriefingCard(b)).join('');
+    }
+  }
+
+  private updateFooter(): void {
+    const footer = this.content.querySelector<HTMLElement>('#social-intel-footer');
+    if (!this.responseMeta) {
+      footer?.remove();
+      return;
+    }
+
+    const footerInner = `
+      <span class="social-footer-stat">Model: ${escapeHtml(this.responseMeta.modelUsed || 'AI Studio Low-Cost')}</span>
+      <span class="social-footer-stat">Monitored: ${this.responseMeta.sourcesMonitored?.bluesky?.length || 10} Bluesky · ${this.responseMeta.sourcesMonitored?.telegram?.length || 8} Telegram</span>
+    `;
+
+    if (footer) {
+      footer.innerHTML = footerInner;
+    } else {
+      const inner = this.content.querySelector('.social-intel-panel-inner');
+      if (inner) {
+        const div = document.createElement('div');
+        div.className = 'social-intel-footer';
+        div.id = 'social-intel-footer';
+        div.innerHTML = footerInner;
+        inner.appendChild(div);
+      }
     }
   }
 
@@ -325,30 +404,58 @@ export class SocialMediaIntelPanel extends Panel {
   private attachEventListeners(): void {
     // 1. Filter chips
     const toolbar = this.content.querySelector('#social-intel-toolbar');
-    toolbar?.querySelectorAll('.social-chip').forEach((btn) => {
+    toolbar?.querySelectorAll<HTMLElement>('.social-chip').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const f = (btn as HTMLElement).dataset.filter as IntelFilter;
+        const f = btn.dataset.filter as IntelFilter;
         if (f && f !== this.filter) {
           this.filter = f;
-          this.render();
+          toolbar.querySelectorAll('.social-chip').forEach((b) => {
+            b.classList.toggle('active', (b as HTMLElement).dataset.filter === this.filter);
+          });
+          this.updateCardsList();
         }
       });
     });
 
-    // 2. Search input
-    const searchInput = this.content.querySelector('#social-intel-search-input') as HTMLInputElement | null;
+    // 2. Search input & clear button
+    const searchInput = this.content.querySelector<HTMLInputElement>('#social-intel-search-input');
+    const clearBtn = this.content.querySelector<HTMLElement>('#social-search-clear');
+
     searchInput?.addEventListener('input', (e) => {
-      this.searchQuery = (e.target as HTMLInputElement).value.trim();
-      this.render();
+      this.searchQuery = (e.target as HTMLInputElement).value;
+      if (clearBtn) {
+        clearBtn.style.display = this.searchQuery ? '' : 'none';
+      }
+      this.updateCardsList();
+    });
+
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.searchQuery) {
+        e.stopPropagation();
+        this.searchQuery = '';
+        if (searchInput) {
+          searchInput.value = '';
+        }
+        if (clearBtn) {
+          clearBtn.style.display = 'none';
+        }
+        this.updateCardsList();
+      }
     });
 
     // 3. Clear search button
-    const clearBtn = this.content.querySelector('#social-search-clear');
     clearBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       this.searchQuery = '';
-      this.render();
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+      }
+      if (clearBtn) {
+        clearBtn.style.display = 'none';
+      }
+      this.updateCardsList();
     });
 
     // 4. Refresh button
