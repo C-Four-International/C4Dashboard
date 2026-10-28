@@ -571,7 +571,7 @@ export class MapComponent {
         ${helpSection('military', [
       helpItem(label('militaryActivity'), 'militaryActivity', '🛡️'),
       helpItem(label('conflictZones'), 'geoConflicts', '&#9876;'),
-      helpItem(label('humanConflict'), 'humanConflictDesc', '⚔️'),
+      helpItem(label('humanConflict'), 'humanConflictDesc', '💥'),
       helpItem(label('militaryBases'), 'militaryBases', '&#127963;'),
       helpItem(label('nuclearSites'), 'militaryNuclear', '🏭'),
     ])}
@@ -1202,7 +1202,7 @@ export class MapComponent {
     if (!this.dynamicLayerGroup) return;
 
     const alertStatusService = AlertStatusService.getInstance();
-    
+
     // Asynchronously fetch statuses if not already fetched/cached
     alertStatusService.fetchStatuses().then(() => {
       // Re-render once data is ready to ensure colors are applied
