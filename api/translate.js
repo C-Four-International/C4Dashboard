@@ -1,5 +1,5 @@
 import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
-import { translateTextWithGoogle } from './social-intel.js';
+import { translateTextWithGoogle } from './_translate.js';
 
 export const config = {
   runtime: 'edge',
@@ -65,7 +65,7 @@ export default async function handler(req) {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
           ...corsHeaders,
         },
       },

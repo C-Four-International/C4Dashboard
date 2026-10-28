@@ -1,4 +1,5 @@
 // Non-sebuf: returns XML/HTML, stays as standalone Vercel function
+export const config = { runtime: 'edge' };
 /**
  * Dynamic OG Image Generator for Story Sharing
  * Returns an SVG image (1200x630) — rich intelligence card for social previews.
@@ -220,9 +221,19 @@ export default function handler(req, res) {
     >worldmonitor.app · ${dateStr} · Free &amp; open source</text>
 </svg>`;
 
-  res.setHeader('Content-Type', 'image/svg+xml');
-  res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=600');
-  res.status(200).send(svg);
+  if (res && typeof res.setHeader === 'function') {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=600');
+    return res.status(200).send(svg);
+  }
+
+  return new Response(svg, {
+    status: 200,
+    headers: {
+      'Content-Type': 'image/svg+xml',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=600',
+    },
+  });
 }
 
 function escapeXml(str) {

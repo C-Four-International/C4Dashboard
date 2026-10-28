@@ -20,6 +20,10 @@ const serverOptions: ServerOptions = { onError: mapErrorToResponse };
 // Cache routers per domain to avoid re-evaluating routes on warm starts
 const routerCache = new Map<string, Router>();
 
+// In-memory read RPC response cache to eliminate redundant compute across concurrent/rapid queries
+const rpcResponseCache = new Map<string, { body: string; expiresAt: number }>();
+const RPC_CACHE_TTL_MS = 15_000;
+
 async function getRouterForDomain(domain: string): Promise<Router | null> {
   if (routerCache.has(domain)) {
     return routerCache.get(domain)!;
@@ -207,6 +211,32 @@ export default async function handler(request: Request): Promise<Response> {
     });
   }
 
+  const isReadRpc = request.method === 'POST' && (url.pathname.includes('/v1/list-') || url.pathname.includes('/v1/get-'));
+  const bypassCache = request.headers.get('cache-control')?.includes('no-cache');
+
+  let bodyText = '';
+  let cacheKey = '';
+  if (isReadRpc && !bypassCache) {
+    try {
+      bodyText = await request.text();
+      cacheKey = `${url.pathname}:${bodyText}`;
+      const cached = rpcResponseCache.get(cacheKey);
+      if (cached && Date.now() < cached.expiresAt) {
+        return new Response(cached.body, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=15',
+            'X-Cache': 'HIT',
+            ...corsHeaders,
+          },
+        });
+      }
+    } catch {
+      // Continue without cache
+    }
+  }
+
   // Route matching
   const matchedHandler = router.match(request);
   if (!matchedHandler) {
@@ -219,7 +249,12 @@ export default async function handler(request: Request): Promise<Response> {
   // Execute handler with top-level error boundary (H-1 fix)
   let response: Response;
   try {
-    response = await matchedHandler(request);
+    const handlerReq = isReadRpc && bodyText ? new Request(request.url, {
+      method: request.method,
+      headers: request.headers,
+      body: bodyText,
+    }) : request;
+    response = await matchedHandler(handlerReq);
   } catch (err) {
     console.error('[gateway] Unhandled handler error:', err);
     response = new Response(JSON.stringify({ message: 'Internal server error' }), {
@@ -232,6 +267,29 @@ export default async function handler(request: Request): Promise<Response> {
   const mergedHeaders = new Headers(response.headers);
   for (const [key, value] of Object.entries(corsHeaders)) {
     mergedHeaders.set(key, value);
+  }
+
+  if (isReadRpc && response.ok && cacheKey) {
+    try {
+      const resText = await response.text();
+      if (rpcResponseCache.size > 200) {
+        const now = Date.now();
+        for (const [k, v] of rpcResponseCache.entries()) {
+          if (v.expiresAt <= now) rpcResponseCache.delete(k);
+        }
+        if (rpcResponseCache.size > 200) rpcResponseCache.clear();
+      }
+      rpcResponseCache.set(cacheKey, { body: resText, expiresAt: Date.now() + RPC_CACHE_TTL_MS });
+      mergedHeaders.set('Cache-Control', 'public, max-age=15');
+      mergedHeaders.set('X-Cache', 'MISS');
+      return new Response(resText, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: mergedHeaders,
+      });
+    } catch {
+      // Fall through
+    }
   }
 
   return new Response(response.body, {

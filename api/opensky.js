@@ -1,10 +1,15 @@
 import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 
+export const config = { runtime: 'edge' };
 
-
-// In-memory token cache for warm edge functions
+// In-memory token cache for warm edge/serverless instances
 let cachedToken = null;
 let tokenExpiresAt = 0;
+
+// In-memory raw text cache for states response to prevent duplicate upstream calls and eliminate JSON parse/stringify
+let cachedStatesText = null;
+let cachedStatesTimestamp = 0;
+const STATES_CACHE_TTL_MS = 60 * 1000; // 60 seconds
 
 async function getOpenSkyToken() {
   if (cachedToken && Date.now() < tokenExpiresAt) {
@@ -13,7 +18,7 @@ async function getOpenSkyToken() {
 
   const clientId = process.env.OPENSKY_CLIENT_ID;
   const clientSecret = process.env.OPENSKY_CLIENT_SECRET;
-  
+
   if (!clientId || !clientSecret) {
     return null; // Missing credentials
   }
@@ -29,6 +34,7 @@ async function getOpenSkyToken() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'WorldMonitor/EdgeProxy',
       },
       body: body.toString(),
       signal: AbortSignal.timeout(5000),
@@ -57,37 +63,71 @@ async function getOpenSkyToken() {
 export default async function handler(req, res) {
   const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');
 
-  // Set CORS headers early
-  for (const [key, value] of Object.entries(corsHeaders)) {
-    res.setHeader(key, value);
-  }
+  const sendText = (status, text, extraHeaders = {}) => {
+    const allHeaders = {
+      'Content-Type': 'application/json',
+      ...corsHeaders,
+      ...extraHeaders,
+    };
+    if (res && typeof res.setHeader === 'function') {
+      res.statusCode = status;
+      for (const [k, v] of Object.entries(allHeaders)) {
+        res.setHeader(k, v);
+      }
+      return res.end(text != null ? text : '');
+    }
+    return new Response(text != null ? text : null, {
+      status,
+      headers: allHeaders,
+    });
+  };
+
+  const sendJson = (status, obj, extraHeaders = {}) => {
+    return sendText(status, obj !== undefined && obj !== null ? JSON.stringify(obj) : '', extraHeaders);
+  };
 
   if (isDisallowedOrigin(req)) {
-    return res.status(403).json({ error: 'Origin not allowed' });
+    return sendJson(403, { error: 'Origin not allowed' });
   }
 
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    return sendText(204, null);
   }
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return sendJson(405, { error: 'Method not allowed' });
   }
 
+  const reqUrl = req.url || '';
+  const isDebug = reqUrl.includes('debug=true');
+
   try {
-    const url = new URL(req.url, `http://${req.headers.host}`);
+    const url = new URL(reqUrl, `http://${req.headers?.host || (req.headers?.get && req.headers.get('host')) || 'localhost'}`);
     const query = url.search;
+
+    // Check warm cache for default/empty queries to save active CPU
+    const now = Date.now();
+    if (!isDebug && (!query || query === '?') && cachedStatesText && (now - cachedStatesTimestamp < STATES_CACHE_TTL_MS)) {
+      return sendText(200, cachedStatesText, {
+        'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
+        'X-Cache': 'HIT',
+      });
+    }
+
     const upstreamUrl = `https://opensky-network.org/api/states/all${query}`;
-    const headers = { 'Accept': 'application/json' };
+    const headers = {
+      'Accept': 'application/json',
+      'User-Agent': 'WorldMonitor/EdgeProxy',
+    };
 
     if (process.env.OPENSKY_CLIENT_ID && process.env.OPENSKY_CLIENT_SECRET) {
       const token = await getOpenSkyToken();
-      
+
       // Debug route
-      if (req.url.includes('debug=true')) {
-        return res.status(200).json({ 
-          debug: true, 
+      if (isDebug) {
+        return sendJson(200, {
+          debug: true,
           token_success: !!token,
-          token_prefix: token ? token.substring(0, 15) : null
+          token_prefix: token ? token.substring(0, 15) : null,
         });
       }
 
@@ -99,19 +139,39 @@ export default async function handler(req, res) {
     const response = await fetch(upstreamUrl, {
       headers,
       // Give OpenSky 25 seconds to respond before giving up to avoid 504s on large payloads
-      signal: AbortSignal.timeout(25000) 
+      signal: AbortSignal.timeout(25000),
     });
 
-    res.status(response.status);
-    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
-    res.setHeader('Cache-Control', 'public, max-age=900, s-maxage=900, stale-while-revalidate=300');
+    if (!response.ok) {
+      if (cachedStatesText) {
+        return sendText(200, cachedStatesText, {
+          'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
+          'X-Cache': 'STALE',
+        });
+      }
+      return sendJson(response.status, { error: `OpenSky upstream returned ${response.status}` });
+    }
 
-    // Pipe response body
-    const data = await response.json();
-    return res.json(data);
+    // Stream/read text directly to eliminate multi-megabyte JSON.parse & JSON.stringify Active CPU
+    const text = await response.text();
+    if (!query || query === '?') {
+      cachedStatesText = text;
+      cachedStatesTimestamp = Date.now();
+    }
+
+    return sendText(200, text, {
+      'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
+      'X-Cache': 'MISS',
+    });
   } catch (error) {
+    if (cachedStatesText) {
+      return sendText(200, cachedStatesText, {
+        'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
+        'X-Cache': 'STALE-ERROR',
+      });
+    }
     const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
-    return res.status(isTimeout ? 504 : 502).json({
+    return sendJson(isTimeout ? 504 : 502, {
       error: isTimeout ? 'OpenSky upstream timeout' : 'OpenSky fetch failed',
       details: error?.message || String(error),
     });

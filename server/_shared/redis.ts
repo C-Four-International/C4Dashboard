@@ -18,7 +18,7 @@ function prefixKey(key: string): string {
   return `${cachedPrefix}${key}`;
 }
 
-const L1_CACHE_TTL_MS = 15_000;
+const L1_CACHE_TTL_MS = 60_000;
 const l1Cache = new Map<string, { value: unknown; expiresAt: number }>();
 
 function l1Get(key: string): unknown | null {
@@ -58,7 +58,7 @@ export async function getCachedJson(key: string): Promise<unknown | null> {
     const data = (await resp.json()) as { result?: string };
     if (data.result) {
       const parsed = JSON.parse(data.result);
-      l1Set(prefixed, parsed);
+      l1Set(prefixed, parsed, L1_CACHE_TTL_MS);
       return parsed;
     }
     return null;
@@ -69,16 +69,17 @@ export async function getCachedJson(key: string): Promise<unknown | null> {
 
 export async function setCachedJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
   const prefixed = prefixKey(key);
-  l1Set(prefixed, value, Math.min(L1_CACHE_TTL_MS, ttlSeconds * 1000));
+  l1Set(prefixed, value, Math.min(300_000, ttlSeconds * 1000));
 
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return;
   try {
-    // Atomic SET with EX — single call avoids race between SET and EXPIRE (C-3 fix)
-    await fetch(`${url}/set/${encodeURIComponent(prefixed)}/${encodeURIComponent(JSON.stringify(value))}/EX/${ttlSeconds}`, {
+    // Atomic SET with EX via pipeline POST body to avoid URL length limit & encoding overhead on large JSON
+    await fetch(`${url}/pipeline`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify([['SET', prefixed, JSON.stringify(value), 'EX', ttlSeconds]]),
       signal: AbortSignal.timeout(3_000),
     });
   } catch { /* best-effort */ }

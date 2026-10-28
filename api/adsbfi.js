@@ -1,52 +1,54 @@
 import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 
+export const config = { runtime: 'edge' };
 
-
-// In-memory cache for warm edge/serverless instances (15 minutes TTL)
-let cachedData = null;
+// In-memory raw text cache for warm edge/serverless instances (5 minutes TTL)
+// Storing pre-serialized string eliminates megabytes of JSON.parse & JSON.stringify Active CPU
+let cachedText = null;
 let cacheTimestamp = 0;
-const CACHE_TTL_MS = 15 * 60 * 1000;
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 export default async function handler(req, res) {
   const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');
 
-  const send = (status, data, extraHeaders = {}) => {
-    const allHeaders = { ...corsHeaders, ...extraHeaders };
+  const sendText = (status, text, extraHeaders = {}) => {
+    const allHeaders = {
+      'Content-Type': 'application/json',
+      ...corsHeaders,
+      ...extraHeaders,
+    };
     if (res && typeof res.setHeader === 'function') {
       res.statusCode = status;
       for (const [k, v] of Object.entries(allHeaders)) {
         res.setHeader(k, v);
       }
-      if (typeof res.json === 'function') {
-        return res.json(data);
-      }
-      res.setHeader('Content-Type', 'application/json');
-      return res.end(data !== undefined && data !== null ? JSON.stringify(data) : '');
+      return res.end(text != null ? text : '');
     }
-    return new Response(data !== undefined && data !== null ? JSON.stringify(data) : null, {
+    return new Response(text != null ? text : null, {
       status,
-      headers: {
-        'Content-Type': 'application/json',
-        ...allHeaders,
-      },
+      headers: allHeaders,
     });
   };
 
+  const sendJson = (status, obj, extraHeaders = {}) => {
+    return sendText(status, obj !== undefined && obj !== null ? JSON.stringify(obj) : '', extraHeaders);
+  };
+
   if (isDisallowedOrigin(req)) {
-    return send(403, { error: 'Origin not allowed' });
+    return sendJson(403, { error: 'Origin not allowed' });
   }
 
   if (req.method === 'OPTIONS') {
-    return send(204, null);
+    return sendText(204, null);
   }
   if (req.method !== 'GET') {
-    return send(405, { error: 'Method not allowed' });
+    return sendJson(405, { error: 'Method not allowed' });
   }
 
   const now = Date.now();
-  if (cachedData && (now - cacheTimestamp < CACHE_TTL_MS)) {
-    return send(200, cachedData, {
-      'Cache-Control': 'public, max-age=900, s-maxage=900, stale-while-revalidate=300',
+  if (cachedText && (now - cacheTimestamp < CACHE_TTL_MS)) {
+    return sendText(200, cachedText, {
+      'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
       'X-Cache': 'HIT',
     });
   }
@@ -81,32 +83,33 @@ export default async function handler(req, res) {
     }
 
     if (!response || !response.ok) {
-      if (cachedData) {
-        return send(200, cachedData, {
-          'Cache-Control': 'public, max-age=300, s-maxage=300',
+      if (cachedText) {
+        return sendText(200, cachedText, {
+          'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
           'X-Cache': 'STALE',
         });
       }
-      return send(lastStatus, { error: `ADSB upstream returned ${lastStatus}` });
+      return sendJson(lastStatus, { error: `ADSB upstream returned ${lastStatus}` });
     }
 
-    const data = await response.json();
-    cachedData = data;
+    // Stream text directly to eliminate JSON.parse and JSON.stringify Active CPU
+    const text = await response.text();
+    cachedText = text;
     cacheTimestamp = Date.now();
 
-    return send(200, data, {
-      'Cache-Control': 'public, max-age=900, s-maxage=900, stale-while-revalidate=300',
+    return sendText(200, text, {
+      'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
       'X-Cache': 'MISS',
     });
   } catch (error) {
-    if (cachedData) {
-      return send(200, cachedData, {
-        'Cache-Control': 'public, max-age=300, s-maxage=300',
+    if (cachedText) {
+      return sendText(200, cachedText, {
+        'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
         'X-Cache': 'STALE-ERROR',
       });
     }
     const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
-    return send(isTimeout ? 504 : 502, {
+    return sendJson(isTimeout ? 504 : 502, {
       error: isTimeout ? 'ADSB.lol upstream timeout' : 'ADSB.lol fetch failed',
       details: error?.message || String(error),
     });
