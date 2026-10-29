@@ -359,6 +359,24 @@ export const MILITARY_HEX_RANGES: { start: string; end: string; operator: Milita
   // Norway Military
   { start: '478000', end: '47FFFF', operator: 'other', country: 'Norway' },
 
+  // Belgium Military
+  { start: '448000', end: '44FFFF', operator: 'other', country: 'Belgium' },
+
+  // Denmark Military
+  { start: '458000', end: '45FFFF', operator: 'other', country: 'Denmark' },
+
+  // Finland Military
+  { start: '460000', end: '467FFF', operator: 'other', country: 'Finland' },
+
+  // Portugal Military
+  { start: '490000', end: '497FFF', operator: 'other', country: 'Portugal' },
+
+  // Czechia Military
+  { start: '498000', end: '49FFFF', operator: 'other', country: 'Czechia' },
+
+  // Switzerland Military
+  { start: '4B0000', end: '4B7FFF', operator: 'other', country: 'Switzerland' },
+
   // Singapore Military
   { start: '768000', end: '76FFFF', operator: 'other', country: 'Singapore' },
 ];
@@ -419,9 +437,9 @@ export const KNOWN_NAVAL_VESSELS: KnownNavalVessel[] = [
   { name: 'HMS Prince of Wales', hullNumber: 'R09', operator: 'rn', country: 'UK', vesselType: 'carrier' },
 
   // Chinese Carriers
-  { name: 'Liaoning', hullNumber: '16', operator: 'plan', country: 'China', vesselType: 'carrier' },
-  { name: 'Shandong', hullNumber: '17', operator: 'plan', country: 'China', vesselType: 'carrier' },
-  { name: 'Fujian', hullNumber: '18', operator: 'plan', country: 'China', vesselType: 'carrier' },
+  { name: 'Liaoning', hullNumber: 'CV-16', operator: 'plan', country: 'China', vesselType: 'carrier' },
+  { name: 'Shandong', hullNumber: 'CV-17', operator: 'plan', country: 'China', vesselType: 'carrier' },
+  { name: 'Fujian', hullNumber: 'CV-18', operator: 'plan', country: 'China', vesselType: 'carrier' },
 
   // Russian Carrier
   { name: 'Admiral Kuznetsov', operator: 'vks', country: 'Russia', vesselType: 'carrier' },
@@ -451,6 +469,8 @@ export const MILITARY_HOTSPOTS = [
   { name: 'EUCOM', lat: 52.0, lon: 28.0, radius: 15, priority: 'medium' },
   // Keep Arctic separate (large but low activity)
   { name: 'ARCTIC', lat: 75.0, lon: 0.0, radius: 10, priority: 'low' },
+  // North America
+  { name: 'NORTHCOM', lat: 38.0, lon: -97.0, radius: 20, priority: 'low' },
 ] as const;
 
 export interface QueryRegion {
@@ -464,6 +484,7 @@ export interface QueryRegion {
 export const MILITARY_QUERY_REGIONS: QueryRegion[] = [
   { name: 'PACIFIC', lamin: 10, lamax: 46, lomin: 107, lomax: 143 },
   { name: 'WESTERN', lamin: 13, lamax: 85, lomin: -10, lomax: 57 },
+  { name: 'AMERICAS', lamin: 15, lamax: 65, lomin: -130, lomax: -65 },
 ];
 
 if (import.meta.env.DEV) {
@@ -632,3 +653,90 @@ export function getNearbyHotspot(lat: number, lon: number): typeof MILITARY_HOTS
   }
   return undefined;
 }
+
+/**
+ * Return RGBA color for military aircraft / vessels based on country and operator.
+ * Curated, high-contrast modern colors for military assets on both dark and light map styles.
+ */
+export function getMilitaryCountryColor(country?: string, operator?: string): [number, number, number, number] {
+  const c = country?.toLowerCase().trim() || '';
+  const op = operator?.toLowerCase().trim() || '';
+
+  // United States
+  if (c.includes('united states') || c === 'usa' || c === 'us' || ['usaf', 'usn', 'usa', 'usmc', 'uscg'].includes(op)) {
+    return [59, 130, 246, 230]; // Royal blue #3b82f6
+  }
+  // United Kingdom
+  if (c.includes('united kingdom') || c === 'uk' || c === 'gb' || ['raf', 'rn'].includes(op)) {
+    return [56, 189, 248, 230]; // Sky blue #38bdf8
+  }
+  // France
+  if (c.includes('france') || op === 'faf') {
+    return [37, 99, 235, 230]; // Deep blue #2563eb
+  }
+  // Germany
+  if (c.includes('germany') || op === 'gaf') {
+    return [234, 179, 8, 230]; // Gold #eab308
+  }
+  // Israel
+  if (c.includes('israel') || op === 'iaf') {
+    return [6, 182, 212, 230]; // Cyan #06b6d4
+  }
+  // Australia
+  if (c.includes('australia')) {
+    return [16, 185, 129, 230]; // Emerald #10b981
+  }
+  // Japan
+  if (c.includes('japan')) {
+    return [225, 29, 72, 230]; // Rose red #e11d48
+  }
+  // Canada
+  if (c.includes('canada')) {
+    return [239, 68, 68, 230]; // Red #ef4444
+  }
+  // Italy
+  if (c.includes('italy')) {
+    return [34, 197, 94, 230]; // Green #22c55e
+  }
+  // Spain
+  if (c.includes('spain')) {
+    return [249, 115, 22, 230]; // Orange #f97316
+  }
+  // Netherlands
+  if (c.includes('netherlands')) {
+    return [245, 158, 11, 230]; // Amber #f59e0b
+  }
+  // Turkey
+  if (c.includes('turkey') || c.includes('türkiye')) {
+    return [220, 38, 38, 230]; // Crimson #dc2626
+  }
+  // Gulf Allies (Saudi Arabia, UAE, Qatar, Kuwait)
+  if (c.includes('saudi') || c.includes('uae') || c.includes('emirates') || c.includes('qatar') || c.includes('kuwait')) {
+    return [217, 119, 6, 230]; // Sand amber #d97706
+  }
+  // NATO
+  if (c.includes('nato') || op === 'nato') {
+    return [99, 102, 241, 230]; // Indigo #6366f1
+  }
+  // Russia
+  if (c.includes('russia') || op === 'vks') {
+    return [185, 28, 28, 230]; // Dark red #b91c1c
+  }
+  // China
+  if (c.includes('china') || op === 'plaaf' || op === 'plan') {
+    return [255, 59, 48, 230]; // Scarlet red #ff3b30
+  }
+  // Default / Other Allied
+  return [148, 163, 184, 230]; // Slate blue #94a3b8
+}
+
+export const MILITARY_COUNTRY_LEGEND = [
+  { name: 'United States', color: '#3b82f6' },
+  { name: 'United Kingdom', color: '#38bdf8' },
+  { name: 'France', color: '#2563eb' },
+  { name: 'Germany', color: '#eab308' },
+  { name: 'Israel', color: '#06b6d4' },
+  { name: 'Australia / Allies', color: '#10b981' },
+  { name: 'China', color: '#ff3b30' },
+  { name: 'Other Allied / International', color: '#94a3b8' },
+];

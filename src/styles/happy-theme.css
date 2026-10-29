@@ -264,26 +264,20 @@
 }
 
 /* ==========================================================
-   Happy Loading States — Gentle pulse instead of radar sweep
+   Happy Loading States — Circular spinning wheel
    ========================================================== */
-[data-variant="happy"] .panel-loading-radar {
+[data-variant="happy"] .panel-loading-radar,
+[data-variant="happy"] .posture-loading-radar {
   border-color: rgba(107, 143, 94, 0.25);
+  border-top-color: var(--green, #6b8f5e);
+  border-right-color: var(--green, #6b8f5e);
 }
 
-[data-variant="happy"] .panel-radar-sweep {
-  background: linear-gradient(90deg, transparent, var(--status-live));
-  animation: happy-radar-sweep 3s linear infinite;
-}
-
-@keyframes happy-radar-sweep {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-[data-variant="happy"] .panel-radar-dot {
-  background: var(--status-live);
-  box-shadow: 0 0 12px var(--status-live);
-  animation: happy-pulse 2s ease-in-out infinite;
+[data-variant="happy"] .panel-radar-sweep,
+[data-variant="happy"] .panel-radar-dot,
+[data-variant="happy"] .posture-radar-sweep,
+[data-variant="happy"] .posture-radar-dot {
+  display: none !important;
 }
 
 [data-variant="happy"] .status-dot {
@@ -350,12 +344,7 @@
   color: var(--semantic-high);
 }
 
-/* ==========================================================
-   Happy Posture Radar — Softer animation
-   ========================================================== */
-[data-variant="happy"] .posture-radar-sweep {
-  animation: happy-radar-sweep 3s linear infinite;
-}
+
 
 /* ==========================================================
    Happy Positive News Feed — Filter Bar & Cards

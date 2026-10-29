@@ -4,6 +4,7 @@ import { resolve, dirname, extname } from 'path';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { brotliCompress, gzip } from 'zlib';
 import { promisify } from 'util';
+import { pathToFileURL } from 'url';
 import pkg from './package.json';
 
 const isE2E = process.env.VITE_E2E === '1';
@@ -267,6 +268,9 @@ function sebufApiPlugin(): Plugin {
       positiveEventsServerMod, positiveEventsHandlerMod,
       givingServerMod, givingHandlerMod,
       tradeServerMod, tradeHandlerMod,
+      cyberServerMod, cyberHandlerMod,
+      economicServerMod, economicHandlerMod,
+      supplyChainServerMod, supplyChainHandlerMod,
     ] = await Promise.all([
       import('./server/router'),
       import('./server/cors'),
@@ -307,6 +311,12 @@ function sebufApiPlugin(): Plugin {
       import('./server/worldmonitor/giving/v1/handler'),
       import('./src/generated/server/worldmonitor/trade/v1/service_server'),
       import('./server/worldmonitor/trade/v1/handler'),
+      import('./src/generated/server/worldmonitor/cyber/v1/service_server'),
+      import('./server/worldmonitor/cyber/v1/handler'),
+      import('./src/generated/server/worldmonitor/economic/v1/service_server'),
+      import('./server/worldmonitor/economic/v1/handler'),
+      import('./src/generated/server/worldmonitor/supply_chain/v1/service_server'),
+      import('./server/worldmonitor/supply-chain/v1/handler'),
     ]);
 
     const serverOptions = { onError: errorMod.mapErrorToResponse };
@@ -329,6 +339,9 @@ function sebufApiPlugin(): Plugin {
       ...positiveEventsServerMod.createPositiveEventsServiceRoutes(positiveEventsHandlerMod.positiveEventsHandler, serverOptions),
       ...givingServerMod.createGivingServiceRoutes(givingHandlerMod.givingHandler, serverOptions),
       ...tradeServerMod.createTradeServiceRoutes(tradeHandlerMod.tradeHandler, serverOptions),
+      ...cyberServerMod.createCyberServiceRoutes(cyberHandlerMod.cyberHandler, serverOptions),
+      ...economicServerMod.createEconomicServiceRoutes(economicHandlerMod.economicHandler, serverOptions),
+      ...supplyChainServerMod.createSupplyChainServiceRoutes(supplyChainHandlerMod.supplyChainHandler, serverOptions),
     ];
     cachedCorsMod = corsMod;
     return routerMod.createRouter(allRoutes);
@@ -627,7 +640,8 @@ function radarBgpPlugin(): Plugin {
         }
 
         try {
-          const mod = await import('./api/bgp-anomalies.js');
+          const modPath = pathToFileURL(resolve(process.cwd(), 'api/bgp-anomalies.js')).href;
+          const mod = await import(modPath);
           const port = server.config.server.port || 3000;
           const url = new URL(req.url, `http://localhost:${port}`);
           const webReq = new Request(url.href, {
@@ -653,6 +667,100 @@ function radarBgpPlugin(): Plugin {
   };
 }
 
+function radiationPlugin(): Plugin {
+  return {
+    name: 'radiation-proxy',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith('/api/radiation')) {
+          return next();
+        }
+
+        try {
+          const modPath = pathToFileURL(resolve(process.cwd(), 'api/radiation.js')).href;
+          const mod = await import(modPath);
+          const port = server.config.server.port || 3000;
+          const url = new URL(req.url, `http://localhost:${port}`);
+          const webReq = new Request(url.href, {
+            method: req.method,
+            headers: req.headers as any,
+          });
+
+          const webRes = await mod.default(webReq);
+          res.statusCode = webRes.status;
+          webRes.headers.forEach((val: string, key: string) => {
+            res.setHeader(key, val);
+          });
+          const text = await webRes.text();
+          res.end(text);
+        } catch (error: any) {
+          console.error('[Radiation Dev]', error);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Failed in dev handler', details: error.message }));
+        }
+      });
+    },
+  };
+}
+
+const STANDALONE_API_ENDPOINTS: Record<string, string> = {
+  '/api/gps-jamming': './api/gps-jamming.js',
+  '/api/aqi': './api/aqi.js',
+  '/api/ais-snapshot': './api/ais-snapshot.js',
+  '/api/adsbfi': './api/adsbfi.js',
+  '/api/airplanes-live': './api/airplanes-live.js',
+  '/api/asis': './api/asis.js',
+  '/api/aviationstack': './api/aviationstack.js',
+  '/api/telegram-feed': './api/telegram-feed.js',
+  '/api/social-intel': './api/social-intel.js',
+  '/api/translate': './api/translate.js',
+  '/api/notams': './api/notams.js',
+  '/api/download': './api/download.js',
+  '/api/fwdstart': './api/fwdstart.js',
+  '/api/version': './api/version.js',
+};
+
+function standaloneApiPlugin(): Plugin {
+  return {
+    name: 'standalone-api',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url) return next();
+        const pathname = req.url.split('?')[0];
+        const moduleRelPath = STANDALONE_API_ENDPOINTS[pathname];
+        if (!moduleRelPath) return next();
+
+        try {
+          const modPath = pathToFileURL(resolve(process.cwd(), moduleRelPath)).href;
+          const mod = await import(modPath);
+          const port = server.config.server.port || 3000;
+          const url = new URL(req.url, `http://localhost:${port}`);
+          const webReq = new Request(url.href, {
+            method: req.method,
+            headers: req.headers as any,
+          });
+
+          const webRes = await mod.default(webReq);
+          if (webRes instanceof Response) {
+            res.statusCode = webRes.status;
+            webRes.headers.forEach((val: string, key: string) => {
+              res.setHeader(key, val);
+            });
+            const text = await webRes.text();
+            res.end(text);
+          }
+        } catch (error: any) {
+          console.error(`[Standalone API Dev ${pathname}]`, error);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Failed in dev handler', details: error.message }));
+        }
+      });
+    },
+  };
+}
+
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
@@ -662,6 +770,8 @@ export default defineConfig({
     rssProxyPlugin(),
     youtubeLivePlugin(),
     radarBgpPlugin(),
+    radiationPlugin(),
+    standaloneApiPlugin(),
     sebufApiPlugin(),
     staticPrecompressPlugin(),
     VitePWA({
@@ -693,6 +803,7 @@ export default defineConfig({
       },
 
       workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB to allow precaching large bundles
         globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
         globIgnores: ['**/ml*.js', '**/onnx*.wasm', '**/locale-*.js'],
         navigateFallback: null,
@@ -875,6 +986,9 @@ export default defineConfig({
           const localeMatch = id.match(/\/locales\/(\w+)\.json$/);
           if (localeMatch && localeMatch[1] !== 'en') {
             return `locale-${localeMatch[1]}`;
+          }
+          if (id.includes('/config/pipelines') || id.includes('\\config\\pipelines')) {
+            return 'pipelines-data';
           }
           return undefined;
         },

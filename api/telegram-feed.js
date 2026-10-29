@@ -50,8 +50,15 @@ export default async function handler(req) {
   if (channel) relayUrl.searchParams.set('channel', channel);
 
   try {
+    const headers = { 'Accept': 'application/json' };
+    const secret = process.env.RELAY_SHARED_SECRET || process.env.WORLDMONITOR_RELAY_KEY || process.env.TELEGRAM_API_KEY;
+    if (secret) {
+      headers['Authorization'] = `Bearer ${secret}`;
+      headers['x-relay-key'] = secret;
+    }
+
     const res = await fetchWithTimeout(relayUrl.toString(), {
-      headers: { 'Accept': 'application/json' },
+      headers,
     }, 25000);
 
     const text = await res.text();

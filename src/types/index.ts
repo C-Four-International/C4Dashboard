@@ -499,6 +499,14 @@ export interface Earthquake {
   url: string;
 }
 
+export interface AQIParticulateItem {
+  code: string;
+  label: string;
+  value: number;
+  unit: string;
+  isEstimated?: boolean;
+}
+
 export interface AQIStation {
   lat: number;
   lon: number;
@@ -508,6 +516,37 @@ export interface AQIStation {
     name: string;
     time: string;
   };
+  measurements?: {
+    pm25?: number;
+    pm10?: number;
+    o3?: number;
+    no2?: number;
+    so2?: number;
+    co?: number;
+    [key: string]: number | undefined;
+  };
+  iaqi?: {
+    pm25?: { v: number };
+    pm10?: { v: number };
+    o3?: { v: number };
+    no2?: { v: number };
+    so2?: { v: number };
+    co?: { v: number };
+    [key: string]: { v: number } | undefined;
+  };
+}
+
+export interface AQIClusterData {
+  id: string;
+  lat: number;
+  lon: number;
+  count: number;
+  avgAqi: number;
+  minAqi: number;
+  maxAqi: number;
+  region?: string;
+  items: AQIStation[];
+  variedItems: AQIStation[];
 }
 
 export interface Monitor {
@@ -535,6 +574,7 @@ export interface MapLayers {
   ais: boolean;
   nuclear: boolean;
   irradiators: boolean;
+  radiation: boolean;
   sanctions: boolean;
   weather: boolean;
   weatherRadar: boolean;
@@ -559,6 +599,7 @@ export interface MapLayers {
   fires: boolean;
   // Data source layers
   ucdpEvents: boolean;
+  humanConflict: boolean;
   displacement: boolean;
   climate: boolean;
   // Tech variant layers
@@ -709,6 +750,27 @@ export interface ProtestCluster {
   startDate: Date;
   endDate: Date;
   primaryCause?: string;
+}
+
+// Human Conflict Types (GDELT Cloud API)
+export type HumanConflictCategory = 'battles' | 'protests' | 'riots' | 'strategic_developments';
+
+export interface HumanConflictEvent {
+  id: string;
+  title: string;
+  category: HumanConflictCategory;
+  subcategory?: string;
+  subcategoryLabel?: string;
+  date: string;
+  lat: number;
+  lon: number;
+  country: string;
+  location?: string;
+  fatalities?: number;
+  actors?: string[];
+  significance?: number;
+  source?: string;
+  notes?: string;
 }
 
 export interface MonitoredAirport {

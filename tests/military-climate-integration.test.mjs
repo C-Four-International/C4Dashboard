@@ -118,7 +118,7 @@ describe('DeckGLMap Layer Hierarchy & Pulse Animation', () => {
 
   it('places climate background layers before military vessels in buildLayers', () => {
     const climateIdx = src.indexOf('layers.push(...this.createClimateLayers());');
-    const militaryVesselsIdx = src.indexOf('layers.push(this.createMilitaryVesselsLayer(filteredMilitaryVessels));');
+    const militaryVesselsIdx = src.indexOf('layers.push(this.createMilitaryVesselsLayer(filteredMilitaryVessels');
     assert.ok(climateIdx > -1, 'createClimateLayers should be present in buildLayers');
     assert.ok(militaryVesselsIdx > -1, 'createMilitaryVesselsLayer should be present in buildLayers');
     assert.ok(

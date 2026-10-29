@@ -6,7 +6,6 @@ import type { DashboardSnapshot } from '@/services/storage';
 import {
   PlaybackControl,
   StatusPanel,
-  MobileWarningModal,
   PizzIntIndicator,
   CIIPanel,
   PredictionPanel,
@@ -413,10 +412,7 @@ export class EventHandlerManager implements AppModule {
   }
 
   setupMobileWarning(): void {
-    if (MobileWarningModal.shouldShow()) {
-      this.ctx.mobileWarningModal = new MobileWarningModal();
-      this.ctx.mobileWarningModal.show();
-    }
+    // Disabled - mobile view warning popup removed per user request
   }
 
   setupStatusPanel(): void {

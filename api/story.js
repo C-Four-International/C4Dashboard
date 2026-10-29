@@ -1,4 +1,6 @@
 // Non-sebuf: returns XML/HTML, stays as standalone Vercel function
+export const config = { runtime: 'edge' };
+
 /**
  * Story Page for Social Crawlers
  * Returns HTML with proper og:image and twitter:card meta tags.
@@ -15,25 +17,39 @@ const COUNTRY_NAMES = {
 
 const BOT_UA = /twitterbot|facebookexternalhit|linkedinbot|slackbot|telegrambot|whatsapp|discordbot|redditbot|googlebot/i;
 
+function esc(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export default function handler(req, res) {
-  const url = new URL(req.url, `https://${req.headers.host}`);
+  const host = req.headers?.host || (req.headers?.get && req.headers.get('host')) || 'worldmonitor.app';
+  const url = new URL(req.url, `https://${host}`);
   const countryCode = (url.searchParams.get('c') || '').toUpperCase();
   const type = url.searchParams.get('t') || 'ciianalysis';
   const ts = url.searchParams.get('ts') || '';
   const score = url.searchParams.get('s') || '';
   const level = url.searchParams.get('l') || '';
 
-  const ua = req.headers['user-agent'] || '';
+  const ua = req.headers?.['user-agent'] || (req.headers?.get && req.headers.get('user-agent')) || '';
   const isBot = BOT_UA.test(ua);
 
-  const baseUrl = `https://${req.headers.host}`;
+  const baseUrl = `https://${host}`;
   const spaUrl = `${baseUrl}/?c=${countryCode}&t=${type}${ts ? `&ts=${ts}` : ''}`;
 
   // Real users → redirect to SPA
   if (!isBot) {
-    res.writeHead(302, { Location: spaUrl });
-    res.end();
-    return;
+    if (res && typeof res.writeHead === 'function') {
+      res.writeHead(302, { Location: spaUrl, 'Cache-Control': 'public, max-age=300, s-maxage=300' });
+      res.end();
+      return;
+    }
+    return new Response(null, {
+      status: 302,
+      headers: {
+        'Location': spaUrl,
+        'Cache-Control': 'public, max-age=300, s-maxage=300',
+      },
+    });
   }
 
   // Bots → serve meta tags
@@ -75,11 +91,17 @@ export default function handler(req, res) {
 </body>
 </html>`;
 
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300, stale-while-revalidate=60');
-  res.status(200).send(html);
-}
+  if (res && typeof res.setHeader === 'function') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300, stale-while-revalidate=60');
+    return res.status(200).send(html);
+  }
 
-function esc(str) {
-  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return new Response(html, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=60',
+    },
+  });
 }

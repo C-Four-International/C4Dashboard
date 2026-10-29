@@ -1,7 +1,7 @@
 import { isDesktopRuntime } from '../services/runtime';
 import { invokeTauri } from '../services/tauri-bridge';
 import { t } from '../services/i18n';
-import { h, replaceChildren, safeHtml } from '../utils/dom-utils';
+import { h, replaceChildren, safeHtml, rawHtml } from '../utils/dom-utils';
 import { trackPanelResized } from '@/services/analytics';
 
 export interface PanelOptions {
@@ -14,6 +14,29 @@ export interface PanelOptions {
 }
 
 const PANEL_SPANS_KEY = 'worldmonitor-panel-spans';
+
+const GRID_ROW_HEIGHT = 200;
+const GRID_GAP = 4;
+const MIN_PANEL_HEIGHT = 200;
+const MAX_PANEL_HEIGHT = 1016;
+
+function spanToHeight(span: number): number {
+  return span * GRID_ROW_HEIGHT + (span - 1) * GRID_GAP;
+}
+
+function heightToSpan(height: number): number {
+  // Exact track heights:
+  // Span 1: 200px
+  // Span 2: 404px (midpoint: 302px)
+  // Span 3: 608px (midpoint: 506px)
+  // Span 4: 812px (midpoint: 710px)
+  // Span 5: 1016px (midpoint: 914px)
+  if (height >= 914) return 5;
+  if (height >= 710) return 4;
+  if (height >= 506) return 3;
+  if (height >= 302) return 2;
+  return 1;
+}
 
 function loadPanelSpans(): Record<string, number> {
   try {
@@ -30,20 +53,8 @@ function savePanelSpan(panelId: string, span: number): void {
   localStorage.setItem(PANEL_SPANS_KEY, JSON.stringify(spans));
 }
 
-function heightToSpan(height: number): number {
-  // Much lower thresholds for responsive resizing
-  // Start at 200px, so:
-  // - 50px drag → span 2 (250px)
-  // - 150px drag → span 3 (350px)
-  // - 300px drag → span 4 (500px)
-  if (height >= 500) return 4;
-  if (height >= 350) return 3;
-  if (height >= 250) return 2;
-  return 1;
-}
-
 function setSpanClass(element: HTMLElement, span: number): void {
-  element.classList.remove('span-1', 'span-2', 'span-3', 'span-4');
+  element.classList.remove('span-1', 'span-2', 'span-3', 'span-4', 'span-5');
   element.classList.add(`span-${span}`);
   element.classList.add('resized');
 }
@@ -145,9 +156,12 @@ export class Panel {
 
     // Restore saved span
     const savedSpans = loadPanelSpans();
-    const savedSpan = savedSpans[this.panelId];
-    if (savedSpan && savedSpan > 1) {
-      setSpanClass(this.element, savedSpan);
+    const savedVal = savedSpans[this.panelId];
+    if (savedVal) {
+      const span = savedVal > 10 ? heightToSpan(savedVal) : savedVal;
+      if (span > 1) {
+        setSpanClass(this.element, span);
+      }
     }
 
     this.showLoading();
@@ -156,14 +170,22 @@ export class Panel {
   private setupResizeHandlers(): void {
     if (!this.resizeHandle) return;
 
+    let rafId: number | null = null;
+    let pendingHeight: number | null = null;
+    let currentDragHeight: number | null = null;
+
     const onMouseDown = (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       this.isResizing = true;
       this.startY = e.clientY;
       this.startHeight = this.element.getBoundingClientRect().height;
+      currentDragHeight = this.startHeight;
       this.element.classList.add('resizing');
+      this.element.dataset.resizing = 'true';
+      this.element.style.transition = 'none';
       this.resizeHandle?.classList.add('active');
+      document.body.style.cursor = 'ns-resize';
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
     };
@@ -171,32 +193,57 @@ export class Panel {
     const onMouseMove = (e: MouseEvent) => {
       if (!this.isResizing) return;
       const deltaY = e.clientY - this.startY;
-      const newHeight = Math.max(200, this.startHeight + deltaY);
-      const span = heightToSpan(newHeight);
-      setSpanClass(this.element, span);
+      const newHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, this.startHeight + deltaY));
+      pendingHeight = newHeight;
+      currentDragHeight = newHeight;
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          if (this.isResizing && pendingHeight !== null) {
+            this.element.style.height = `${pendingHeight}px`;
+          }
+          rafId = null;
+        });
+      }
     };
 
     const onMouseUp = () => {
       if (!this.isResizing) return;
       this.isResizing = false;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       this.element.classList.remove('resizing');
+      delete this.element.dataset.resizing;
       this.resizeHandle?.classList.remove('active');
+      document.body.style.cursor = '';
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
 
-      const currentSpan = this.element.classList.contains('span-4') ? 4 :
-        this.element.classList.contains('span-3') ? 3 :
-          this.element.classList.contains('span-2') ? 2 : 1;
-      savePanelSpan(this.panelId, currentSpan);
-      trackPanelResized(this.panelId, currentSpan);
+      const finalHeight = currentDragHeight ?? this.element.getBoundingClientRect().height;
+      const span = heightToSpan(finalHeight);
+      const targetHeight = spanToHeight(span);
+
+      // Smooth lock animation to the exact grid track height
+      this.element.style.transition = 'height 0.2s cubic-bezier(0.2, 0.9, 0.4, 1)';
+      this.element.style.height = `${targetHeight}px`;
+      setSpanClass(this.element, span);
+
+      setTimeout(() => {
+        if (!this.isResizing) {
+          // Clear inline height so panel is natively sized by CSS grid (height: 100%),
+          // guaranteeing the exact 4px border/gap between windows is preserved!
+          this.element.style.height = '';
+          this.element.style.transition = '';
+        }
+      }, 220);
+
+      savePanelSpan(this.panelId, span);
+      trackPanelResized(this.panelId, span);
     };
 
     this.resizeHandle.addEventListener('mousedown', onMouseDown);
-
-    // Mark element as resizing for external listeners
-    this.resizeHandle.addEventListener('mousedown', () => {
-      this.element.dataset.resizing = 'true';
-    });
 
     // Double-click to reset
     this.resizeHandle.addEventListener('dblclick', () => {
@@ -212,8 +259,10 @@ export class Panel {
       this.isResizing = true;
       this.startY = touch.clientY;
       this.startHeight = this.element.getBoundingClientRect().height;
+      currentDragHeight = this.startHeight;
       this.element.classList.add('resizing');
       this.element.dataset.resizing = 'true';
+      this.element.style.transition = 'none';
       this.resizeHandle?.classList.add('active');
     }, { passive: false });
 
@@ -223,22 +272,48 @@ export class Panel {
       const touch = e.touches[0];
       if (!touch) return;
       const deltaY = touch.clientY - this.startY;
-      const newHeight = Math.max(200, this.startHeight + deltaY);
-      const span = heightToSpan(newHeight);
-      setSpanClass(this.element, span);
+      const newHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, this.startHeight + deltaY));
+      pendingHeight = newHeight;
+      currentDragHeight = newHeight;
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          if (this.isResizing && pendingHeight !== null) {
+            this.element.style.height = `${pendingHeight}px`;
+          }
+          rafId = null;
+        });
+      }
     };
 
     this.onTouchEnd = () => {
       if (!this.isResizing) return;
       this.isResizing = false;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       this.element.classList.remove('resizing');
       delete this.element.dataset.resizing;
       this.resizeHandle?.classList.remove('active');
-      const currentSpan = this.element.classList.contains('span-4') ? 4 :
-        this.element.classList.contains('span-3') ? 3 :
-          this.element.classList.contains('span-2') ? 2 : 1;
-      savePanelSpan(this.panelId, currentSpan);
-      trackPanelResized(this.panelId, currentSpan);
+
+      const finalHeight = currentDragHeight ?? this.element.getBoundingClientRect().height;
+      const span = heightToSpan(finalHeight);
+      const targetHeight = spanToHeight(span);
+
+      this.element.style.transition = 'height 0.2s cubic-bezier(0.2, 0.9, 0.4, 1)';
+      this.element.style.height = `${targetHeight}px`;
+      setSpanClass(this.element, span);
+
+      setTimeout(() => {
+        if (!this.isResizing) {
+          this.element.style.height = '';
+          this.element.style.transition = '';
+        }
+      }, 220);
+
+      savePanelSpan(this.panelId, span);
+      trackPanelResized(this.panelId, span);
     };
 
     this.onDocMouseUp = () => {
@@ -275,13 +350,15 @@ export class Panel {
 
   public showLoading(message = t('common.loading')): void {
     replaceChildren(this.content,
-      h('div', { className: 'panel-loading' },
-        h('div', { className: 'panel-loading-radar' },
-          h('div', { className: 'panel-radar-sweep' }),
-          h('div', { className: 'panel-radar-dot' }),
-        ),
-        h('div', { className: 'panel-loading-text' }, message),
-      ),
+      rawHtml(`
+        <div class="panel-loading">
+          <svg class="panel-loading-spinner" width="34" height="34" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+            <circle cx="18" cy="18" r="14" stroke="rgba(255, 255, 255, 0.18)" stroke-width="3" />
+            <path d="M18 4a14 14 0 0 1 14 14" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+          </svg>
+          <div class="panel-loading-text">${message}</div>
+        </div>
+      `),
     );
   }
 
@@ -291,13 +368,15 @@ export class Panel {
 
   public showRetrying(message = t('common.retrying')): void {
     replaceChildren(this.content,
-      h('div', { className: 'panel-loading' },
-        h('div', { className: 'panel-loading-radar' },
-          h('div', { className: 'panel-radar-sweep' }),
-          h('div', { className: 'panel-radar-dot' }),
-        ),
-        h('div', { className: 'panel-loading-text retrying' }, message),
-      ),
+      rawHtml(`
+        <div class="panel-loading">
+          <svg class="panel-loading-spinner retrying" width="34" height="34" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+            <circle cx="18" cy="18" r="14" stroke="rgba(255, 255, 255, 0.18)" stroke-width="3" />
+            <path d="M18 4a14 14 0 0 1 14 14" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+          </svg>
+          <div class="panel-loading-text retrying">${message}</div>
+        </div>
+      `),
     );
   }
 
@@ -417,6 +496,8 @@ export class Panel {
    */
   public resetHeight(): void {
     this.element.classList.remove('resized', 'span-1', 'span-2', 'span-3', 'span-4');
+    this.element.style.height = '';
+    this.element.style.transition = '';
     const spans = loadPanelSpans();
     delete spans[this.panelId];
     localStorage.setItem(PANEL_SPANS_KEY, JSON.stringify(spans));

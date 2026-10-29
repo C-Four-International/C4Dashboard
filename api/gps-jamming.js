@@ -2,6 +2,11 @@ import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 
 export const config = { runtime: 'edge' };
 
+// In-memory cache for warm edge isolates (60 seconds TTL)
+let cachedJammedJson = null;
+let cachedTimestamp = 0;
+const CACHE_TTL_MS = 60 * 1000;
+
 export default async function handler(req) {
   const corsHeaders = getCorsHeaders(req, 'GET, OPTIONS');
 
@@ -22,6 +27,19 @@ export default async function handler(req) {
     });
   }
 
+  const now = Date.now();
+  if (cachedJammedJson && (now - cachedTimestamp < CACHE_TTL_MS)) {
+    return new Response(cachedJammedJson, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+        'X-Cache': 'HIT',
+        ...corsHeaders,
+      },
+    });
+  }
+
   try {
     const endpoints = [
       'https://api.adsb.lol/v2/lat/33.0/lon/35.0/dist/250',
@@ -30,47 +48,59 @@ export default async function handler(req) {
       'https://api.adsb.lol/v2/lat/38.0/lon/127.0/dist/250'
     ];
 
-    const jammedPoints = [];
-    
-    for (const url of endpoints) {
-      try {
-        const response = await fetch(url, {
+    // Fetch all 4 regions in parallel with Promise.allSettled instead of serial for-await loop
+    const results = await Promise.allSettled(
+      endpoints.map(url =>
+        fetch(url, {
           headers: {
             'Accept': 'application/json',
-            'User-Agent': 'C4Dashboard/EdgeProxy',
+            'User-Agent': 'WorldMonitor/GPSJammingEdge',
           },
-          signal: AbortSignal.timeout(5000) 
-        });
+          signal: AbortSignal.timeout(6000),
+        }).then(async res => {
+          if (!res.ok) return null;
+          return res.json();
+        })
+      )
+    );
 
-        if (!response.ok) {
-          console.warn(`[GPS Jamming] Upstream ${url} returned ${response.status}`);
-          continue; // Skip this region on failure
-        }
-
-        const data = await response.json();
-        
-        if (data && data.ac) {
-          for (const plane of data.ac) {
-            if (plane.lat && plane.lon && (plane.nic < 8 || plane.nac_p < 9)) {
-              const weight = ((8 - (plane.nic || 0)) + (9 - (plane.nac_p || 0))) / 17;
-              jammedPoints.push([plane.lon, plane.lat, Math.max(0.1, weight)]);
-            }
+    const jammedPoints = [];
+    for (const res of results) {
+      if (res.status === 'fulfilled' && res.value?.ac) {
+        for (const plane of res.value.ac) {
+          if (plane.lat && plane.lon && (plane.nic < 8 || plane.nac_p < 9)) {
+            const weight = ((8 - (plane.nic || 0)) + (9 - (plane.nac_p || 0))) / 17;
+            jammedPoints.push([plane.lon, plane.lat, Math.max(0.1, weight)]);
           }
         }
-      } catch (err) {
-        console.warn(`[GPS Jamming] Failed to fetch ${url}:`, err.message);
       }
     }
 
-    return new Response(JSON.stringify(jammedPoints), {
+    const jsonString = JSON.stringify(jammedPoints);
+    cachedJammedJson = jsonString;
+    cachedTimestamp = Date.now();
+
+    return new Response(jsonString, {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+        'X-Cache': 'MISS',
         ...corsHeaders,
       },
     });
   } catch (error) {
+    if (cachedJammedJson) {
+      return new Response(cachedJammedJson, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+          'X-Cache': 'STALE-ERROR',
+          ...corsHeaders,
+        },
+      });
+    }
     const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
     return new Response(JSON.stringify({
       error: isTimeout ? 'ADSB.lol upstream timeout' : 'ADSB.lol fetch failed',

@@ -39,7 +39,10 @@ export default async function handler(req) {
   // Health check
   if (path === '/health' || path === '') {
     return Response.json({ configured: true }, {
-      headers: cors,
+      headers: {
+        ...cors,
+        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      },
     });
   }
 

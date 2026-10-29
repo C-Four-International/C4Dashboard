@@ -19,11 +19,14 @@ const { WebSocketServer, WebSocket } = require('ws');
 
 const AISSTREAM_URL = 'wss://stream.aisstream.io/v0/stream';
 const API_KEY = process.env.AISSTREAM_API_KEY || process.env.VITE_AISSTREAM_API_KEY;
+const GDELT_API_KEY = process.env.GDELT_API_KEY || '';
 const PORT = process.env.PORT || 3004;
 
-if (!API_KEY) {
+const DISABLE_AISSTREAM = process.env.DISABLE_AISSTREAM === 'true';
+
+if (!API_KEY && !DISABLE_AISSTREAM) {
   console.error('[Relay] Error: AISSTREAM_API_KEY environment variable not set');
-  console.error('[Relay] Get a free key at https://aisstream.io');
+  console.error('[Relay] Get a free key at https://aisstream.io (or set DISABLE_AISSTREAM=true)');
   process.exit(1);
 }
 
@@ -67,6 +70,9 @@ if (IS_PRODUCTION_RELAY && !RELAY_SHARED_SECRET && !ALLOW_UNAUTHENTICATED_RELAY)
 }
 
 let upstreamSocket = null;
+let upstreamReconnectTimer = null;
+let upstreamFailureCount = 0;
+let lastUpstreamErrorWas429 = false;
 let upstreamPaused = false;
 let upstreamQueue = [];
 let upstreamQueueReadIndex = 0;
@@ -128,8 +134,8 @@ function sendPreGzipped(req, res, statusCode, headers, rawBody, gzippedBody) {
 // ─────────────────────────────────────────────────────────────
 const TELEGRAM_ENABLED = Boolean(process.env.TELEGRAM_API_ID && process.env.TELEGRAM_API_HASH && process.env.TELEGRAM_SESSION);
 const TELEGRAM_POLL_INTERVAL_MS = Math.max(15_000, Number(process.env.TELEGRAM_POLL_INTERVAL_MS || 60_000));
-const TELEGRAM_MAX_FEED_ITEMS = Math.max(50, Number(process.env.TELEGRAM_MAX_FEED_ITEMS || 200));
-const TELEGRAM_MAX_TEXT_CHARS = Math.max(200, Number(process.env.TELEGRAM_MAX_TEXT_CHARS || 800));
+const TELEGRAM_MAX_FEED_ITEMS = Math.max(50, Number(process.env.TELEGRAM_MAX_FEED_ITEMS || 400));
+const TELEGRAM_MAX_TEXT_CHARS = Math.max(200, Number(process.env.TELEGRAM_MAX_TEXT_CHARS || 2000));
 
 const telegramState = {
   client: null,
@@ -177,25 +183,70 @@ function loadTelegramChannels() {
 }
 
 function normalizeTelegramMessage(msg, channel) {
-  const textRaw = String(msg?.message || '');
+  const textRaw = String(msg?.message || msg?.text || msg?.caption || '');
   const text = textRaw.slice(0, TELEGRAM_MAX_TEXT_CHARS);
   const ts = msg?.date ? new Date(msg.date * 1000).toISOString() : new Date().toISOString();
   return {
     id: `${channel.handle}:${msg.id}`,
     source: 'telegram',
+    platform: 'telegram',
     channel: channel.handle,
     channelTitle: channel.label || channel.handle,
+    author: `@${channel.handle}`,
+    authorName: channel.label || channel.handle,
     url: `https://t.me/${channel.handle}/${msg.id}`,
     ts,
+    publishedAt: ts,
     text,
+    rawText: text,
     topic: channel.topic || 'other',
     tags: [channel.region].filter(Boolean),
     earlySignal: true,
   };
 }
 
+async function syncTelegramToRedis(items) {
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!redisUrl || !redisToken || !Array.isArray(items) || items.length === 0) return;
+  const redisKey = process.env.REDIS_FEED_KEY || 'worldmonitor:telegram:telethon:feed:v1';
+  const ttlSeconds = Math.max(3600, Number(process.env.REDIS_FEED_TTL_SECONDS || 21600)); // 6 hours
+
+  try {
+    const serialized = JSON.stringify(items);
+    const targetUrl = `${redisUrl.replace(/\/+$/, '')}/set/${encodeURIComponent(redisKey)}/${encodeURIComponent(serialized)}/EX/${ttlSeconds}`;
+    await fetch(targetUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${redisToken}` },
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch (err) {
+    console.warn('[Relay] Telegram Redis sync error:', err?.message || String(err));
+  }
+}
+
+let telegramPermanentlyDisabled = false;
+
+function destroyTelegramClient() {
+  const client = telegramState.client;
+  telegramState.client = null;
+  if (!client) return;
+  try { client.disconnect(); } catch {}
+  try {
+    if (client._sender) {
+      client._sender._reconnecting = false;
+      client._sender._autoReconnect = false;
+      if (client._sender._connection) {
+        try { client._sender._connection.socket?.destroy?.(); } catch {}
+        try { client._sender._connection.close?.(); } catch {}
+      }
+    }
+  } catch {}
+}
+
 async function initTelegramClientIfNeeded() {
   if (!TELEGRAM_ENABLED) return false;
+  if (telegramPermanentlyDisabled) return false;
   if (telegramState.client) return true;
 
   const apiId = parseInt(String(process.env.TELEGRAM_API_ID || ''), 10);
@@ -204,11 +255,12 @@ async function initTelegramClientIfNeeded() {
 
   if (!apiId || !apiHash || !sessionStr) return false;
 
+  let client;
   try {
     const { TelegramClient } = await import('telegram');
-    const { StringSession } = await import('telegram/sessions');
+    const { StringSession } = await import('telegram/sessions/index.js');
 
-    const client = new TelegramClient(new StringSession(sessionStr), apiId, apiHash, {
+    client = new TelegramClient(new StringSession(sessionStr), apiId, apiHash, {
       connectionRetries: 3,
     });
 
@@ -218,7 +270,18 @@ async function initTelegramClientIfNeeded() {
     console.log('[Relay] Telegram client connected');
     return true;
   } catch (e) {
-    telegramState.lastError = `telegram init failed: ${e?.message || String(e)}`;
+    const em = e?.message || String(e);
+    if (client) {
+      telegramState.client = client;
+      destroyTelegramClient();
+    }
+    if (/AUTH_KEY_DUPLICATED/.test(em)) {
+      telegramPermanentlyDisabled = true;
+      telegramState.lastError = 'session invalidated (AUTH_KEY_DUPLICATED) — generate a new TELEGRAM_SESSION with npm run telegram:session';
+      console.error('[Relay] Telegram session permanently invalidated (AUTH_KEY_DUPLICATED). Generate a new session with: npm run telegram:session');
+      return false;
+    }
+    telegramState.lastError = `telegram init failed: ${em}`;
     console.warn('[Relay] Telegram init failed:', telegramState.lastError);
     return false;
   }
@@ -246,7 +309,8 @@ async function pollTelegramOnce() {
       });
 
       for (const msg of msgs) {
-        if (!msg || !msg.id || !msg.message) continue;
+        const textContent = msg?.message || msg?.text || msg?.caption || '';
+        if (!msg || !msg.id || !textContent) continue;
         const item = normalizeTelegramMessage(msg, channel);
         newItems.push(item);
         if (!telegramState.cursorByHandle[handle] || msg.id > telegramState.cursorByHandle[handle]) {
@@ -260,6 +324,17 @@ async function pollTelegramOnce() {
       const em = e?.message || String(e);
       telegramState.lastError = `poll ${handle} failed: ${em}`;
       console.warn('[Relay] Telegram poll error:', telegramState.lastError);
+      if (/AUTH_KEY_DUPLICATED/.test(em)) {
+        telegramPermanentlyDisabled = true;
+        telegramState.lastError = 'session invalidated (AUTH_KEY_DUPLICATED) — generate a new TELEGRAM_SESSION with npm run telegram:session';
+        console.error('[Relay] Telegram session permanently invalidated (AUTH_KEY_DUPLICATED). Stopping Telegram polling. Generate a new session with: npm run telegram:session');
+        destroyTelegramClient();
+        break;
+      }
+      if (/FLOOD_WAIT/.test(em)) {
+        console.warn(`[Relay] Telegram FLOOD_WAIT — stopping poll cycle early`);
+        break;
+      }
     }
   }
 
@@ -273,6 +348,9 @@ async function pollTelegramOnce() {
       })
       .sort((a, b) => (b.ts || '').localeCompare(a.ts || ''))
       .slice(0, TELEGRAM_MAX_FEED_ITEMS);
+
+    // Sync to Upstash Redis if configured
+    syncTelegramToRedis(telegramState.items).catch(() => {});
   }
 
   telegramState.lastPollAt = Date.now();
@@ -1527,6 +1605,335 @@ function handlePolymarketRequest(req, res) {
   });
 }
 
+// ── Human Conflict proxy (queries gdeltcloud.com for protests, battles, riots, strategic developments) ──
+// Lengthy 2-hour cache + 24-hour stale fallback to fit GDELT Cloud free plan limits (max ~360 calls/month worldwide)
+const humanConflictCache = new Map(); // key: query string → { data, timestamp }
+const humanConflictInFlight = new Map(); // key: query string → Promise (dedup concurrent requests)
+const HUMAN_CONFLICT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours lengthy cache
+const HUMAN_CONFLICT_STALE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days stale fallback
+const HUMAN_CONFLICT_CACHE_MAX_ENTRIES = 50;
+let canonicalConflictSnapshot = null; // Single shared global snapshot of events
+let canonicalConflictSnapshotTime = 0;
+let gdeltCloudRateLimitUntil = 0; // Cooldown timer if 429 occurs
+let canonicalFetchInFlight = null;
+
+// Hydrate canonical cache from OS temp storage if available (survives relay reboots)
+const CONFLICT_DISK_CACHE_FILE = path.join(require('os').tmpdir(), 'worldmonitor-gdelt-conflict-cache.json');
+try {
+  const rawDisk = readFileSync(CONFLICT_DISK_CACHE_FILE, 'utf8');
+  const diskData = JSON.parse(rawDisk);
+  if (diskData && Array.isArray(diskData.events) && diskData.timestamp) {
+    if (Date.now() - diskData.timestamp < HUMAN_CONFLICT_STALE_TTL_MS) {
+      canonicalConflictSnapshot = diskData.events;
+      canonicalConflictSnapshotTime = diskData.timestamp;
+      console.log(`[Relay] Hydrated GDELT canonical conflict cache from disk: ${canonicalConflictSnapshot.length} events (age: ${Math.round((Date.now() - canonicalConflictSnapshotTime) / 60000)}m)`);
+    }
+  }
+} catch {}
+
+function normalizeConflictCategory(rawCategory, rawSubcategory, rawTitle) {
+  const combined = `${rawCategory || ''} ${rawSubcategory || ''} ${rawTitle || ''}`.toLowerCase();
+  if (combined.includes('battle') || combined.includes('armed') || combined.includes('clash') || combined.includes('airstrike') || combined.includes('shelling') || combined.includes('artillery') || combined.includes('military engagement')) {
+    return 'battles';
+  }
+  if (combined.includes('riot') || combined.includes('mob') || combined.includes('looting') || combined.includes('violent demonstration') || combined.includes('unrest')) {
+    return 'riots';
+  }
+  if (combined.includes('protest') || combined.includes('demonstrat') || combined.includes('strike') || combined.includes('rally') || combined.includes('march') || combined.includes('picket')) {
+    return 'protests';
+  }
+  if (combined.includes('strategic') || combined.includes('agreement') || combined.includes('treaty') || combined.includes('troop') || combined.includes('defense') || combined.includes('military movement') || combined.includes('headquarters') || combined.includes('ceasefire') || combined.includes('surrender')) {
+    return 'strategic_developments';
+  }
+  const catLower = (rawCategory || '').toLowerCase();
+  if (catLower.includes('protest')) return 'protests';
+  if (catLower.includes('riot')) return 'riots';
+  if (catLower.includes('strategic')) return 'strategic_developments';
+  return 'battles';
+}
+
+function parseAndSanitizeConflictEvents(parsed) {
+  let list = [];
+  if (Array.isArray(parsed)) {
+    list = parsed;
+  } else if (parsed && Array.isArray(parsed.data)) {
+    list = parsed.data;
+  } else if (parsed && Array.isArray(parsed.events)) {
+    list = parsed.events;
+  } else if (parsed && Array.isArray(parsed.result)) {
+    list = parsed.result;
+  } else if (parsed && Array.isArray(parsed.features)) {
+    list = parsed.features.map(f => ({
+      id: f.id || f.properties?.id,
+      ...f.properties,
+      lat: f.geometry?.coordinates?.[1],
+      lon: f.geometry?.coordinates?.[0],
+    }));
+  }
+
+  return list
+    .map((item, idx) => {
+      const lat = Number(item.latitude ?? item.lat ?? item.geo?.latitude ?? item.geo?.lat ?? item.location?.latitude ?? item.location?.lat);
+      const lon = Number(item.longitude ?? item.lon ?? item.lng ?? item.geo?.longitude ?? item.geo?.lon ?? item.geo?.lng ?? item.location?.longitude ?? item.location?.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || (lat === 0 && lon === 0)) {
+        return null;
+      }
+
+      const rawCat = item.category || item.event_category || item.type || item.event_type || '';
+      const rawSub = item.subcategory || item.subcategory_label || item.sub_type || item.sub_event_type || '';
+      const rawTitle = item.title || item.name || item.event_name || item.notes || item.summary || '';
+      const category = normalizeConflictCategory(rawCat, rawSub, rawTitle);
+
+      const actors = Array.isArray(item.actors)
+        ? item.actors.map(String).filter(Boolean)
+        : [item.actor1, item.actor2].filter(Boolean).map(String);
+
+      const rawDate = item.event_date || item.date || item.timestamp || item.created_at || '';
+      let dateStr = '';
+      if (rawDate) {
+        try {
+          dateStr = new Date(rawDate).toISOString().split('T')[0];
+        } catch {
+          dateStr = String(rawDate).slice(0, 10);
+        }
+      }
+      if (!dateStr) {
+        dateStr = new Date().toISOString().split('T')[0];
+      }
+
+      return {
+        id: String(item.id || item.event_id || item.eventId || `gdelt-${idx}-${lat.toFixed(3)}-${lon.toFixed(3)}`),
+        title: rawTitle || `${category.replace(/_/g, ' ').toUpperCase()} in ${item.country || item.geo?.country || 'Region'}`,
+        category,
+        subcategory: rawSub || undefined,
+        subcategoryLabel: item.subcategory_label || rawSub || undefined,
+        date: dateStr,
+        lat,
+        lon,
+        country: item.country || item.geo?.country || item.country_code || '',
+        location: item.location || item.location_name || item.geo?.location || item.city || '',
+        fatalities: Math.max(0, Number(item.fatalities ?? item.deaths ?? item.deaths_best ?? 0) || 0),
+        actors: actors.length > 0 ? actors : undefined,
+        significance: Number(item.significance ?? item.goldstein_scale ?? item.severity ?? 1) || 1,
+        source: 'gdeltcloud',
+        notes: item.notes || item.summary || item.description || undefined,
+      };
+    })
+    .filter(Boolean);
+}
+
+function convertUcdpToConflictEvents(ucdpData) {
+  const events = Array.isArray(ucdpData?.events) ? ucdpData.events : [];
+  return events.map((e, idx) => {
+    const isOneSided = e.type_of_violence === 'one-sided';
+    const category = isOneSided ? 'riots' : 'battles';
+    const title = `${e.side_a || 'Armed forces'} vs ${e.side_b || 'Opposing forces'} (${e.country || 'Region'})`;
+    return {
+      id: `ucdp-${e.id || idx}`,
+      title,
+      category,
+      subcategory: e.type_of_violence,
+      subcategoryLabel: (e.type_of_violence || '').replace(/-/g, ' ').toUpperCase(),
+      date: (e.date_start || '').split('T')[0] || new Date().toISOString().split('T')[0],
+      lat: Number(e.latitude) || 0,
+      lon: Number(e.longitude) || 0,
+      country: e.country || '',
+      location: e.country || '',
+      fatalities: Math.max(0, Number(e.deaths_best || 0)),
+      actors: [e.side_a, e.side_b].filter(Boolean),
+      significance: Math.min(10, Math.max(1, Math.ceil((e.deaths_best || 1) / 5))),
+      source: 'ucdp',
+      notes: e.source_original || undefined,
+    };
+  }).filter(e => e.lat !== 0 || e.lon !== 0);
+}
+
+function handleHumanConflictRequest(req, res) {
+  const url = new URL(req.url, `http://localhost:${PORT}`);
+  const clientCategory = (url.searchParams.get('category') || '').toLowerCase();
+  const clientCountry = (url.searchParams.get('country') || '').toLowerCase();
+  const clientLimit = Math.min(300, Math.max(1, Number(url.searchParams.get('limit') || 250)));
+
+  // Helper to filter and send canonical snapshot
+  const sendFilteredSnapshot = (cacheHeader, sourceHeader) => {
+    let events = canonicalConflictSnapshot || [];
+    if (clientCategory) {
+      const allowed = clientCategory.split(',').map(s => s.trim().toLowerCase());
+      events = events.filter(e => allowed.includes(e.category.toLowerCase()));
+    }
+    if (clientCountry) {
+      events = events.filter(e => (e.country || '').toLowerCase() === clientCountry);
+    }
+    if (events.length > clientLimit) {
+      events = events.slice(0, clientLimit);
+    }
+
+    const payload = JSON.stringify({
+      success: true,
+      count: events.length,
+      data: events,
+      cached_at: new Date(canonicalConflictSnapshotTime || Date.now()).toISOString(),
+    });
+
+    humanConflictCache.set('canonical', { data: payload, timestamp: canonicalConflictSnapshotTime });
+
+    sendCompressed(req, res, 200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
+      'X-Cache': cacheHeader,
+      'X-Conflict-Source': sourceHeader,
+    }, payload);
+  };
+
+  // 1. If canonical snapshot is fresh (< 24 hours), serve immediately from in-memory cache
+  if (canonicalConflictSnapshot && (Date.now() - canonicalConflictSnapshotTime < HUMAN_CONFLICT_CACHE_TTL_MS)) {
+    return sendFilteredSnapshot('HIT', 'railway-cache');
+  }
+
+  // 2. If GDELT Cloud returned 429/403 and cooldown is active, serve stale snapshot to protect free plan quota
+  if (canonicalConflictSnapshot && (Date.now() < gdeltCloudRateLimitUntil)) {
+    return sendFilteredSnapshot('STALE-COOLDOWN', 'railway-stale');
+  }
+
+  // 3. If API key is missing or exhausted, fall back to UCDP conflict feed
+  if (!GDELT_API_KEY) {
+    if (canonicalConflictSnapshot) return sendFilteredSnapshot('STALE-NO-KEY', 'railway-stale');
+    if (ucdpCache.data && Array.isArray(ucdpCache.data.events) && ucdpCache.data.events.length > 0) {
+      canonicalConflictSnapshot = convertUcdpToConflictEvents(ucdpCache.data);
+      canonicalConflictSnapshotTime = ucdpCache.timestamp || Date.now();
+      return sendFilteredSnapshot('UCDP-FALLBACK', 'ucdp-public');
+    }
+    console.warn('[Relay] GDELT_API_KEY not configured in Railway environment');
+    const fallback = JSON.stringify({
+      success: false,
+      message: 'GDELT_API_KEY environment variable not configured on Railway relay',
+      count: 0,
+      data: [],
+    });
+    return sendCompressed(req, res, 200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=60',
+    }, fallback);
+  }
+
+  // 4. In-flight request deduplication: wait for the single canonical fetch
+  if (canonicalFetchInFlight) {
+    canonicalFetchInFlight.then(() => {
+      sendFilteredSnapshot('DEDUP', 'railway');
+    }).catch(err => {
+      if (canonicalConflictSnapshot) {
+        return sendFilteredSnapshot('STALE', 'railway-stale');
+      }
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message, count: 0, data: [] }));
+    });
+    return;
+  }
+
+  // 5. Fetch canonical global conflict dataset from gdeltcloud.com (single query for all clients)
+  const upstreamUrl = new URL('https://gdeltcloud.com/api/v2/events');
+  upstreamUrl.searchParams.set('event_family', 'conflict');
+  upstreamUrl.searchParams.set('category', 'Battles,Protests,Riots,Strategic developments');
+  upstreamUrl.searchParams.set('days', '14');
+  upstreamUrl.searchParams.set('limit', '300');
+
+  console.log('[Relay] Querying gdeltcloud.com canonical conflict events (MISS):', upstreamUrl.search);
+
+  canonicalFetchInFlight = new Promise((resolve, reject) => {
+    const request = https.get(upstreamUrl.toString(), {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${GDELT_API_KEY}`,
+        'User-Agent': 'WorldMonitor-Relay/1.0 (+https://worldmonitor.app)',
+      },
+      timeout: 15000,
+    }, (response) => {
+      const encoding = response.headers['content-encoding'];
+      let stream = response;
+      if (encoding === 'gzip' || encoding === 'deflate') {
+        stream = encoding === 'gzip' ? response.pipe(zlib.createGunzip()) : response.pipe(zlib.createInflate());
+      }
+
+      let rawData = '';
+      stream.on('data', chunk => rawData += chunk);
+      stream.on('end', () => {
+        if (response.statusCode === 429) {
+          console.warn('[Relay] GDELT Cloud returned 429 (rate-limited/quota). Entering 30-min cooldown.');
+          gdeltCloudRateLimitUntil = Date.now() + 30 * 60 * 1000;
+          if (canonicalConflictSnapshot) {
+            return resolve(canonicalConflictSnapshot);
+          }
+          if (ucdpCache.data && ucdpCache.data.events?.length > 0) {
+            return resolve(convertUcdpToConflictEvents(ucdpCache.data));
+          }
+          return reject(new Error('GDELT Cloud API rate limit reached (429)'));
+        }
+
+        if (response.statusCode === 403) {
+          console.warn('[Relay] GDELT Cloud programmatic starter calls exhausted (403 PROGRAMMATIC_ACCESS_DENIED). Entering 24-hr cooldown.');
+          gdeltCloudRateLimitUntil = Date.now() + 24 * 60 * 60 * 1000;
+          if (canonicalConflictSnapshot) {
+            return resolve(canonicalConflictSnapshot);
+          }
+          if (ucdpCache.data && ucdpCache.data.events?.length > 0) {
+            const fallbackEvents = convertUcdpToConflictEvents(ucdpCache.data);
+            canonicalConflictSnapshot = fallbackEvents;
+            canonicalConflictSnapshotTime = Date.now();
+            return resolve(fallbackEvents);
+          }
+          return reject(new Error('GDELT Cloud programmatic starter calls exhausted (403)'));
+        }
+
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          console.error(`[Relay] GDELT Cloud upstream returned ${response.statusCode}:`, rawData.slice(0, 200));
+          return reject(new Error(`GDELT Cloud API HTTP ${response.statusCode}`));
+        }
+
+        try {
+          const parsed = JSON.parse(rawData);
+          const sanitizedEvents = parseAndSanitizeConflictEvents(parsed);
+          canonicalConflictSnapshot = sanitizedEvents;
+          canonicalConflictSnapshotTime = Date.now();
+          console.log(`[Relay] GDELT Cloud canonical conflict cached: ${sanitizedEvents.length} events (valid for 24 hours)`);
+          try {
+            require('fs').writeFileSync(CONFLICT_DISK_CACHE_FILE, JSON.stringify({
+              timestamp: canonicalConflictSnapshotTime,
+              events: sanitizedEvents,
+            }));
+          } catch {}
+          resolve(sanitizedEvents);
+        } catch (err) {
+          console.error('[Relay] GDELT Cloud JSON parse error:', err.message);
+          reject(new Error('Invalid JSON from GDELT Cloud API'));
+        }
+      });
+      stream.on('error', reject);
+    });
+
+    request.on('error', reject);
+    request.on('timeout', () => {
+      request.destroy();
+      reject(new Error('GDELT Cloud request timeout'));
+    });
+  });
+
+  canonicalFetchInFlight
+    .then(() => {
+      sendFilteredSnapshot('MISS', 'railway');
+    })
+    .catch(err => {
+      console.error('[Relay] Human Conflict error:', err.message);
+      if (canonicalConflictSnapshot) {
+        return sendFilteredSnapshot('STALE', 'railway-stale');
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message, count: 0, data: [] }));
+    })
+    .finally(() => {
+      canonicalFetchInFlight = null;
+    });
+}
+
 // Periodic cache cleanup to prevent memory leaks
 setInterval(() => {
   const now = Date.now();
@@ -1540,6 +1947,9 @@ setInterval(() => {
   }
   for (const [key, entry] of polymarketCache) {
     if (now - entry.timestamp > POLYMARKET_CACHE_TTL_MS * 2) polymarketCache.delete(key);
+  }
+  for (const [key, entry] of humanConflictCache) {
+    if (now - entry.timestamp > HUMAN_CONFLICT_CACHE_TTL_MS * 2) humanConflictCache.delete(key);
   }
   for (const [key, bucket] of requestRateBuckets) {
     if (now >= bucket.resetAt + RELAY_RATE_LIMIT_WINDOW_MS * 2) requestRateBuckets.delete(key);
@@ -1633,6 +2043,7 @@ const server = http.createServer(async (req, res) => {
         ucdp: ucdpCache.data ? 'warm' : 'cold',
         worldbank: worldbankCache.size,
         polymarket: polymarketCache.size,
+        humanConflict: humanConflictCache.size,
       },
       auth: {
         sharedSecretEnabled: !!RELAY_SHARED_SECRET,
@@ -1674,17 +2085,23 @@ const server = http.createServer(async (req, res) => {
       }, JSON.stringify(payload));
     }
   } else if (pathname === '/telegram' || pathname.startsWith('/telegram/')) {
-    // Telegram Early Signals feed (public channels)
+    // Telegram Early Signals & Social Media Intel feed (public channels)
     try {
       const url = new URL(req.url, `http://localhost:${PORT}`);
-      const limit = Math.max(1, Math.min(200, Number(url.searchParams.get('limit') || 50)));
+      const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 50)));
       const topic = (url.searchParams.get('topic') || '').trim().toLowerCase();
-      const channel = (url.searchParams.get('channel') || '').trim().toLowerCase();
+      const channelParam = (url.searchParams.get('channel') || url.searchParams.get('channels') || '').trim().toLowerCase();
+      const channelList = channelParam
+        ? channelParam.split(',').map(s => s.trim().replace(/^@/, '')).filter(Boolean)
+        : [];
 
       const items = Array.isArray(telegramState.items) ? telegramState.items : [];
       const filtered = items.filter((it) => {
         if (topic && String(it.topic || '').toLowerCase() !== topic) return false;
-        if (channel && String(it.channel || '').toLowerCase() !== channel) return false;
+        if (channelList.length > 0) {
+          const itemChan = String(it.channel || '').toLowerCase();
+          if (!channelList.includes(itemChan)) return false;
+        }
         return true;
       }).slice(0, limit);
 
@@ -1900,6 +2317,8 @@ const server = http.createServer(async (req, res) => {
     handleWorldBankRequest(req, res);
   } else if (pathname.startsWith('/polymarket')) {
     handlePolymarketRequest(req, res);
+  } else if (pathname.startsWith('/human-conflict')) {
+    handleHumanConflictRequest(req, res);
   } else {
     res.writeHead(404);
     res.end();
@@ -1907,6 +2326,26 @@ const server = http.createServer(async (req, res) => {
 });
 
 function connectUpstream() {
+  if (DISABLE_AISSTREAM) return;
+  if (!API_KEY) return;
+
+  // Clear any scheduled reconnect timer
+  if (upstreamReconnectTimer) {
+    clearTimeout(upstreamReconnectTimer);
+    upstreamReconnectTimer = null;
+  }
+
+  // Single active connection guard: aisstream.io permits only 1 connection per API key
+  if (upstreamSocket && (upstreamSocket.readyState === WebSocket.CONNECTING || upstreamSocket.readyState === WebSocket.OPEN)) {
+    return;
+  }
+
+  // Terminate any dead or closing socket instance cleanly
+  if (upstreamSocket) {
+    try { upstreamSocket.terminate(); } catch {}
+    upstreamSocket = null;
+  }
+
   console.log('[Relay] Connecting to aisstream.io...');
   const socket = new WebSocket(AISSTREAM_URL);
   upstreamSocket = socket;
@@ -1957,10 +2396,12 @@ function connectUpstream() {
     // Verify this socket is still the current one (race condition guard)
     if (upstreamSocket !== socket) {
       console.log('[Relay] Stale socket open event, closing');
-      socket.close();
+      try { socket.close(); } catch {}
       return;
     }
     console.log('[Relay] Connected to aisstream.io');
+    upstreamFailureCount = 0;
+    lastUpstreamErrorWas429 = false;
     socket.send(JSON.stringify({
       APIKey: API_KEY,
       BoundingBoxes: [[[-90, -180], [90, 180]]],
@@ -1993,13 +2434,44 @@ function connectUpstream() {
       upstreamSocket = null;
       clearUpstreamQueue();
       upstreamPaused = false;
-      console.log('[Relay] Disconnected, reconnecting in 5s...');
-      setTimeout(connectUpstream, 5000);
+
+      upstreamFailureCount++;
+
+      // Compute backoff delay
+      let delayMs;
+      if (lastUpstreamErrorWas429) {
+        // Exponential backoff for HTTP 429: start at 30s, then 60s, 120s, up to 300s (5m)
+        const step = Math.min(upstreamFailureCount, 4);
+        delayMs = Math.min(300_000, 30_000 * Math.pow(2, step - 1));
+      } else {
+        // Normal reconnect: start at 5s, back off to 10s, 20s, max 60s
+        const step = Math.min(upstreamFailureCount, 4);
+        delayMs = Math.min(60_000, 5_000 * Math.pow(2, step - 1));
+      }
+
+      // Add 10% random jitter to avoid lock-step retries
+      const jitter = Math.floor(delayMs * 0.1 * Math.random());
+      const finalDelay = delayMs + jitter;
+      const delaySec = Math.round(finalDelay / 1000);
+
+      console.log(`[Relay] Disconnected from aisstream.io, reconnecting in ${delaySec}s...`);
+
+      if (upstreamReconnectTimer) clearTimeout(upstreamReconnectTimer);
+      upstreamReconnectTimer = setTimeout(() => {
+        upstreamReconnectTimer = null;
+        connectUpstream();
+      }, finalDelay);
     }
   });
 
   socket.on('error', (err) => {
-    console.error('[Relay] Upstream error:', err.message);
+    const is429 = err.message && err.message.includes('429');
+    if (is429) {
+      lastUpstreamErrorWas429 = true;
+      console.warn('[Relay] Upstream 429 Too Many Requests: aisstream.io permits only 1 active connection per API key (or key is temporarily rate-limited). Backing off...');
+    } else {
+      console.error('[Relay] Upstream error:', err.message);
+    }
   });
 }
 
@@ -2054,3 +2526,34 @@ setInterval(() => {
     if (global.gc) global.gc();
   }
 }, 60 * 1000);
+
+// Graceful shutdown — disconnect Telegram MTProto client before container dies.
+// Railway sends SIGTERM during deploys; without this, the old container keeps
+// the Telegram session alive while the new container connects → AUTH_KEY_DUPLICATED.
+async function gracefulShutdown(signal) {
+  console.log(`[Relay] ${signal} received — shutting down gracefully`);
+  if (telegramState.client) {
+    console.log('[Relay] Disconnecting Telegram MTProto client...');
+    try {
+      await Promise.race([
+        telegramState.client.disconnect(),
+        new Promise(r => setTimeout(r, 4000)),
+      ]);
+      console.log('[Relay] Telegram client disconnected cleanly');
+    } catch (e) {
+      console.warn('[Relay] Telegram disconnect error (non-fatal):', e?.message || e);
+    }
+    destroyTelegramClient();
+  }
+  if (typeof upstreamSocket !== 'undefined' && upstreamSocket) {
+    try {
+      upstreamSocket.terminate();
+    } catch {}
+    upstreamSocket = null;
+  }
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 6000);
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+

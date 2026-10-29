@@ -5,6 +5,7 @@
 import { isMobileDevice } from '@/utils';
 import { MapComponent } from './Map';
 import { DeckGLMap, type DeckMapView, type CountryClickPayload } from './DeckGLMap';
+import { MobileLayerPicker } from './MobileLayerPicker';
 import type {
   MapLayers,
   Hotspot,
@@ -23,11 +24,14 @@ import type {
   MilitaryVesselCluster,
   NaturalEvent,
   UcdpGeoEvent,
+  HumanConflictEvent,
   CyberThreat,
   CableHealthRecord,
 } from '@/types';
 import type { AirportDelayAlert } from '@/services/aviation';
+import type { FaaNotam } from '@/services/notams';
 import type { DisplacementFlow } from '@/services/displacement';
+import type { RadiationStation } from '@/services/radiation';
 import type { Earthquake } from '@/services/earthquakes';
 import type { ClimateAnomaly } from '@/services/climate';
 import type { WeatherAlert } from '@/services/weather';
@@ -72,6 +76,8 @@ export class MapContainer {
   private svgMap: MapComponent | null = null;
   private initialState: MapContainerState;
   private useDeckGL: boolean;
+  private mobileLayerPicker: MobileLayerPicker | null = null;
+  private onLayerChangeCallback: ((layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void) | null = null;
 
   constructor(container: HTMLElement, initialState: MapContainerState) {
     this.container = container;
@@ -109,6 +115,28 @@ export class MapContainer {
     this.svgMap = new MapComponent(this.container, this.initialState);
   }
 
+  private initMobileLayerPicker(): void {
+    try {
+      this.mobileLayerPicker = new MobileLayerPicker({
+        container: this.container,
+        initialLayers: this.getState().layers,
+        onLayerToggle: (layer) => {
+          this.toggleLayer(layer, 'user');
+        },
+        onResetLayers: (layers) => {
+          this.setLayers(layers);
+          if (this.onLayerChangeCallback) {
+            Object.entries(layers).forEach(([k, v]) => {
+              this.onLayerChangeCallback?.(k as keyof MapLayers, v, 'user');
+            });
+          }
+        },
+      });
+    } catch (err) {
+      console.warn('[MapContainer] Failed to initialize mobile layer picker:', err);
+    }
+  }
+
   private init(): void {
     if (this.useDeckGL) {
       console.log('[MapContainer] Initializing deck.gl map (desktop mode)');
@@ -125,6 +153,8 @@ export class MapContainer {
     } else {
       this.initSvgMap('[MapContainer] Initializing SVG map (mobile/fallback mode)');
     }
+
+    this.initMobileLayerPicker();
   }
 
   // Unified public API - delegates to active map implementation
@@ -189,6 +219,16 @@ export class MapContainer {
     } else {
       this.svgMap?.setLayers(layers);
     }
+    this.mobileLayerPicker?.setLayers(layers);
+  }
+
+  public toggleLayer(layer: keyof MapLayers, source: 'user' | 'programmatic' = 'user'): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.toggleLayer(layer);
+    } else {
+      this.svgMap?.toggleLayer(layer, source);
+    }
+    this.mobileLayerPicker?.setLayers(this.getState().layers);
   }
 
   public getState(): MapContainerState {
@@ -264,6 +304,14 @@ export class MapContainer {
     }
   }
 
+  public setNotams(notams: FaaNotam[]): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.setNotams(notams);
+    } else {
+      this.svgMap?.setNotams(notams);
+    }
+  }
+
   public setMilitaryFlights(flights: MilitaryFlight[], clusters: MilitaryFlightCluster[] = []): void {
     if (this.useDeckGL) {
       this.deckGLMap?.setMilitaryFlights(flights, clusters);
@@ -296,6 +344,14 @@ export class MapContainer {
     }
   }
 
+  public setRadiation(stations: RadiationStation[]): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.setRadiation(stations);
+    } else {
+      this.svgMap?.setRadiation(stations);
+    }
+  }
+
   public setTechEvents(events: TechEventMarker[]): void {
     if (this.useDeckGL) {
       this.deckGLMap?.setTechEvents(events);
@@ -307,6 +363,12 @@ export class MapContainer {
   public setUcdpEvents(events: UcdpGeoEvent[]): void {
     if (this.useDeckGL) {
       this.deckGLMap?.setUcdpEvents(events);
+    }
+  }
+
+  public setHumanConflictEvents(events: HumanConflictEvent[]): void {
+    if (this.useDeckGL) {
+      this.deckGLMap?.setHumanConflictEvents(events);
     }
   }
 
@@ -440,10 +502,15 @@ export class MapContainer {
   }
 
   public setOnLayerChange(callback: (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void): void {
+    this.onLayerChangeCallback = callback;
+    const wrappedCallback = (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => {
+      callback(layer, enabled, source);
+      this.mobileLayerPicker?.setLayers(this.getState().layers);
+    };
     if (this.useDeckGL) {
-      this.deckGLMap?.setOnLayerChange(callback);
+      this.deckGLMap?.setOnLayerChange(wrappedCallback);
     } else {
-      this.svgMap?.setOnLayerChange(callback);
+      this.svgMap?.setOnLayerChange(wrappedCallback);
     }
   }
 
@@ -495,6 +562,7 @@ export class MapContainer {
     } else {
       this.svgMap?.setLayerLoading(layer, loading);
     }
+    this.mobileLayerPicker?.setLayerLoading(layer, loading);
   }
 
   public setLayerReady(layer: keyof MapLayers, hasData: boolean): void {
@@ -503,6 +571,7 @@ export class MapContainer {
     } else {
       this.svgMap?.setLayerReady(layer, hasData);
     }
+    this.mobileLayerPicker?.setLayerReady(layer, hasData);
   }
 
   public setLayerUnavailable(layer: keyof MapLayers, unavailable: boolean, reason?: string): void {
@@ -642,6 +711,8 @@ export class MapContainer {
   }
 
   public destroy(): void {
+    this.mobileLayerPicker?.destroy();
+    this.mobileLayerPicker = null;
     if (this.useDeckGL) {
       this.deckGLMap?.destroy();
     } else {

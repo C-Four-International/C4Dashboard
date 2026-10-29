@@ -80,7 +80,7 @@ export class App {
       mapLayers = { ...defaultLayers, ...storedLayers };
       // Happy variant: force non-happy layers off even if localStorage has stale true values
       if (currentVariant === 'happy') {
-        const unhappyLayers: (keyof MapLayers)[] = ['conflicts', 'bases', 'hotspots', 'nuclear', 'irradiators', 'sanctions', 'military', 'protests', 'pipelines', 'waterways', 'ais', 'flights', 'spaceports', 'minerals', 'natural', 'fires', 'outages', 'cyberThreats', 'weather', 'economic', 'cables', 'datacenters', 'ucdpEvents', 'displacement', 'climate'];
+        const unhappyLayers: (keyof MapLayers)[] = ['conflicts', 'bases', 'hotspots', 'nuclear', 'irradiators', 'radiation', 'sanctions', 'military', 'protests', 'pipelines', 'waterways', 'ais', 'flights', 'spaceports', 'minerals', 'natural', 'fires', 'outages', 'cyberThreats', 'weather', 'economic', 'cables', 'datacenters', 'ucdpEvents', 'displacement', 'climate'];
         unhappyLayers.forEach(layer => { mapLayers[layer] = false; });
       }
       panelSettings = loadFromStorage<Record<string, PanelConfig>>(
@@ -193,7 +193,7 @@ export class App {
       }
       // For happy variant, force off all non-happy layers (including natural events)
       if (currentVariant === 'happy') {
-        const unhappyLayers: (keyof MapLayers)[] = ['conflicts', 'bases', 'hotspots', 'nuclear', 'irradiators', 'sanctions', 'military', 'protests', 'pipelines', 'waterways', 'ais', 'flights', 'spaceports', 'minerals', 'natural', 'fires', 'outages', 'cyberThreats', 'weather', 'economic', 'cables', 'datacenters', 'ucdpEvents', 'displacement', 'climate'];
+        const unhappyLayers: (keyof MapLayers)[] = ['conflicts', 'bases', 'hotspots', 'nuclear', 'irradiators', 'radiation', 'sanctions', 'military', 'protests', 'pipelines', 'waterways', 'ais', 'flights', 'spaceports', 'minerals', 'natural', 'fires', 'outages', 'cyberThreats', 'weather', 'economic', 'cables', 'datacenters', 'ucdpEvents', 'displacement', 'climate'];
         const urlLayers = initialUrlState.layers;
         unhappyLayers.forEach(layer => {
           urlLayers[layer] = false;
@@ -339,7 +339,6 @@ export class App {
 
     // Phase 3: UI setup methods
     this.eventHandlers.startHeaderClock();
-    this.eventHandlers.setupMobileWarning();
     this.eventHandlers.setupPlaybackControl();
     this.eventHandlers.setupStatusPanel();
     this.eventHandlers.setupPizzIntIndicator();
@@ -484,6 +483,7 @@ export class App {
         { name: 'cables', fn: () => this.dataLoader.loadCableActivity(), intervalMs: 30 * 60 * 1000, condition: () => this.state.mapLayers.cables },
         { name: 'cableHealth', fn: () => this.dataLoader.loadCableHealth(), intervalMs: 5 * 60 * 1000, condition: () => this.state.mapLayers.cables },
         { name: 'flights', fn: () => this.dataLoader.loadFlightDelays(), intervalMs: 10 * 60 * 1000, condition: () => this.state.mapLayers.flights },
+        { name: 'humanConflict', fn: () => this.dataLoader.loadHumanConflict(true), intervalMs: 24 * 60 * 60 * 1000, condition: () => this.state.mapLayers.humanConflict },
         /*  { name: 'cyberThreats', fn: () => {
             this.state.cyberThreatsCache = null;
             return this.dataLoader.loadCyberThreats();

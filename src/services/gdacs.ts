@@ -41,7 +41,7 @@ interface GDACSResponse {
   features: GDACSFeature[];
 }
 
-const GDACS_API = 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP';
+const GDACS_API = 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=EQ;TC;FL;VO;WF;DR';
 const breaker = createCircuitBreaker<GDACSEvent[]>({ name: 'GDACS', cacheTtlMs: 5 * 60 * 1000, persistCache: true });
 
 const EVENT_TYPE_NAMES: Record<string, string> = {
@@ -56,7 +56,8 @@ const EVENT_TYPE_NAMES: Record<string, string> = {
 export async function fetchGDACSEvents(): Promise<GDACSEvent[]> {
   return breaker.execute(async () => {
     const response = await fetch(GDACS_API, {
-      headers: { 'Accept': 'application/json' }
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);

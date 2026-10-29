@@ -201,20 +201,22 @@ describe('getVesselSnapshot caching (HIGH-1)', () => {
       'TTL should be 10 seconds (10000ms)');
   });
 
-  it('checks cache before calling relay', () => {
-    // fetchVesselSnapshot should check cachedSnapshot before fetchVesselSnapshotFromRelay
+  it('checks cache before calling relay/IMF', () => {
+    // fetchVesselSnapshot should check cachedSnapshot before fetching fresh data
     const cacheCheckIdx = src.indexOf('cachedSnapshot && (now - cacheTimestamp)');
-    const relayCallIdx = src.indexOf('fetchVesselSnapshotFromRelay()');
+    const fetchCallIdx = src.indexOf('fetchChokepointsFromIMF') > -1
+      ? src.indexOf('fetchChokepointsFromIMF')
+      : src.indexOf('fetchVesselSnapshotFromRelay');
     assert.ok(cacheCheckIdx > -1, 'Should check cache');
-    assert.ok(relayCallIdx > -1, 'Should have relay fetch function');
-    assert.ok(cacheCheckIdx < relayCallIdx,
-      'Cache check should come before relay call');
+    assert.ok(fetchCallIdx > -1, 'Should have fetch function');
+    assert.ok(cacheCheckIdx < fetchCallIdx,
+      'Cache check should come before fetch call');
   });
 
   it('has in-flight dedup via shared promise', () => {
     assert.match(src, /if\s*\(inFlightRequest\)/,
       'Should check for in-flight request');
-    assert.match(src, /inFlightRequest\s*=\s*fetchVesselSnapshotFromRelay/,
+    assert.match(src, /inFlightRequest\s*=\s*(fetchChokepointsFromIMF|fetchVesselSnapshotFromRelay)/,
       'Should assign in-flight promise');
     assert.match(src, /inFlightRequest\s*=\s*null/,
       'Should clear in-flight promise in finally block');

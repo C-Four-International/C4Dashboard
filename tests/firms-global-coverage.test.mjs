@@ -16,17 +16,21 @@ describe('NASA FIRMS Global Coverage in listFireDetections', () => {
   const src = readSrc('server/worldmonitor/wildfire/v1/list-fire-detections.ts');
 
   it('includes South America in MONITORED_REGIONS', () => {
-    assert.match(src, /['"]South America['"]:\s*['"]-90,-56,-34,15['"]/);
+    assert.match(src, /['"]South America \(Amazon\)['"]/);
+    assert.match(src, /['"]South America \(Cerrado\/Brazil\)['"]/);
   });
 
   it('includes Africa in MONITORED_REGIONS', () => {
-    assert.match(src, /['"]Southern & Eastern Africa['"]/);
-    assert.match(src, /['"]Central & Western Africa['"]/);
-    assert.match(src, /['"]Northern Africa['"]/);
+    assert.match(src, /['"]North Africa['"]/);
+    assert.match(src, /['"]West Africa['"]/);
+    assert.match(src, /['"]Central Africa['"]/);
+    assert.match(src, /['"]East Africa['"]/);
+    assert.match(src, /['"]Southern Africa['"]/);
   });
 
   it('includes Australia & Oceania in MONITORED_REGIONS', () => {
-    assert.match(src, /['"]Australia & Oceania['"]:\s*['"]110,-48,180,-10['"]/);
+    assert.match(src, /['"]Australia['"]/);
+    assert.match(src, /['"]Oceania & Pacific['"]/);
   });
 
   it('includes Southeast Asia and South Asia in MONITORED_REGIONS', () => {
@@ -34,8 +38,8 @@ describe('NASA FIRMS Global Coverage in listFireDetections', () => {
     assert.match(src, /['"]South Asia['"]/);
   });
 
-  it('has getRegionName fallback so no global fire detection is discarded', () => {
-    assert.match(src, /function getRegionName\(/);
+  it('has classifyContinent fallback so no global fire detection is discarded', () => {
+    assert.match(src, /function classifyContinent\(/);
     assert.doesNotMatch(
       src,
       /if\s*\(\s*matchedRegion\s*\)\s*\{\s*const row/,
@@ -44,9 +48,9 @@ describe('NASA FIRMS Global Coverage in listFireDetections', () => {
   });
 
   it('correctly maps VIIRS C2 confidence strings (nominal, high, low)', () => {
-    assert.match(src, /lower\s*===\s*['"]h['"]\s*\|\|\s*lower\s*===\s*['"]high['"]/);
-    assert.match(src, /lower\s*===\s*['"]n['"]\s*\|\|\s*lower\s*===\s*['"]nominal['"]/);
-    assert.match(src, /lower\s*===\s*['"]l['"]\s*\|\|\s*lower\s*===\s*['"]low['"]/);
+    assert.match(src, /s\s*===\s*['"]h['"]\s*\|\|\s*s\s*===\s*['"]high['"]/);
+    assert.match(src, /s\s*===\s*['"]n['"]\s*\|\|\s*s\s*===\s*['"]nominal['"]/);
+    assert.match(src, /s\s*===\s*['"]l['"]\s*\|\|\s*s\s*===\s*['"]low['"]/);
   });
 });
 

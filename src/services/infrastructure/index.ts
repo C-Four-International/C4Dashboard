@@ -15,12 +15,14 @@ import {
 } from '@/generated/client/worldmonitor/infrastructure/v1/service_client';
 import type { InternetOutage } from '@/types';
 import { createCircuitBreaker } from '@/utils';
-import { isFeatureAvailable } from '../runtime-config';
 
 // ---- Client + Circuit Breakers ----
 
+// 3-hour cache TTL (3 * 60 * 60 * 1000 ms) for Cloudflare Radar outages
+export const OUTAGES_CACHE_TTL_MS = 3 * 60 * 60 * 1000;
+
 const client = new InfrastructureServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
-const outageBreaker = createCircuitBreaker<ListInternetOutagesResponse>({ name: 'Internet Outages', cacheTtlMs: 5 * 60 * 1000, persistCache: true });
+const outageBreaker = createCircuitBreaker<ListInternetOutagesResponse>({ name: 'Internet Outages', cacheTtlMs: OUTAGES_CACHE_TTL_MS, persistCache: true });
 const statusBreaker = createCircuitBreaker<ListServiceStatusesResponse>({ name: 'Service Statuses', cacheTtlMs: 5 * 60 * 1000, persistCache: true });
 
 const emptyOutageFallback: ListInternetOutagesResponse = { outages: [], pagination: undefined };
@@ -68,30 +70,18 @@ function toOutage(proto: ProtoOutage): InternetOutage {
 // Internet Outages -- replaces src/services/outages.ts
 // ========================================================================
 
-let outagesConfigured: boolean | null = null;
+let outagesConfigured: boolean | null = true;
 
 export function isOutagesConfigured(): boolean | null {
   return outagesConfigured;
 }
 
 export async function fetchInternetOutages(): Promise<InternetOutage[]> {
-  if (!isFeatureAvailable('internetOutages')) {
-    outagesConfigured = false;
-    return [];
-  }
-
   const resp = await outageBreaker.execute(async () => {
     return client.listInternetOutages({
       country: '',
     });
   }, emptyOutageFallback);
-
-  if (resp.outages.length === 0) {
-    // Could be not configured or just no current outages -- keep previous state
-    // unless we've never fetched before
-    if (outagesConfigured === null) outagesConfigured = false;
-    return [];
-  }
 
   outagesConfigured = true;
   return resp.outages.map(toOutage);

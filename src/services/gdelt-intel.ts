@@ -168,7 +168,11 @@ export async function fetchGdeltArticles(
   }, emptyGdeltFallback);
 
   if (resp.error) {
-    console.warn(`[GDELT-Intel] RPC error: ${resp.error}`);
+    if (resp.error.includes('429')) {
+      console.info(`[GDELT-Intel] Upstream rate-limited (429), using cached/fallback data`);
+    } else {
+      console.warn(`[GDELT-Intel] RPC error: ${resp.error}`);
+    }
     return cached?.articles || [];
   }
 
@@ -193,13 +197,16 @@ export async function fetchTopicIntelligence(topic: IntelTopic): Promise<TopicIn
 }
 
 export async function fetchAllTopicIntelligence(): Promise<TopicIntelligence[]> {
-  const results = await Promise.allSettled(
-    INTEL_TOPICS.map(topic => fetchTopicIntelligence(topic))
-  );
-
-  return results
-    .filter((r): r is PromiseFulfilledResult<TopicIntelligence> => r.status === 'fulfilled')
-    .map(r => r.value);
+  const results: TopicIntelligence[] = [];
+  for (const topic of INTEL_TOPICS) {
+    try {
+      const item = await fetchTopicIntelligence(topic);
+      results.push(item);
+      // Stagger requests to avoid burst rate limits (429) from GDELT
+      await new Promise(r => setTimeout(r, 200));
+    } catch {}
+  }
+  return results;
 }
 
 export function formatArticleDate(dateStr: string): string {
@@ -261,7 +268,11 @@ export async function fetchPositiveGdeltArticles(
   }, emptyGdeltFallback);
 
   if (resp.error) {
-    console.warn(`[GDELT-Intel] Positive RPC error: ${resp.error}`);
+    if (resp.error.includes('429')) {
+      console.info(`[GDELT-Intel] Positive upstream rate-limited (429), using cached/fallback data`);
+    } else {
+      console.warn(`[GDELT-Intel] Positive RPC error: ${resp.error}`);
+    }
     return cached?.articles || [];
   }
 
@@ -276,10 +287,14 @@ export async function fetchPositiveTopicIntelligence(topic: IntelTopic): Promise
 }
 
 export async function fetchAllPositiveTopicIntelligence(): Promise<TopicIntelligence[]> {
-  const results = await Promise.allSettled(
-    POSITIVE_GDELT_TOPICS.map(topic => fetchPositiveTopicIntelligence(topic))
-  );
-  return results
-    .filter((r): r is PromiseFulfilledResult<TopicIntelligence> => r.status === 'fulfilled')
-    .map(r => r.value);
+  const results: TopicIntelligence[] = [];
+  for (const topic of POSITIVE_GDELT_TOPICS) {
+    try {
+      const item = await fetchPositiveTopicIntelligence(topic);
+      results.push(item);
+      // Stagger requests to avoid burst rate limits (429) from GDELT
+      await new Promise(r => setTimeout(r, 200));
+    } catch {}
+  }
+  return results;
 }

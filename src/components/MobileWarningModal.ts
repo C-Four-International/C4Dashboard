@@ -1,5 +1,4 @@
 import { t } from '@/services/i18n';
-import { isMobileDevice } from '@/utils';
 
 const STORAGE_KEY = 'mobile-warning-dismissed';
 
@@ -68,8 +67,7 @@ export class MobileWarningModal {
   }
 
   public static shouldShow(): boolean {
-    if (localStorage.getItem(STORAGE_KEY) === 'true') return false;
-    return isMobileDevice();
+    return false;
   }
 
   public getElement(): HTMLElement {

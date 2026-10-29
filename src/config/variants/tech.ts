@@ -211,6 +211,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: false,
   irradiators: false,
+  radiation: false,
   sanctions: false,
   weather: true,
   weatherRadar: true,
@@ -232,6 +233,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   minerals: false,
   fires: false,
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech-specific layers
@@ -267,6 +269,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: false,
   irradiators: false,
+  radiation: false,
   sanctions: false,
   weather: false,
   weatherRadar: false,
@@ -288,6 +291,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   minerals: false,
   fires: false,
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech-specific layers (limited on mobile)

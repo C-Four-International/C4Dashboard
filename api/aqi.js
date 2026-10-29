@@ -35,6 +35,7 @@ export default async function handler(req) {
   try {
     const requestUrl = new URL(req.url);
     const bounds = requestUrl.searchParams.get('bounds');
+    const stationId = requestUrl.searchParams.get('stationId') || requestUrl.searchParams.get('uid');
     const token = process.env.AQICN_TOKEN;
 
     if (!token) {
@@ -44,14 +45,16 @@ export default async function handler(req) {
       });
     }
 
-    if (!bounds) {
-      return new Response(JSON.stringify({ error: 'Missing bounds parameter.' }), {
+    if (!bounds && !stationId) {
+      return new Response(JSON.stringify({ error: 'Missing bounds or stationId parameter.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
-    const upstreamUrl = `https://api.waqi.info/v2/map/bounds?latlng=${bounds}&networks=all&token=${token}`;
+    const upstreamUrl = stationId
+      ? `https://api.waqi.info/feed/@${stationId}/?token=${token}`
+      : `https://api.waqi.info/v2/map/bounds?latlng=${bounds}&networks=all&token=${token}`;
 
     const response = await fetchWithTimeout(upstreamUrl, {
       headers: { 'Accept': 'application/json' },
