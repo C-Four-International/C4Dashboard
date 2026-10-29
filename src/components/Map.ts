@@ -1624,7 +1624,6 @@ export class MapComponent {
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
           });
-          this.popup.loadHotspotGdeltContext(spot);
           this.onHotspotClick?.(spot);
         });
 
@@ -3326,7 +3325,6 @@ export class MapComponent {
       x: pos[0],
       y: pos[1],
     });
-    this.popup.loadHotspotGdeltContext(hotspot);
     this.onHotspotClick?.(hotspot);
   }
 

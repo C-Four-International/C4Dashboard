@@ -12,7 +12,6 @@ import type { GeoHubActivity } from '@/services/geo-activity';
 import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
 import { isMobileDevice, getCSSColor } from '@/utils';
 import { t } from '@/services/i18n';
-import { fetchHotspotContext, formatArticleDate, extractDomain, type GdeltArticle } from '@/services/gdelt-intel';
 import { getNaturalEventIcon } from '@/services/eonet';
 import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot-escalation';
 import { getCableHealthRecord } from '@/services/cable-health';
@@ -675,7 +674,6 @@ export class MapPopup {
         ` : ''}
         ${relatedNews && relatedNews.length > 0 ? `
           <div class="popup-section">
-          <div class="popup-section">
             <span class="section-label">${t('popups.relatedHeadlines')}</span>
             <div class="popup-news">
               ${relatedNews.slice(0, 5).map(n => `
@@ -687,61 +685,7 @@ export class MapPopup {
             </div>
           </div>
         ` : ''}
-        <div class="hotspot-gdelt-context" data-hotspot-id="${escapeHtml(hotspot.id)}">
-          <div class="hotspot-gdelt-header">${t('popups.liveIntel')}</div>
-          <div class="hotspot-gdelt-loading">${t('popups.loadingNews')}</div>
-        </div>
       </div>
-    `;
-  }
-
-  public async loadHotspotGdeltContext(hotspot: Hotspot): Promise<void> {
-    if (!this.popup) return;
-
-    const container = this.popup.querySelector('.hotspot-gdelt-context');
-    if (!container) return;
-
-    try {
-      const articles = await fetchHotspotContext(hotspot);
-
-      if (!this.popup || !container.isConnected) return;
-
-      if (articles.length === 0) {
-        container.innerHTML = `
-          <div class="hotspot-gdelt-header">${t('popups.liveIntel')}</div>
-          <div class="hotspot-gdelt-loading">${t('popups.noCoverage')}</div>
-        `;
-        return;
-      }
-
-      container.innerHTML = `
-        <div class="hotspot-gdelt-header">${t('popups.liveIntel')}</div>
-        <div class="hotspot-gdelt-articles">
-          ${articles.slice(0, 5).map(article => this.renderGdeltArticle(article)).join('')}
-        </div>
-      `;
-    } catch (error) {
-      if (container.isConnected) {
-        container.innerHTML = `
-          <div class="hotspot-gdelt-header">${t('popups.liveIntel')}</div>
-          <div class="hotspot-gdelt-loading">${t('common.error')}</div>
-        `;
-      }
-    }
-  }
-
-  private renderGdeltArticle(article: GdeltArticle): string {
-    const domain = article.source || extractDomain(article.url);
-    const timeAgo = formatArticleDate(article.date);
-
-    return `
-      <a href="${sanitizeUrl(article.url)}" target="_blank" rel="noopener" class="hotspot-gdelt-article">
-        <div class="article-meta">
-          <span>${escapeHtml(domain)}</span>
-          <span>${escapeHtml(timeAgo)}</span>
-        </div>
-        <div class="article-title">${escapeHtml(article.title)}</div>
-      </a>
     `;
   }
 
