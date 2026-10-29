@@ -8,6 +8,7 @@ import handler, {
   fetchRailwayTelegramFeed,
   generateLocalBriefingFallback,
   hasNonEnglishText,
+  hasNonEnglishCharacters,
   translateTextWithGoogle,
   batchTranslateWithGoogle,
   generateBriefingWithGoogleTranslation,
@@ -261,6 +262,24 @@ describe('Social Media Intel - Google Pre-Trained Translation Hook', () => {
     // Latin / English
     assert.strictEqual(hasNonEnglishText('Air defense intercepted 18 out of 24 drones.'), false);
     assert.strictEqual(hasNonEnglishText('165 drones reported across 30 locations in Kyiv region.'), false);
+
+    // English articles citing non-English terms, locations, or names
+    assert.strictEqual(
+      hasNonEnglishText('Ukrainian forces repel Russian assault near Покровськ in Donetsk region.'),
+      false,
+    );
+    assert.strictEqual(
+      hasNonEnglishCharacters("Türkiye's Erdoğan meets Macron at Élysée Palace in Paris over São Paulo trade deal"),
+      false,
+    );
+    assert.strictEqual(
+      hasNonEnglishCharacters('Flooding in São Paulo and Bogotá leaves dozens displaced after heavy rain'),
+      false,
+    );
+    assert.strictEqual(
+      hasNonEnglishCharacters('El Gobierno de España aprueba nuevas medidas económicas para frenar la inflación'),
+      true,
+    );
   });
 
   it('translates foreign text snippet into English using Google pre-trained translation', async () => {
