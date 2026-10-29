@@ -33,10 +33,14 @@ export class MobileLayerPicker {
   private activeCategoryFilter: string = 'all';
   private searchQuery: string = '';
   private isOpen: boolean = false;
+  private unavailableLayers: Set<keyof MapLayers> = new Set(['bgpAnomalies', 'humanConflict', 'radiation']);
 
   constructor(options: MobileLayerPickerOptions) {
     this.container = options.container;
     this.currentLayers = { ...options.initialLayers };
+    for (const ul of this.unavailableLayers) {
+      this.currentLayers[ul] = false;
+    }
     this.onLayerToggle = options.onLayerToggle;
     this.onResetLayers = options.onResetLayers;
 
@@ -336,7 +340,7 @@ export class MobileLayerPicker {
 
   private renderCategoriesHtml(): string {
     return this.categories.map(category => {
-      const activeCount = category.layers.filter(l => Boolean(this.currentLayers[l.key])).length;
+      const activeCount = category.layers.filter(l => Boolean(this.currentLayers[l.key]) && !this.unavailableLayers.has(l.key)).length;
       return `
         <div class="mobile-layer-cat-section" data-cat-id="${category.id}">
           <div class="mobile-layer-cat-header">
@@ -347,16 +351,18 @@ export class MobileLayerPicker {
           </div>
           <div class="mobile-layer-items-grid">
             ${category.layers.map(layer => {
-        const isActive = Boolean(this.currentLayers[layer.key]);
+        const isUnavailable = this.unavailableLayers.has(layer.key);
+        const isActive = Boolean(this.currentLayers[layer.key]) && !isUnavailable;
         return `
-                <div class="mobile-layer-item ${isActive ? 'active' : ''}" data-layer="${layer.key}" role="button" tabindex="0">
+                <div class="mobile-layer-item ${isActive ? 'active' : ''} ${isUnavailable ? 'unavailable disabled' : ''}" data-layer="${layer.key}" role="button" tabindex="${isUnavailable ? '-1' : '0'}" ${isUnavailable ? 'aria-disabled="true" title="API unavailable"' : ''}>
                   <div class="mobile-layer-item-left">
                     <span class="mobile-layer-item-icon">${layer.icon}</span>
                     <span class="mobile-layer-item-label">${layer.label}</span>
                   </div>
+                  ${isUnavailable ? '<span class="layer-status-badge">Unavailable</span>' : `
                   <div class="mobile-layer-item-switch ${isActive ? 'checked' : ''}" aria-checked="${isActive}">
                     <span class="mobile-layer-switch-thumb"></span>
-                  </div>
+                  </div>`}
                 </div>
               `;
       }).join('')}
@@ -460,6 +466,7 @@ export class MobileLayerPicker {
   }
 
   private handleLayerClick(layer: keyof MapLayers): void {
+    if (this.unavailableLayers.has(layer)) return;
     // Toggle state
     this.currentLayers[layer] = !this.currentLayers[layer];
     this.onLayerToggle(layer);

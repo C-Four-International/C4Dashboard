@@ -398,6 +398,8 @@ export class DataLoaderManager implements AppModule {
 
   async probeLayerApis(): Promise<void> {
     this.ctx.map?.setLayerUnavailable('bgpAnomalies', true, 'BGP Anomalies API unavailable');
+    this.ctx.map?.setLayerUnavailable('humanConflict', true, 'Human Conflict API unavailable');
+    this.ctx.map?.setLayerUnavailable('radiation', true, 'Radiation Monitoring API unavailable');
 
     const endpoints: Array<{ layer: keyof MapLayers; url: string; name: string }> = [
       { layer: 'bgpAnomalies', url: '/api/bgp-anomalies?probe=1', name: 'BGP Anomalies' },

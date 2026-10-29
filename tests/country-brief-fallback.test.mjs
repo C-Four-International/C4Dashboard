@@ -10,7 +10,7 @@ test('AI country briefing generation error message does not prompt for GEMINI_AP
     'src/app/country-intel.ts should not contain user-facing GEMINI_API_KEY error message'
   );
   assert.ok(
-    countryIntelTs.includes("error: t('modals.countryBrief.briefUnavailable') || 'AI brief unavailable — fallback in place.'"),
+    countryIntelTs.includes("error: t('modals.countryBrief.briefUnavailable') || 'Fallback dashboard in operation - AI functionality is currently unavailable.'"),
     'src/app/country-intel.ts should use fallback notice when brief is unavailable'
   );
 });
@@ -20,18 +20,18 @@ test('English locale has calm fallback notice without GEMINI_API_KEY prompt', ()
 
   assert.equal(
     enJson.countryBrief?.briefUnavailable,
-    'AI brief unavailable — fallback in place.',
-    'countryBrief.briefUnavailable should state fallback in place'
+    'Fallback dashboard in operation - AI functionality is currently unavailable.',
+    'countryBrief.briefUnavailable should state fallback dashboard in operation'
   );
   assert.equal(
     enJson.modals?.countryBrief?.briefUnavailable,
-    'AI brief unavailable — fallback in place.',
-    'modals.countryBrief.briefUnavailable should state fallback in place'
+    'Fallback dashboard in operation - AI functionality is currently unavailable.',
+    'modals.countryBrief.briefUnavailable should state fallback dashboard in operation'
   );
   assert.equal(
     enJson.modals?.countryIntel?.unavailable,
-    'AI brief unavailable — fallback in place.',
-    'modals.countryIntel.unavailable should state fallback in place'
+    'Fallback dashboard in operation - AI functionality is currently unavailable.',
+    'modals.countryIntel.unavailable should state fallback dashboard in operation'
   );
   assert.equal(
     enJson.modals?.countryBrief?.fallbackBadge,

@@ -205,13 +205,7 @@ Rules:
   });
 
   if (debugError) {
-    return {
-      countryCode: req.countryCode,
-      countryName,
-      brief: `DEBUG AI ERROR: ${debugError}`,
-      model: 'gemini-3.5-flash-lite',
-      generatedAt: Date.now(),
-    };
+    return empty;
   }
 
   return result || empty;

@@ -17,7 +17,7 @@
     "predictionMarkets": "Prediction Markets",
     "loadingMarkets": "Loading prediction markets...",
     "infrastructure": "Infrastructure Exposure",
-    "briefUnavailable": "AI brief unavailable — fallback in place.",
+    "briefUnavailable": "Fallback dashboard in operation - AI functionality is currently unavailable.",
     "fallbackBadge": "Fallback in place",
     "cached": "Cached",
     "fresh": "Fresh",
@@ -420,7 +420,7 @@
       "noMarkets": "No prediction markets found",
       "predictionMarkets": "Prediction Markets",
       "marketDisclaimer": "Disclaimer: Prediction market data reflects aggregate trading sentiment, not guaranteed outcomes. This information is for reference purposes only.",
-      "unavailable": "AI brief unavailable — fallback in place.",
+      "unavailable": "Fallback dashboard in operation - AI functionality is currently unavailable.",
       "fallbackBadge": "Fallback in place"
     },
     "countryBrief": {
@@ -439,7 +439,7 @@
       "loadingMarkets": "Loading prediction markets...",
       "marketDisclaimer": "Disclaimer: Prediction market data reflects aggregate trading sentiment, not guaranteed outcomes. This information is for reference purposes only.",
       "infrastructure": "Infrastructure Exposure",
-      "briefUnavailable": "AI brief unavailable — fallback in place.",
+      "briefUnavailable": "Fallback dashboard in operation - AI functionality is currently unavailable.",
       "fallbackBadge": "Fallback in place",
       "cached": "Cached",
       "fresh": "Fresh",

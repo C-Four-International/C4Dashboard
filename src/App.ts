@@ -212,7 +212,7 @@ export class App {
       panels: {},
       newsPanels: {},
       panelSettings,
-      mapLayers: { ...mapLayers, gpsJamming: false },
+      mapLayers: { ...mapLayers, gpsJamming: false, bgpAnomalies: false, humanConflict: false, radiation: false },
       allNews: [],
       newsByCategory: {},
       latestMarkets: [],
@@ -372,6 +372,8 @@ export class App {
       this.state.map?.setLayerUnavailable('outages', true, 'Internet Outages API not configured or unavailable');
     }
     this.state.map?.setLayerUnavailable('bgpAnomalies', true, 'BGP Anomalies API unavailable');
+    this.state.map?.setLayerUnavailable('humanConflict', true, 'Human Conflict API unavailable');
+    this.state.map?.setLayerUnavailable('radiation', true, 'Radiation Monitoring API unavailable');
 
     // Phase 7: Refresh scheduling
     this.setupRefreshIntervals();

@@ -176,8 +176,8 @@ export class CountryIntelModal {
     // If modal closed, don't update
     if (!this.isVisible()) return;
 
-    if (data.error || data.skipped || !data.brief) {
-      const msg = data.error || data.reason || t('modals.countryIntel.unavailable');
+    if (data.error || data.skipped || !data.brief || data.brief.startsWith('DEBUG AI ERROR')) {
+      const msg = data.error || data.reason || t('modals.countryIntel.unavailable') || 'Fallback dashboard in operation - AI functionality is currently unavailable.';
       const isFallback = msg.toLowerCase().includes('fallback') || Boolean(data.fallback);
       const briefSection = this.contentEl.querySelector('.intel-brief-section');
       if (briefSection) {

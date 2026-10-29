@@ -15,8 +15,6 @@ import { renderStoryToCanvas } from '@/services/story-renderer';
 import { openStoryModal } from '@/components/StoryModal';
 import { MarketServiceClient } from '@/generated/client/worldmonitor/market/v1/service_client';
 import { IntelligenceServiceClient } from '@/generated/client/worldmonitor/intelligence/v1/service_client';
-import { BETA_MODE } from '@/config/beta';
-import { mlWorker } from '@/services/ml-worker';
 import { t } from '@/services/i18n';
 import { trackCountrySelected, trackCountryBriefOpened } from '@/services/analytics';
 import type { StrategicPosturePanel } from '@/components/StrategicPosturePanel';
@@ -253,6 +251,10 @@ export class CountryIntelManager implements AppModule {
         briefText = resp.brief;
       } catch { /* server unreachable */ }
 
+      if (briefText && briefText.startsWith('DEBUG AI ERROR')) {
+        briefText = '';
+      }
+
       if (briefText) {
         if (briefText === 'RATE_LIMIT_EXCEEDED') {
           this.ctx.countryBriefPage!.updateBrief({ brief: '', country, code, error: 'Daily briefing limit reached. Please try again tomorrow.' });
@@ -260,42 +262,11 @@ export class CountryIntelManager implements AppModule {
           this.ctx.countryBriefPage!.updateBrief({ brief: briefText, country, code });
         }
       } else {
-        const briefHeadlines = (context.headlines as string[] | undefined) || [];
-        let fallbackBrief = '';
-        const sumModelId = BETA_MODE ? 'summarization-beta' : 'summarization';
-        if (briefHeadlines.length >= 2 && mlWorker.isAvailable && mlWorker.isModelLoaded(sumModelId)) {
-          try {
-            const prompt = `Summarize the current situation in ${country} based on these headlines: ${briefHeadlines.slice(0, 8).join('. ')}`;
-            const [summary] = await mlWorker.summarize([prompt], BETA_MODE ? 'summarization-beta' : undefined);
-            if (summary && summary.length > 20) fallbackBrief = summary;
-          } catch { /* T5 failed */ }
-        }
-
-        if (fallbackBrief) {
-          this.ctx.countryBriefPage!.updateBrief({ brief: fallbackBrief, country, code, fallback: true });
-        } else {
-          const lines: string[] = [];
-          // if (score) lines.push(t('countryBrief.fallback.instabilityIndex', { score: String(score.score), level: t(`countryBrief.levels.${score.level}`), trend: t(`countryBrief.trends.${score.trend}`) }));
-          if (signals.protests > 0) lines.push(t('countryBrief.fallback.protestsDetected', { count: String(signals.protests) }));
-          if (signals.militaryFlights > 0) lines.push(t('countryBrief.fallback.aircraftTracked', { count: String(signals.militaryFlights) }));
-          if (signals.militaryVessels > 0) lines.push(t('countryBrief.fallback.vesselsTracked', { count: String(signals.militaryVessels) }));
-          if (signals.outages > 0) lines.push(t('countryBrief.fallback.internetOutages', { count: String(signals.outages) }));
-          if (signals.earthquakes > 0) lines.push(t('countryBrief.fallback.recentEarthquakes', { count: String(signals.earthquakes) }));
-          if (context.stockIndex) lines.push(t('countryBrief.fallback.stockIndex', { value: context.stockIndex }));
-          if (briefHeadlines.length > 0) {
-            lines.push('', t('countryBrief.fallback.recentHeadlines'));
-            briefHeadlines.slice(0, 5).forEach(h => lines.push(`• ${h}`));
-          }
-          if (lines.length > 0) {
-            this.ctx.countryBriefPage!.updateBrief({ brief: lines.join('\n'), country, code, fallback: true });
-          } else {
-            this.ctx.countryBriefPage!.updateBrief({ brief: '', country, code, error: t('modals.countryBrief.briefUnavailable') || 'AI brief unavailable — fallback in place.' });
-          }
-        }
+        this.ctx.countryBriefPage!.updateBrief({ brief: '', country, code, error: t('modals.countryBrief.briefUnavailable') || 'Fallback dashboard in operation - AI functionality is currently unavailable.' });
       }
     } catch (err) {
       console.error('[CountryBrief] fetch error:', err);
-      this.ctx.countryBriefPage!.updateBrief({ brief: '', country, code, error: t('modals.countryBrief.briefUnavailable') || 'AI brief unavailable — fallback in place.' });
+      this.ctx.countryBriefPage!.updateBrief({ brief: '', country, code, error: t('modals.countryBrief.briefUnavailable') || 'Fallback dashboard in operation - AI functionality is currently unavailable.' });
     }
   }
 

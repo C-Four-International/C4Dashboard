@@ -10,7 +10,7 @@ describe('BGP Routing Anomalies layer fallback dashboard availability', () => {
     const src = readSrc('src/components/DeckGLMap.ts');
     assert.match(
       src,
-      /unavailableLayers:\s*Set<keyof\s*MapLayers>\s*=\s*new\s*Set\(\s*\[['"]bgpAnomalies['"]\]\s*\);/,
+      /unavailableLayers:\s*Set<keyof\s*MapLayers>\s*=\s*new\s*Set\(\s*\[['"]bgpAnomalies['"]/,
       'DeckGLMap should initialize unavailableLayers with bgpAnomalies to prevent flash of available layer'
     );
   });

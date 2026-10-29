@@ -418,6 +418,18 @@
     background: rgba(34, 197, 94, 0.05);
   }
 
+  .mobile-layer-item.unavailable,
+  .mobile-layer-item.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: grayscale(100%);
+  }
+
+  .mobile-layer-item.unavailable:active,
+  .mobile-layer-item.disabled:active {
+    transform: none;
+  }
+
   .mobile-layer-item-left {
     display: flex;
     align-items: center;

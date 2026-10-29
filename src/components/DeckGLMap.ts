@@ -376,7 +376,7 @@ export class DeckGLMap {
   private aqiSCSource: AQIStation[] | null = null;
   private gpsJammingData: import('@/services/gps-jamming').GpsJammingPoint[] = [];
   private gpsJammingFetchPending: boolean = false;
-  private unavailableLayers: Set<keyof MapLayers> = new Set(['bgpAnomalies']);
+  private unavailableLayers: Set<keyof MapLayers> = new Set(['bgpAnomalies', 'humanConflict', 'radiation']);
 
   // Country highlight state
   private countryGeoJsonLoaded = false;
@@ -4961,7 +4961,7 @@ export class DeckGLMap {
       </div>
       <div class="toggle-list" style="max-height: 48vh; overflow-y: auto; scrollbar-width: thin;">
         ${categories.map((cat, catIndex) => {
-          const activeCount = cat.layers.filter(item => Boolean(this.state.layers[item.key])).length;
+          const activeCount = cat.layers.filter(item => Boolean(this.state.layers[item.key]) && !this.unavailableLayers.has(item.key)).length;
           const isExpanded = activeCount > 0 || catIndex === 0;
           return `
             <div class="layer-category-group" data-category="${cat.id}">
@@ -5926,13 +5926,16 @@ export class DeckGLMap {
   }
 
   public setLayers(layers: MapLayers): void {
-    this.state.layers = layers;
+    this.state.layers = { ...layers };
+    for (const ul of this.unavailableLayers) {
+      this.state.layers[ul] = false;
+    }
     this.render(); // Debounced
 
     // Update toggle checkboxes
-    Object.entries(layers).forEach(([key, value]) => {
+    Object.entries(this.state.layers).forEach(([key, value]) => {
       const toggle = this.container.querySelector(`.layer-toggle[data-layer="${key}"] input`) as HTMLInputElement;
-      if (toggle) toggle.checked = value;
+      if (toggle) toggle.checked = Boolean(value) && !this.unavailableLayers.has(key as keyof MapLayers);
     });
 
     this.updateCategoryCounts();
@@ -6603,11 +6606,13 @@ export class DeckGLMap {
   }
 
   public setLayerLoading(layer: keyof MapLayers, loading: boolean): void {
+    if (this.unavailableLayers.has(layer)) return;
     const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"]`);
     if (toggle) toggle.classList.toggle('loading', loading);
   }
 
   public setLayerReady(layer: keyof MapLayers, hasData: boolean): void {
+    if (this.unavailableLayers.has(layer)) return;
     const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"]`);
     if (!toggle) return;
 

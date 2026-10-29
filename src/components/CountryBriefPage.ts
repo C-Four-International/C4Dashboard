@@ -326,8 +326,8 @@ export class CountryBriefPage {
     const section = this.overlay.querySelector('.cb-brief-content');
     if (!section) return;
 
-    if (data.error || data.skipped || !data.brief) {
-      const msg = data.error || data.reason || t('modals.countryBrief.briefUnavailable');
+    if (data.error || data.skipped || !data.brief || data.brief.startsWith('DEBUG AI ERROR')) {
+      const msg = data.error || data.reason || t('modals.countryBrief.briefUnavailable') || 'Fallback dashboard in operation - AI functionality is currently unavailable.';
       const isFallback = msg.toLowerCase().includes('fallback') || Boolean(data.fallback);
       section.innerHTML = `<div class="intel-error ${isFallback ? 'intel-fallback-notice' : ''}">${escapeHtml(msg)}</div>`;
       return;
