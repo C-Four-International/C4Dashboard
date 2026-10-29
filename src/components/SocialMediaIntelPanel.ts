@@ -1,7 +1,8 @@
 import { Panel } from './Panel';
+import { isNonEnglishPost } from './NewsPanel';
 import { escapeHtml, sanitizeUrl } from '@/utils/sanitize';
 import { replaceChildren, rawHtml } from '@/utils/dom-utils';
-import { t } from '@/services/i18n';
+import { t, getCurrentLanguage } from '@/services/i18n';
 import {
   fetchSocialIntelBriefings,
   type SocialIntelBriefing,
@@ -346,7 +347,13 @@ export class SocialMediaIntelPanel extends Panel {
             .map((s) => {
               const platformLabel = s.platform === 'bluesky' ? '🦋 Bluesky' : '✈️ Telegram';
               const cleanSnippet = s.cleanedText.length > 220 ? `${s.cleanedText.slice(0, 220)}...` : s.cleanedText;
-              const hasTranslation = !!(s.isTranslated && s.translatedText && s.translatedText !== s.cleanedText);
+              const hasTranslation = !!(
+                getCurrentLanguage() === 'en' &&
+                s.isTranslated &&
+                s.translatedText &&
+                s.translatedText !== s.cleanedText &&
+                isNonEnglishPost(s.cleanedText)
+              );
               const translatedSnippet = hasTranslation && s.translatedText
                 ? (s.translatedText.length > 240 ? `${s.translatedText.slice(0, 240)}...` : s.translatedText)
                 : '';
