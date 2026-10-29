@@ -7,6 +7,10 @@ export const config = {
   runtime: 'edge',
 };
 
+// In-memory cache for warm isolates to eliminate repeated HTML scraping of YouTube
+const liveChannelCache = new Map();
+const LIVE_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+
 export default async function handler(request) {
   const cors = getCorsHeaders(request);
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
@@ -14,7 +18,7 @@ export default async function handler(request) {
     return new Response(JSON.stringify({ error: 'Origin not allowed' }), { status: 403, headers: cors });
   }
   const url = new URL(request.url);
-  const channel = url.searchParams.get('channel');
+  const channel = (url.searchParams.get('channel') || '').trim();
   const videoIdParam = url.searchParams.get('videoId');
 
   // Video ID lookup: resolve author name via oembed
@@ -22,31 +26,44 @@ export default async function handler(request) {
     try {
       const oembedRes = await fetch(
         `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoIdParam}&format=json`,
-        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } },
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }, signal: AbortSignal.timeout(6000) },
       );
       if (oembedRes.ok) {
         const data = await oembedRes.json();
         return new Response(JSON.stringify({ channelName: data.author_name || null, title: data.title || null, videoId: videoIdParam }), {
           status: 200,
-          headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600, s-maxage=3600' },
+          headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400' },
         });
       }
     } catch {}
     return new Response(JSON.stringify({ channelName: null, title: null, videoId: videoIdParam }), {
       status: 200,
-      headers: { ...cors, 'Content-Type': 'application/json' },
+      headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300, s-maxage=300' },
     });
   }
 
   if (!channel) {
     return new Response(JSON.stringify({ error: 'Missing channel parameter' }), {
       status: 400,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const channelKey = channel.toLowerCase();
+  const cached = liveChannelCache.get(channelKey);
+  if (cached && Date.now() < cached.expiresAt) {
+    return new Response(cached.body, {
+      status: 200,
+      headers: {
+        ...cors,
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=180, s-maxage=300, stale-while-revalidate=60',
+        'X-Cache': 'HIT',
+      },
     });
   }
 
   try {
-    // Try to fetch the channel's live page
     const channelHandle = channel.startsWith('@') ? channel : `@${channel}`;
     const liveUrl = `https://www.youtube.com/${channelHandle}/live`;
 
@@ -55,21 +72,25 @@ export default async function handler(request) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
       redirect: 'follow',
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!response.ok) {
-      return new Response(JSON.stringify({ videoId: null, channelExists: false }), {
+      const notFoundPayload = JSON.stringify({ videoId: null, channelExists: false });
+      return new Response(notFoundPayload, {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...cors,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=60, s-maxage=60',
+        },
       });
     }
 
     const html = await response.text();
 
-    // Channel exists if the page contains canonical channel metadata
     const channelExists = html.includes('"channelId"') || html.includes('og:url');
 
-    // Extract channel name from page metadata (prefer channel name over video title)
     let channelName = null;
     const ownerMatch = html.match(/"ownerChannelName"\s*:\s*"([^"]+)"/);
     if (ownerMatch) {
@@ -79,8 +100,6 @@ export default async function handler(request) {
       if (authorMatch) channelName = authorMatch[1];
     }
 
-    // Scope both fields to the same videoDetails block so we don't
-    // combine a videoId from one object with isLive from another.
     let videoId = null;
     const detailsIdx = html.indexOf('"videoDetails"');
     if (detailsIdx !== -1) {
@@ -92,18 +111,32 @@ export default async function handler(request) {
       }
     }
 
-    return new Response(JSON.stringify({ videoId, isLive: videoId !== null, channelExists, channelName }), {
+    const payload = JSON.stringify({ videoId, isLive: videoId !== null, channelExists, channelName });
+
+    if (liveChannelCache.size > 100) liveChannelCache.clear();
+    liveChannelCache.set(channelKey, {
+      body: payload,
+      expiresAt: Date.now() + LIVE_CACHE_TTL_MS,
+    });
+
+    return new Response(payload, {
       status: 200,
       headers: {
+        ...cors,
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=60',
+        'Cache-Control': 'public, max-age=180, s-maxage=300, stale-while-revalidate=60',
+        'X-Cache': 'MISS',
       },
     });
   } catch (error) {
     console.error('YouTube live check error:', error);
     return new Response(JSON.stringify({ videoId: null, error: error.message }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        ...cors,
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=30, s-maxage=30',
+      },
     });
   }
 }

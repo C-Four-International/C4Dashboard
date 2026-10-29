@@ -3,6 +3,10 @@ import { getCorsHeaders, isDisallowedOrigin } from './_cors.js';
 
 export const config = { runtime: 'edge' };
 
+// In-memory cache for warm edge isolates to eliminate redundant fetches & CPU time
+const memoryRssCache = new Map();
+const RSS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 // Fetch with timeout
 async function fetchWithTimeout(url, options, timeoutMs = 15000) {
   const controller = new AbortController();
@@ -345,6 +349,20 @@ export default async function handler(req) {
     const isGoogleNews = feedUrl.includes('news.google.com');
     const timeout = isGoogleNews ? 20000 : 12000;
 
+    // Check warm isolate memory cache
+    const cachedRss = memoryRssCache.get(feedUrl);
+    if (cachedRss && Date.now() < cachedRss.expiresAt) {
+      return new Response(cachedRss.data, {
+        status: 200,
+        headers: {
+          'Content-Type': cachedRss.contentType,
+          'Cache-Control': 'public, max-age=300, s-maxage=600, stale-while-revalidate=600',
+          'X-Cache': 'HIT',
+          ...corsHeaders,
+        },
+      });
+    }
+
     const fetchDirect = async () => {
       const response = await fetchWithTimeout(feedUrl, {
         headers: {
@@ -393,11 +411,25 @@ export default async function handler(req) {
     }
 
     const data = await response.text();
+    const contentType = response.headers.get('content-type') || 'application/xml';
+
+    if (response.ok) {
+      if (memoryRssCache.size > 200) memoryRssCache.clear();
+      memoryRssCache.set(feedUrl, {
+        data,
+        contentType,
+        expiresAt: Date.now() + RSS_CACHE_TTL_MS,
+      });
+    }
+
     return new Response(data, {
       status: response.status,
       headers: {
-        'Content-Type': response.headers.get('content-type') || 'application/xml',
-        'Cache-Control': response.headers.get('cache-control') || 'public, max-age=600, s-maxage=600, stale-while-revalidate=300',
+        'Content-Type': contentType,
+        // Override upstream's private/no-cache headers to ensure Vercel Edge CDN caches the feed
+        'Cache-Control': response.ok
+          ? 'public, max-age=300, s-maxage=600, stale-while-revalidate=600'
+          : 'public, max-age=60, s-maxage=60',
         ...corsHeaders,
       },
     });

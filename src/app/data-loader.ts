@@ -23,10 +23,12 @@ import {
   fetchProtestEvents,
   getProtestStatus,
   fetchFlightDelays,
+  fetchFaaNotams,
   fetchMilitaryFlights,
   fetchMilitaryVessels,
   initMilitaryVesselStream,
   isMilitaryVesselTrackingConfigured,
+  onMilitaryVesselsUpdated,
   fetchUSNIFleetReport,
   updateBaseline,
   calculateDeviation,
@@ -51,16 +53,20 @@ import { ingestProtests, ingestFlights, ingestVessels, ingestEarthquakes, detect
 import { inferGeoHubsFromTitle } from '@/services/geo-hub-index';
 import { signalAggregator } from '@/services/signal-aggregator';
 import { updateAndCheck } from '@/services/temporal-baseline';
-import { fetchAllFires, flattenFires, computeRegionStats, toMapFires } from '@/services/wildfires';
+import { fetchAllFires, flattenFires, computeRegionStats, toMapFires, getInstantFires } from '@/services/wildfires';
 import { analyzeFlightsForSurge, surgeAlertToSignal, detectForeignMilitaryPresence, foreignPresenceToSignal, type TheaterPostureSummary } from '@/services/military-surge';
 import { fetchCachedTheaterPosture } from '@/services/cached-theater-posture';
 import { ingestProtestsForCII, ingestMilitaryForCII, ingestNewsForCII, ingestOutagesForCII, ingestDisplacementForCII, ingestClimateForCII, isInLearningMode } from '@/services/country-instability';
 import { dataFreshness, type DataSourceId } from '@/services/data-freshness';
 import { fetchUnhcrPopulation } from '@/services/displacement';
 import { fetchClimateAnomalies } from '@/services/climate';
+import { fetchRadiationData, getInstantRadiationStations } from '@/services/radiation';
+import { getInstantNaturalEvents } from '@/services/eonet';
 import { enrichEventsWithExposure } from '@/services/population-exposure';
+import { fetchHumanConflictEvents } from '@/services/human-conflict';
 import { debounce } from '@/utils';
 import { getAiFlowSettings } from '@/services/ai-flow-settings';
+import { isDesktopRuntime } from '@/services/runtime';
 import { t, getCurrentLanguage } from '@/services/i18n';
 import { canQueueAiClassification, AI_CLASSIFY_MAX_PER_FEED } from '@/services/ai-classify-queue';
 import { classifyWithAI } from '@/services/threat-classifier';
@@ -160,6 +166,10 @@ export class DataLoaderManager implements AppModule {
 
   private digestBreaker = { state: 'closed' as 'closed' | 'open' | 'half-open', failures: 0, cooldownUntil: 0 };
   private lastGoodDigest: ListFeedDigestResponse | null = null;
+  private radiationDataLoaded = false;
+  private firmsLoaded = false;
+  private naturalEventsLoaded = false;
+  private militaryVesselsListenerRegistered = false;
 
   constructor(ctx: AppContext, callbacks: DataLoaderCallbacks) {
     this.ctx = ctx;
@@ -216,6 +226,42 @@ export class DataLoaderManager implements AppModule {
       this.lastGoodDigest = envelope.data;
       return envelope.data;
     } catch { return null; }
+  }
+
+  private ensureMilitaryVesselsListener(): void {
+    if (this.militaryVesselsListenerRegistered) return;
+    this.militaryVesselsListenerRegistered = true;
+
+    onMilitaryVesselsUpdated((vessels, clusters) => {
+      if (!this.ctx.intelligenceCache.military) {
+        this.ctx.intelligenceCache.military = {
+          flights: [],
+          flightClusters: [],
+          vessels,
+          vesselClusters: clusters,
+        };
+      } else {
+        this.ctx.intelligenceCache.military.vessels = vessels;
+        this.ctx.intelligenceCache.military.vesselClusters = clusters;
+      }
+
+      if (this.ctx.mapLayers.military) {
+        this.ctx.map?.setMilitaryVessels(vessels, clusters);
+        this.ctx.map?.updateMilitaryForEscalation(
+          this.ctx.intelligenceCache.military.flights || [],
+          vessels
+        );
+        const militaryCount = (this.ctx.intelligenceCache.military.flights?.length || 0) + vessels.length;
+        this.ctx.statusPanel?.updateFeed('Military', {
+          status: militaryCount > 0 ? 'ok' : 'warning',
+          itemCount: militaryCount,
+        });
+      }
+
+      ingestVessels(vessels);
+      signalAggregator.ingestVessels(vessels);
+      ingestMilitaryForCII(this.ctx.intelligenceCache.military.flights || [], vessels);
+    });
   }
 
   private shouldShowIntelligenceNotifications(): boolean {
@@ -322,12 +368,9 @@ export class DataLoaderManager implements AppModule {
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.flights) tasks.push({ name: 'flights', task: runGuarded('flights', () => this.loadFlightDelays()) });
     if (SITE_VARIANT !== 'happy' && CYBER_LAYER_ENABLED && this.ctx.mapLayers.cyberThreats) tasks.push({ name: 'cyberThreats', task: runGuarded('cyberThreats', () => this.loadCyberThreats()) });
     if (SITE_VARIANT !== 'happy' && (this.ctx.mapLayers.techEvents || SITE_VARIANT === 'tech')) tasks.push({ name: 'techEvents', task: runGuarded('techEvents', () => this.loadTechEvents()) });
-    if (!needsIntelligence && (this.ctx.mapLayers.climate || this.ctx.panelSettings['climate']?.enabled)) {
-      tasks.push({ name: 'climate', task: runGuarded('climate', () => this.loadClimate()) });
-    }
-    if (!needsIntelligence && (this.ctx.mapLayers.displacement || this.ctx.panelSettings['displacement']?.enabled)) {
-      tasks.push({ name: 'displacement', task: runGuarded('displacement', () => this.loadDisplacement()) });
-    }
+    if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.radiation) tasks.push({ name: 'radiation', task: runGuarded('radiation', () => this.loadRadiationData()) });
+    if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.outages) tasks.push({ name: 'outages', task: runGuarded('outages', () => this.loadOutages()) });
+    if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.humanConflict) tasks.push({ name: 'humanConflict', task: runGuarded('humanConflict', () => this.loadHumanConflict()) });
 
     if (SITE_VARIANT === 'tech') {
       tasks.push({ name: 'techReadiness', task: runGuarded('techReadiness', () => (this.ctx.panels['tech-readiness'] as TechReadinessPanel)?.refresh()) });
@@ -426,7 +469,17 @@ export class DataLoaderManager implements AppModule {
         case 'climate':
           await this.loadClimate();
           break;
+        case 'radiation':
+          await this.loadRadiationData();
+          break;
+        case 'weatherRadar':
+          this.ctx.map?.setLayerLoading('weatherRadar', true);
+          this.ctx.map?.setLayerReady('weatherRadar', true);
+          break;
         case 'ucdpEvents':
+          break;
+        case 'humanConflict':
+          await this.loadHumanConflict();
           break;
       }
     } catch (err) {
@@ -838,40 +891,49 @@ export class DataLoaderManager implements AppModule {
 
 
   async loadNatural(): Promise<void> {
-    const [earthquakeResult, eonetResult] = await Promise.allSettled([
-      fetchEarthquakes(),
-      fetchNaturalEvents(30),
-    ]);
+    // 1. Optimistic instant render on first try (0ms)
+    if (!this.naturalEventsLoaded) {
+      const instantEvents = getInstantNaturalEvents();
+      if (instantEvents && instantEvents.length > 0) {
+        this.ctx.map?.setNaturalEvents(instantEvents);
+        this.ctx.map?.setLayerReady('natural', true);
+      }
+    }
 
-    if (earthquakeResult.status === 'fulfilled') {
-      this.ctx.intelligenceCache.earthquakes = earthquakeResult.value;
-      this.ctx.map?.setEarthquakes(earthquakeResult.value);
-      ingestEarthquakes(earthquakeResult.value);
+    // 2. Fetch Earthquakes and Natural Events concurrently without blocking each other
+    const earthquakesPromise = fetchEarthquakes().then(earthquakes => {
+      this.ctx.intelligenceCache.earthquakes = earthquakes;
+      this.ctx.map?.setEarthquakes(earthquakes);
+      ingestEarthquakes(earthquakes);
       this.ctx.statusPanel?.updateApi('USGS', { status: 'ok' });
-      dataFreshness.recordUpdate('usgs', earthquakeResult.value.length);
-    } else {
+      dataFreshness.recordUpdate('usgs', earthquakes.length);
+      if (earthquakes.length > 0) {
+        this.ctx.map?.setLayerReady('natural', true);
+      }
+    }).catch(err => {
       this.ctx.intelligenceCache.earthquakes = [];
       this.ctx.map?.setEarthquakes([]);
       this.ctx.statusPanel?.updateApi('USGS', { status: 'error' });
-      dataFreshness.recordError('usgs', String(earthquakeResult.reason));
-    }
+      dataFreshness.recordError('usgs', String(err));
+    });
 
-    if (eonetResult.status === 'fulfilled') {
-      this.ctx.map?.setNaturalEvents(eonetResult.value);
-      this.ctx.statusPanel?.updateFeed('EONET', {
-        status: 'ok',
-        itemCount: eonetResult.value.length,
-      });
-      this.ctx.statusPanel?.updateApi('NASA EONET', { status: 'ok' });
-    } else {
-      this.ctx.map?.setNaturalEvents([]);
-      this.ctx.statusPanel?.updateFeed('EONET', { status: 'error', errorMessage: String(eonetResult.reason) });
+    const naturalEventsPromise = fetchNaturalEvents(14).then(events => {
+      if (events && events.length > 0) {
+        this.naturalEventsLoaded = true;
+        this.ctx.map?.setNaturalEvents(events);
+        this.ctx.statusPanel?.updateFeed('EONET', {
+          status: 'ok',
+          itemCount: events.length,
+        });
+        this.ctx.statusPanel?.updateApi('NASA EONET', { status: 'ok' });
+        this.ctx.map?.setLayerReady('natural', true);
+      }
+    }).catch(err => {
+      this.ctx.statusPanel?.updateFeed('EONET', { status: 'error', errorMessage: String(err) });
       this.ctx.statusPanel?.updateApi('NASA EONET', { status: 'error' });
-    }
+    });
 
-    const hasEarthquakes = earthquakeResult.status === 'fulfilled' && earthquakeResult.value.length > 0;
-    const hasEonet = eonetResult.status === 'fulfilled' && eonetResult.value.length > 0;
-    this.ctx.map?.setLayerReady('natural', hasEarthquakes || hasEonet);
+    await Promise.allSettled([earthquakesPromise, naturalEventsPromise]);
   }
 
   async loadTechEvents(): Promise<void> {
@@ -1049,7 +1111,16 @@ export class DataLoaderManager implements AppModule {
 
     tasks.push((async () => {
       try {
+        if (this.ctx.intelligenceCache.military) {
+          const cached = this.ctx.intelligenceCache.military;
+          if (this.ctx.mapLayers.military) {
+            this.ctx.map?.setMilitaryFlights(cached.flights, cached.flightClusters);
+            this.ctx.map?.setMilitaryVessels(cached.vessels, cached.vesselClusters);
+          }
+          return;
+        }
         if (isMilitaryVesselTrackingConfigured()) {
+          this.ensureMilitaryVesselsListener();
           initMilitaryVesselStream();
         }
         const [flightData, vesselData] = await Promise.all([
@@ -1164,13 +1235,34 @@ export class DataLoaderManager implements AppModule {
     console.log('[Intelligence] All signals loaded for CII calculation');
   }
 
+  async loadClimate(): Promise<void> {
+    try {
+      const climateResult = await fetchClimateAnomalies();
+      if (!climateResult.ok) {
+        dataFreshness.recordError('climate', 'Climate anomalies unavailable (retaining prior climate state)');
+        (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.showError('Climate data temporarily unavailable');
+        return;
+      }
+      const anomalies = climateResult.anomalies;
+      (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.setAnomalies(anomalies);
+      ingestClimateForCII(anomalies);
+      if (this.ctx.mapLayers.climate) {
+        this.ctx.map?.setClimateAnomalies(anomalies);
+      }
+      if (anomalies.length > 0) dataFreshness.recordUpdate('climate', anomalies.length);
+    } catch (error) {
+      console.error('[Intelligence] Climate anomalies fetch failed:', error);
+      dataFreshness.recordError('climate', String(error));
+      (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.showError('Failed to load climate data');
+    }
+  }
+
   async loadDisplacement(): Promise<void> {
     try {
       const unhcrResult = await fetchUnhcrPopulation();
       if (!unhcrResult.ok) {
         dataFreshness.recordError('unhcr', 'UNHCR displacement unavailable (retaining prior displacement state)');
         (this.ctx.panels['displacement'] as DisplacementPanel)?.showError('UNHCR data temporarily unavailable');
-        this.ctx.map?.setLayerReady('displacement', false);
         return;
       }
       const data = unhcrResult.data;
@@ -1179,36 +1271,11 @@ export class DataLoaderManager implements AppModule {
       if (this.ctx.mapLayers.displacement && data.topFlows) {
         this.ctx.map?.setDisplacementFlows(data.topFlows);
       }
-      this.ctx.map?.setLayerReady('displacement', (data.topFlows?.length || 0) > 0);
       if (data.countries.length > 0) dataFreshness.recordUpdate('unhcr', data.countries.length);
     } catch (error) {
       console.error('[Intelligence] UNHCR displacement fetch failed:', error);
       dataFreshness.recordError('unhcr', String(error));
       (this.ctx.panels['displacement'] as DisplacementPanel)?.showError('Failed to load UNHCR data');
-      this.ctx.map?.setLayerReady('displacement', false);
-    }
-  }
-
-  async loadClimate(): Promise<void> {
-    try {
-      const climateResult = await fetchClimateAnomalies();
-      if (!climateResult.ok) {
-        dataFreshness.recordError('climate', 'Climate anomalies unavailable (retaining prior climate state)');
-        (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.showError('Climate data temporarily unavailable');
-        this.ctx.map?.setLayerReady('climate', false);
-        return;
-      }
-      const anomalies = climateResult.anomalies;
-      (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.setAnomalies(anomalies);
-      ingestClimateForCII(anomalies);
-      this.ctx.map?.setClimateAnomalies(anomalies);
-      this.ctx.map?.setLayerReady('climate', anomalies.length > 0);
-      if (anomalies.length > 0) dataFreshness.recordUpdate('climate', anomalies.length);
-    } catch (error) {
-      console.error('[Intelligence] Climate anomalies fetch failed:', error);
-      dataFreshness.recordError('climate', String(error));
-      (this.ctx.panels['climate'] as ClimateAnomalyPanel)?.showError('Failed to load climate data');
-      this.ctx.map?.setLayerReady('climate', false);
     }
   }
 
@@ -1263,6 +1330,34 @@ export class DataLoaderManager implements AppModule {
       this.ctx.statusPanel?.updateFeed('Cyber Threats', { status: 'error', errorMessage: String(error) });
       this.ctx.statusPanel?.updateApi('Cyber Threats API', { status: 'error' });
       dataFreshness.recordError('cyber_threats', String(error));
+    }
+  }
+
+  async loadHumanConflict(forceRefresh = false): Promise<void> {
+    if (!forceRefresh && this.ctx.intelligenceCache.humanConflict) {
+      const events = this.ctx.intelligenceCache.humanConflict;
+      this.ctx.map?.setHumanConflictEvents(events);
+      this.ctx.map?.setLayerReady('humanConflict', events.length > 0);
+      this.ctx.statusPanel?.updateFeed('Human Conflict', { status: 'ok', itemCount: events.length });
+      return;
+    }
+
+    try {
+      const events = await fetchHumanConflictEvents({ limit: 250, days: 14 });
+      this.ctx.intelligenceCache.humanConflict = events;
+      this.ctx.map?.setHumanConflictEvents(events);
+      this.ctx.map?.setLayerReady('humanConflict', events.length > 0);
+      this.ctx.statusPanel?.updateFeed('Human Conflict', {
+        status: events.length > 0 ? 'ok' : 'warning',
+        itemCount: events.length,
+      });
+      if (events.length > 0) {
+        dataFreshness.recordUpdate('gdelt_conflict', events.length);
+      }
+    } catch (error) {
+      this.ctx.map?.setLayerReady('humanConflict', false);
+      this.ctx.statusPanel?.updateFeed('Human Conflict', { status: 'error', errorMessage: String(error) });
+      dataFreshness.recordError('gdelt_conflict', String(error));
     }
   }
 
@@ -1422,6 +1517,24 @@ export class DataLoaderManager implements AppModule {
         itemCount: delays.length,
       });
       this.ctx.statusPanel?.updateApi('FAA', { status: 'ok' });
+
+      // On desktop runtime, load FAA NOTAMs via NASA DIP catalog
+      if (isDesktopRuntime()) {
+        try {
+          const notams = await fetchFaaNotams();
+          this.ctx.map?.setNotams(notams);
+          if (notams.length > 0) {
+            this.ctx.map?.setLayerReady('flights', true);
+            const totalCount = delays.length + notams.length;
+            this.ctx.statusPanel?.updateFeed('Flights', {
+              status: 'ok',
+              itemCount: totalCount,
+            });
+          }
+        } catch (notamErr) {
+          console.warn('[DataLoader] Failed to load FAA NOTAMs from NASA DIP catalog:', notamErr);
+        }
+      }
     } catch (error) {
       this.ctx.map?.setLayerReady('flights', false);
       this.ctx.statusPanel?.updateFeed('Flights', { status: 'error', errorMessage: String(error) });
@@ -1451,6 +1564,7 @@ export class DataLoaderManager implements AppModule {
     }
     try {
       if (isMilitaryVesselTrackingConfigured()) {
+        this.ensureMilitaryVesselsListener();
         initMilitaryVesselStream();
       }
       const [flightData, vesselData] = await Promise.all([
@@ -1646,14 +1760,27 @@ export class DataLoaderManager implements AppModule {
 
   async loadFirmsData(): Promise<void> {
     try {
+      // 1. Optimistic instant render on first try (0ms)
+      if (!this.firmsLoaded) {
+        const instant = getInstantFires();
+        if (instant && instant.totalCount > 0) {
+          const flat = flattenFires(instant.regions);
+          const stats = computeRegionStats(instant.regions);
+          this.ctx.map?.setFires(toMapFires(flat));
+          (this.ctx.panels['satellite-fires'] as SatelliteFiresPanel)?.update(stats, instant.totalCount);
+          this.ctx.map?.setLayerReady('fires', true);
+        }
+      }
+
       const fireResult = await fetchAllFires(1);
-      if (fireResult.skipped) {
+      if (fireResult.skipped && fireResult.totalCount === 0) {
         this.ctx.panels['satellite-fires']?.showConfigError('NASA_FIRMS_API_KEY not configured — add in Settings');
         this.ctx.statusPanel?.updateApi('FIRMS', { status: 'error' });
         return;
       }
       const { regions, totalCount } = fireResult;
       if (totalCount > 0) {
+        this.firmsLoaded = true;
         const flat = flattenFires(regions);
         const stats = computeRegionStats(regions);
 
@@ -1667,6 +1794,7 @@ export class DataLoaderManager implements AppModule {
         })));
 
         this.ctx.map?.setFires(toMapFires(flat));
+        this.ctx.map?.setLayerReady('fires', true);
 
         (this.ctx.panels['satellite-fires'] as SatelliteFiresPanel)?.update(stats, totalCount);
 
@@ -1688,6 +1816,28 @@ export class DataLoaderManager implements AppModule {
       (this.ctx.panels['satellite-fires'] as SatelliteFiresPanel)?.update([], 0);
       this.ctx.statusPanel?.updateApi('FIRMS', { status: 'error' });
       dataFreshness.recordError('firms', String(e));
+    }
+  }
+
+  async loadRadiationData(forceRefresh = false): Promise<void> {
+    try {
+      // 1. Optimistic instant render on first try (0ms)
+      if (!this.radiationDataLoaded) {
+        const instantStations = getInstantRadiationStations();
+        if (instantStations && instantStations.length > 0) {
+          this.ctx.map?.setRadiation(instantStations);
+          this.ctx.map?.setLayerReady('radiation', true);
+        }
+      }
+
+      const stations = await fetchRadiationData(forceRefresh);
+      if (stations && stations.length > 0) {
+        this.radiationDataLoaded = true;
+        this.ctx.map?.setRadiation(stations);
+        this.ctx.map?.setLayerReady('radiation', true);
+      }
+    } catch (e) {
+      console.warn('[DataLoader] Radiation load failed:', e);
     }
   }
 

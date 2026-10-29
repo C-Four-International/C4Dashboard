@@ -21,6 +21,7 @@ export const DEFAULT_PANELS: Record<string, PanelConfig> = {
   'live-news': { name: 'Live News', enabled: true, priority: 1 },
   intel: { name: 'Intel Feed', enabled: true, priority: 1 },
   'gdelt-intel': { name: 'Live Intelligence', enabled: false, priority: 1 },
+  'social-intel': { name: 'Social Media Intel', enabled: true, priority: 1 },
   cii: { name: 'Country Instability', enabled: true, priority: 1 },
   cascade: { name: 'Infrastructure Cascade', enabled: true, priority: 1 },
   'strategic-risk': { name: 'Strategic Risk Overview', enabled: false, priority: 1 },
@@ -61,6 +62,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: true,
   irradiators: false,
+  radiation: false,
   sanctions: true,
   weather: true,
   weatherRadar: true,
@@ -82,6 +84,7 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   minerals: false,
   fires: false,
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled in full variant)
@@ -117,9 +120,10 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: false,
   irradiators: false,
-  sanctions: true,
+  radiation: false,
+  sanctions: false,
   weather: true,
-  weatherRadar: true,
+  weatherRadar: false,
   aqi: false,
   gpsJamming: false,
   agriculturalStressDI: false, agriculturalStressASI: false, agriculturalStressVCI: false,
@@ -138,6 +142,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   minerals: false,
   fires: false,
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled in full variant)
@@ -159,7 +164,7 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   speciesRecovery: false,
   renewableInstallations: false,
   tradeRoutes: false,
-  dayNight: false, threatScore: false,
+  dayNight: true, threatScore: false,
 };
 
 export const VARIANT_CONFIG: VariantConfig = {

@@ -1,16 +1,18 @@
 import * as d3 from 'd3';
 import * as topojson from 'topojson-client';
 import { escapeHtml } from '@/utils/sanitize';
-import { getCSSColor } from '@/utils';
+import { getCSSColor, getCurrentTheme, computeNightPolygons } from '@/utils';
 import type { Topology, GeometryCollection } from 'topojson-specification';
 import type { Feature, Geometry } from 'geojson';
 import type { MapLayers, Hotspot, NewsItem, InternetOutage, RelatedAsset, AssetType, AisDisruptionEvent, AisDensityZone, CableAdvisory, RepairShip, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, CyberThreat, CableHealthRecord } from '@/types';
 import type { AirportDelayAlert } from '@/services/aviation';
+import { type FaaNotam, getNotamColor } from '@/services/notams';
 import type { Earthquake } from '@/services/earthquakes';
 import type { TechHubActivity } from '@/services/tech-activity';
 import type { GeoHubActivity } from '@/services/geo-activity';
 import { getNaturalEventIcon } from '@/services/eonet';
 import type { WeatherAlert } from '@/services/weather';
+import type { RadiationStation } from '@/services/radiation';
 import { getSeverityColor } from '@/services/weather';
 import {
   MAP_URLS,
@@ -126,12 +128,14 @@ export class MapComponent {
   private healthByCableId: Record<string, CableHealthRecord> = {};
   private protests: SocialUnrestEvent[] = [];
   private flightDelays: AirportDelayAlert[] = [];
+  private notams: FaaNotam[] = [];
   private militaryFlights: MilitaryFlight[] = [];
   private militaryFlightClusters: MilitaryFlightCluster[] = [];
   private militaryVessels: MilitaryVessel[] = [];
   private militaryVesselClusters: MilitaryVesselCluster[] = [];
   private naturalEvents: NaturalEvent[] = [];
   private firmsFireData: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }> = [];
+  private radiationData: RadiationStation[] = [];
   private techEvents: TechEventMarker[] = [];
   private techActivities: TechHubActivity[] = [];
   private geoActivities: GeoHubActivity[] = [];
@@ -157,6 +161,9 @@ export class MapComponent {
   private lastRenderTime = 0;
   private readonly MIN_RENDER_INTERVAL_MS = 100;
   private healthCheckIntervalId: ReturnType<typeof setInterval> | null = null;
+  private cachedNightPolygons: [number, number][][] | null = null;
+  private cachedNightPolygonsAt = 0;
+  private dayNightIntervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor(container: HTMLElement, initialState: MapState) {
     this.container = container;
@@ -185,7 +192,6 @@ export class MapComponent {
     container.appendChild(this.wrapper);
     container.appendChild(this.createControls());
     container.appendChild(this.createTimeSlider());
-    container.appendChild(this.createLayerToggles());
     container.appendChild(this.createLegend());
     this.healthCheckIntervalId = setInterval(() => this.runHealthCheck(), 30000);
 
@@ -203,6 +209,10 @@ export class MapComponent {
       this.baseRendered = false;
       this.render();
     });
+
+    if (this.state.layers.dayNight) {
+      this.startDayNightTimer();
+    }
   }
 
   private setupResizeObserver(): void {
@@ -232,6 +242,7 @@ export class MapComponent {
 
   public destroy(): void {
     document.removeEventListener('visibilitychange', this.boundVisibilityHandler);
+    this.stopDayNightTimer();
     if (this.healthCheckIntervalId) {
       clearInterval(this.healthCheckIntervalId);
       this.healthCheckIntervalId = null;
@@ -327,7 +338,7 @@ export class MapComponent {
 
 
 
-  private createLayerToggles(): HTMLElement {
+  public createLayerToggles(): HTMLElement {
     const toggles = document.createElement('div');
     toggles.className = 'layer-toggles';
     toggles.id = 'layerToggles';
@@ -337,18 +348,18 @@ export class MapComponent {
       // General Intel
       'alertStatus', 'hotspots', 'threatScore',
       // Infrastructure
-      'pipelines', 'cables', 'datacenters', 'outages', 'bgpAnomalies',
+      'pipelines', 'cables', 'datacenters', 'radiation', 'irradiators', 'outages', 'bgpAnomalies',
       // Military
-      'military', 'conflicts', 'bases', 'nuclear', 'irradiators',
+      'military', 'conflicts', 'humanConflict', 'bases', 'nuclear',
       // Shipping & Air Traffic
       'ais', 'flights', 'waterways', 'gpsJamming',
-      // Natural
-      'natural', 'waterTemperature', 'weather', 'fires', 'aqi',
+      // Natural & Day/Night
+      'dayNight', 'natural', 'waterTemperature', 'weather', 'fires', 'aqi',
       // Additional geopolitical/economic
       'sanctions', 'protests', 'economic',
     ];
     const techLayers: (keyof MapLayers)[] = [
-      'cables', 'datacenters', 'outages', 'bgpAnomalies', 'gpsJamming',  // tech infrastructure
+      'cables', 'datacenters', 'radiation', 'outages', 'bgpAnomalies', 'gpsJamming',  // tech infrastructure
       'startupHubs', 'cloudRegions', 'accelerators', 'techHQs', 'techEvents', // tech ecosystem
       'natural', 'waterTemperature', 'weather', 'weatherRadar', 'fires', 'aqi',                   // natural events
       'economic',                                         // economic/geographic
@@ -356,7 +367,7 @@ export class MapComponent {
     ];
     const financeLayers: (keyof MapLayers)[] = [
       'stockExchanges', 'financialCenters', 'centralBanks', 'commodityHubs', // finance ecosystem
-      'cables', 'pipelines', 'outages', 'gpsJamming',      // infrastructure
+      'cables', 'pipelines', 'radiation', 'outages', 'gpsJamming',      // infrastructure
       'sanctions', 'economic', 'waterways',               // geopolitical/economic
       'natural', 'waterTemperature', 'weather', 'weatherRadar', 'fires', 'aqi',               // natural events
       'flights',                                          // aviation
@@ -369,9 +380,11 @@ export class MapComponent {
       alertStatus: 'Alert Status',
       hotspots: 'components.deckgl.layers.intelHotspots',
       conflicts: 'components.deckgl.layers.conflictZones',
+      humanConflict: 'components.deckgl.layers.humanConflict',
       bases: 'components.deckgl.layers.militaryBases',
       nuclear: 'components.deckgl.layers.nuclearSites',
       irradiators: 'components.deckgl.layers.gammaIrradiators',
+      radiation: 'components.deckgl.layers.radiation',
       military: 'components.deckgl.layers.militaryActivity',
       cables: 'components.deckgl.layers.underseaCables',
       pipelines: 'components.deckgl.layers.pipelines',
@@ -451,8 +464,8 @@ export class MapComponent {
 
     const label = (layerKey: string): string => t(`components.deckgl.layers.${layerKey}`).toUpperCase();
     const staticLabel = (labelKey: string): string => t(`components.deckgl.layerHelp.labels.${labelKey}`).toUpperCase();
-    const helpItem = (layerLabel: string, descriptionKey: string): string =>
-      `<div class="layer-help-item"><span>${layerLabel}</span> ${t(`components.deckgl.layerHelp.descriptions.${descriptionKey}`)}</div>`;
+    const helpItem = (layerLabel: string, descriptionKey: string, icon?: string): string =>
+      `<div class="layer-help-item"><span>${icon ? `${icon} ` : ''}${layerLabel}</span> ${t(`components.deckgl.layerHelp.descriptions.${descriptionKey}`)}</div>`;
     const helpSection = (titleKey: string, items: string[], noteKey?: string): string => `
       <div class="layer-help-section">
         <div class="layer-help-title">${t(`components.deckgl.layerHelp.sections.${titleKey}`)}</div>
@@ -471,25 +484,34 @@ export class MapComponent {
       ${helpHeader}
       <div class="layer-help-content">
         ${helpSection('techEcosystem', [
-      helpItem(label('startupHubs'), 'techStartupHubs'),
-      helpItem(label('cloudRegions'), 'techCloudRegions'),
-      helpItem(label('techHQs'), 'techHQs'),
-      helpItem(label('accelerators'), 'techAccelerators'),
-      helpItem(label('techEvents'), 'techEvents'),
+      helpItem(label('startupHubs'), 'techStartupHubs', '&#128640;'),
+      helpItem(label('cloudRegions'), 'techCloudRegions', '&#9729;'),
+      helpItem(label('techHQs'), 'techHQs', '&#127970;'),
+      helpItem(label('accelerators'), 'techAccelerators', '&#9889;'),
+      helpItem(label('techEvents'), 'techEvents', '&#128197;'),
     ])}
         ${helpSection('infrastructure', [
-      helpItem(label('underseaCables'), 'infraCables'),
-      helpItem(label('aiDataCenters'), 'infraDatacenters'),
-      helpItem(label('internetOutages'), 'infraOutages'),
-      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
+      helpItem(label('aiDataCenters'), 'infraDatacenters', '&#128421;'),
+      helpItem(label('underseaCables'), 'infraCables', '&#128268;'),
+      helpItem(label('radiation'), 'radiationDesc', '&#9762;'),
+      helpItem(label('internetOutages'), 'infraOutages', '&#128225;'),
+      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc', '&#128256;'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc', '&#128225;'),
     ])}
-        ${helpSection('naturalEconomic', [
-      helpItem(label('naturalEvents'), 'naturalEventsTech'),
-      helpItem(label('fires'), 'techFires'),
-      helpItem(label('weather'), 'weatherAlerts'),
-      helpItem(label('weatherRadar'), 'weatherRadarDesc'),
-      helpItem(label('aqi'), 'aqiDesc'),
-      helpItem(staticLabel('countries'), 'countriesOverlay'),
+        ${helpSection('signalsAir', [
+      helpItem(label('flightDelays'), 'transportDelays', '&#9992;'),
+      helpItem(label('economicCenters'), 'economicCentersDesc', '&#127974;'),
+    ])}
+        ${helpSection('natural', [
+      helpItem(label('naturalEvents'), 'naturalEventsTech', '&#127755;'),
+      helpItem(label('fires'), 'techFires', '&#128293;'),
+      helpItem(label('weather'), 'weatherAlerts', '&#9928;'),
+      helpItem(label('weatherRadar'), 'weatherRadarDesc', '&#127782;'),
+      helpItem(label('waterTemperature'), 'waterTemperatureDesc', '&#127754;'),
+      helpItem(label('aqi'), 'aqiDesc', '💨'),
+    ])}
+        ${helpSection('labels', [
+      helpItem(staticLabel('countries'), 'countriesOverlay', '&#127757;'),
     ])}
       </div>
     `;
@@ -497,25 +519,38 @@ export class MapComponent {
     const financeHelpContent = `
       ${helpHeader}
       <div class="layer-help-content">
-        ${helpSection('financeCore', [
-      helpItem(label('stockExchanges'), 'financeExchanges'),
-      helpItem(label('financialCenters'), 'financeCenters'),
-      helpItem(label('centralBanks'), 'financeCentralBanks'),
-      helpItem(label('commodityHubs'), 'financeCommodityHubs'),
-      helpItem(label('gulfInvestments'), 'financeGulfInvestments'),
+        ${helpSection('financialMarkets', [
+      helpItem(label('stockExchanges'), 'financeExchanges', '&#127963;'),
+      helpItem(label('financialCenters'), 'financeCenters', '&#128176;'),
+      helpItem(label('centralBanks'), 'financeCentralBanks', '&#127974;'),
+      helpItem(label('commodityHubs'), 'financeCommodityHubs', '&#128230;'),
+      helpItem(label('gulfInvestments'), 'financeGulfInvestments', '&#127760;'),
     ])}
-        ${helpSection('infrastructureRisk', [
-      helpItem(label('underseaCables'), 'financeCables'),
-      helpItem(label('pipelines'), 'financePipelines'),
-      helpItem(label('internetOutages'), 'financeOutages'),
-      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
+        ${helpSection('infraTrade', [
+      helpItem(label('underseaCables'), 'financeCables', '&#128268;'),
+      helpItem(label('pipelines'), 'financePipelines', '&#128738;'),
+      helpItem(label('radiation'), 'radiationDesc', '&#9762;'),
+      helpItem(label('internetOutages'), 'financeOutages', '&#128225;'),
+      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc', '&#128256;'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc', '&#128225;'),
+      helpItem(label('strategicWaterways'), 'macroWaterways', '&#9875;'),
     ])}
-        ${helpSection('macroContext', [
-      helpItem(label('strategicWaterways'), 'macroWaterways'),
-      helpItem(label('weather'), 'weatherAlertsMarket'),
-      helpItem(label('weatherRadar'), 'weatherRadarDesc'),
-      helpItem(label('aqi'), 'aqiDesc'),
-      helpItem(label('naturalEvents'), 'naturalEventsMacro'),
+        ${helpSection('intelSignals', [
+      helpItem(label('alertStatus'), 'alertStatusDesc', '&#9888;'),
+      helpItem(label('flightDelays'), 'transportDelays', '&#9992;'),
+      helpItem(staticLabel('sanctions'), 'geoSanctions', '&#128179;'),
+      helpItem(label('economicCenters'), 'economicCentersDesc', '&#127974;'),
+    ])}
+        ${helpSection('natural', [
+      helpItem(label('naturalEvents'), 'naturalEventsMacro', '&#127755;'),
+      helpItem(label('weather'), 'weatherAlertsMarket', '&#9928;'),
+      helpItem(label('weatherRadar'), 'weatherRadarDesc', '&#127782;'),
+      helpItem(label('waterTemperature'), 'waterTemperatureDesc', '&#127754;'),
+      helpItem(label('aqi'), 'aqiDesc', '💨'),
+      helpItem(label('fires'), 'firesFull', '&#128293;'),
+    ])}
+        ${helpSection('labels', [
+      helpItem(staticLabel('countries'), 'countriesOverlay', '&#127757;'),
     ])}
       </div>
     `;
@@ -527,44 +562,47 @@ export class MapComponent {
       helpItem(staticLabel('timeRecent'), 'timeRecent'),
       helpItem(staticLabel('timeExtended'), 'timeExtended'),
     ], 'timeAffects')}
-        ${helpSection('geopolitical', [
-      helpItem(label('alertStatus'), 'alertStatusDesc'),
-      helpItem(label('conflictZones'), 'geoConflicts'),
-      helpItem(label('intelHotspots'), 'geoHotspots'),
-      helpItem(staticLabel('sanctions'), 'geoSanctions'),
-      helpItem(label('protests'), 'geoProtests'),
-    ])}
-        ${helpSection('militaryStrategic', [
-      helpItem(label('militaryBases'), 'militaryBases'),
-      helpItem(label('nuclearSites'), 'militaryNuclear'),
-      helpItem(label('gammaIrradiators'), 'militaryIrradiators'),
-      helpItem(label('militaryActivity'), 'militaryActivity'),
+        ${helpSection('generalIntel', [
+      helpItem(label('alertStatus'), 'alertStatusDesc', '&#9888;'),
+      helpItem(label('intelHotspots'), 'geoHotspots', '&#127919;'),
+      helpItem(label('threatScore'), 'threatScoreDesc', '&#128308;'),
     ])}
         ${helpSection('infrastructure', [
-      helpItem(label('underseaCables'), 'infraCablesFull'),
-      helpItem(label('pipelines'), 'infraPipelinesFull'),
-      helpItem(label('internetOutages'), 'infraOutages'),
-      helpItem(label('aiDataCenters'), 'infraDatacentersFull'),
-      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc'),
-      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
+      helpItem(label('pipelines'), 'infraPipelinesFull', '&#128738;'),
+      helpItem(label('underseaCables'), 'infraCablesFull', '&#128268;'),
+      helpItem(label('aiDataCenters'), 'infraDatacentersFull', '&#128421;'),
+      helpItem(label('radiation'), 'radiationDesc', '&#9762;'),
+      helpItem(label('gammaIrradiators'), 'militaryIrradiators', '&#9888;'),
+      helpItem(label('internetOutages'), 'infraOutages', '&#128225;'),
+      helpItem(label('bgpAnomalies'), 'bgpAnomaliesDesc', '&#128256;'),
     ])}
-        ${helpSection('transport', [
-      helpItem(label('shipTraffic'), 'transportShipping'),
-      helpItem(label('flightDelays'), 'transportDelays'),
+        ${helpSection('military', [
+      helpItem(label('militaryActivity'), 'militaryActivity', '🛡️'),
+      helpItem(label('conflictZones'), 'geoConflicts', '&#9876;'),
+      helpItem(label('humanConflict'), 'humanConflictDesc', '💥'),
+      helpItem(label('militaryBases'), 'militaryBases', '&#127963;'),
+      helpItem(label('nuclearSites'), 'militaryNuclear', '🏭'),
     ])}
-        ${helpSection('naturalEconomic', [
-      helpItem(label('naturalEvents'), 'naturalEventsFull'),
-      helpItem(label('fires'), 'firesFull'),
-      helpItem(label('weather'), 'weatherAlerts'),
-      helpItem(label('aqi'), 'aqiDesc'),
-      helpItem(label('gpsJamming'), 'gpsJammingDesc'),
-      helpItem('AGRICULTURAL STRESS (FAO ASIS)', 'agriculturalStressGroupDesc'),
-      helpItem(label('economicCenters'), 'economicCentersDesc'),
-      helpItem(label('threatScore'), 'threatScoreDesc'),
+        ${helpSection('shippingAir', [
+      helpItem(label('shipTraffic'), 'transportShipping', '&#128674;'),
+      helpItem(label('flightDelays'), 'transportDelays', '&#9992;'),
+      helpItem(label('strategicWaterways'), 'waterwaysLabels', '&#9875;'),
+      helpItem(label('gpsJamming'), 'gpsJammingDesc', '&#128225;'),
+    ])}
+        ${helpSection('natural', [
+      helpItem(label('naturalEvents'), 'naturalEventsFull', '&#127755;'),
+      helpItem(label('waterTemperature'), 'waterTemperatureDesc', '&#127754;'),
+      helpItem(label('weather'), 'weatherAlerts', '&#9928;'),
+      helpItem(label('fires'), 'firesFull', '&#128293;'),
+      helpItem(label('aqi'), 'aqiDesc', '💨'),
+    ])}
+        ${helpSection('geopolitical', [
+      helpItem(staticLabel('sanctions'), 'geoSanctions', '&#128179;'),
+      helpItem(label('protests'), 'geoProtests', '&#128227;'),
+      helpItem(label('economicCenters'), 'economicCentersDesc', '&#127974;'),
     ])}
         ${helpSection('labels', [
-      helpItem(staticLabel('countries'), 'countriesOverlay'),
-      helpItem(label('strategicWaterways'), 'waterwaysLabels'),
+      helpItem(staticLabel('countries'), 'countriesOverlay', '&#127757;'),
     ])}
       </div>
     `;
@@ -970,6 +1008,11 @@ export class MapComponent {
     // Setup projection for dynamic elements
     const projection = this.getProjection(width, height);
 
+    // Day/Night terminator layer — rendered first in dynamic layers (background, behind markers)
+    if (this.state.layers.dayNight) {
+      this.renderDayNight(projection);
+    }
+
     // Update country fills (sanctions toggle without rebuilding geometry)
     this.updateCountryFills();
 
@@ -1014,6 +1057,69 @@ export class MapComponent {
     }
 
     this.applyTransform();
+  }
+
+  private startDayNightTimer(): void {
+    if (this.dayNightIntervalId) return;
+    const MS_5MIN = 5 * 60 * 1000;
+    this.dayNightIntervalId = setInterval(() => {
+      if (!this.state.layers.dayNight) return;
+      this.cachedNightPolygons = null;
+      this.render();
+    }, MS_5MIN);
+  }
+
+  private stopDayNightTimer(): void {
+    if (this.dayNightIntervalId) {
+      clearInterval(this.dayNightIntervalId);
+      this.dayNightIntervalId = null;
+    }
+  }
+
+  private getNightPolygons(): [number, number][][] {
+    const now = Date.now();
+    if (this.cachedNightPolygons && now - this.cachedNightPolygonsAt < 5 * 60 * 1000) {
+      return this.cachedNightPolygons;
+    }
+    const polygons = computeNightPolygons(now);
+    this.cachedNightPolygons = polygons;
+    this.cachedNightPolygonsAt = now;
+    return polygons;
+  }
+
+  private renderDayNight(projection: d3.GeoProjection): void {
+    if (!this.dynamicLayerGroup) return;
+
+    const polygons = this.getNightPolygons();
+    const path = d3.geoPath().projection(projection);
+
+    const isLight = getCurrentTheme() === 'light';
+    const fillColor = isLight
+      ? 'rgba(10, 20, 60, 0.22)'
+      : 'rgba(0, 5, 25, 0.38)';
+
+    const group = this.dynamicLayerGroup.append('g').attr('class', 'daynight-layer');
+
+    polygons.forEach((poly) => {
+      const feature: GeoJSON.Feature<GeoJSON.Polygon> = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Polygon',
+          coordinates: [poly],
+        },
+      };
+      const d = path(feature);
+      if (d) {
+        group
+          .append('path')
+          .attr('class', 'daynight-path')
+          .attr('d', d)
+          .attr('fill', fillColor)
+          .attr('stroke', 'none')
+          .style('pointer-events', 'none');
+      }
+    });
   }
 
   private renderGrid(
@@ -1104,7 +1210,7 @@ export class MapComponent {
     if (!this.dynamicLayerGroup) return;
 
     const alertStatusService = AlertStatusService.getInstance();
-    
+
     // Asynchronously fetch statuses if not already fetched/cached
     alertStatusService.fetchStatuses().then(() => {
       // Re-render once data is ready to ensure colors are applied
@@ -1410,6 +1516,59 @@ export class MapComponent {
           this.popup.show({
             type: 'irradiator',
             data: irradiator,
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        });
+
+        this.overlays.appendChild(div);
+      });
+    }
+
+    // Environmental Radiation monitoring (EPA RadNet + Chernobyl & Fukushima)
+    if (this.state.layers.radiation && this.radiationData.length > 0) {
+      this.radiationData.forEach((station) => {
+        const pos = projection([station.lon, station.lat]);
+        if (!pos) return;
+
+        const div = document.createElement('div');
+        div.className = `radiation-marker ${station.status}`;
+        div.style.left = `${pos[0]}px`;
+        div.style.top = `${pos[1]}px`;
+        const color = station.status === 'high' ? '#ff3333' : station.status === 'elevated' ? '#ffaa00' : '#00e6b4';
+        div.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="${color}"><circle cx="12" cy="12" r="8" fill-opacity="0.3"/><circle cx="12" cy="12" r="4"/><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" fill-opacity="0.8"/></svg>`;
+        const rawText = station.rawCpm && station.rawCpm !== station.cpm ? ` · ${station.rawCpm.toLocaleString()} raw NaI` : '';
+        const doseText = station.doseRate != null ? ` · ${station.doseRate} nSv/h` : '';
+        let timeStr = '';
+        if (station.time && station.time !== 'Latest Approved' && station.time !== 'Recent Live Measurement') {
+          let d: Date | null = null;
+          const trimmed = station.time.trim();
+          const epaMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+          if (epaMatch && epaMatch[1] && epaMatch[2] && epaMatch[3] && epaMatch[4] && epaMatch[5]) {
+            const month = epaMatch[1];
+            const day = epaMatch[2];
+            const year = epaMatch[3];
+            const hour = epaMatch[4];
+            const min = epaMatch[5];
+            const sec = epaMatch[6] ? +epaMatch[6] : 0;
+            d = new Date(Date.UTC(+year, +month - 1, +day, +hour, +min, sec));
+          } else {
+            d = new Date(trimmed);
+          }
+          if (d && !isNaN(d.getTime())) {
+            const utcTime = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) +
+              ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }) + ' UTC';
+            timeStr = ` · ${utcTime}`;
+          }
+        }
+        div.title = `☢ ${station.name}: ${station.cpm} CPM (GM equiv)${doseText} (${station.status})${rawText}${timeStr} · ${station.source}`;
+
+        div.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = this.container.getBoundingClientRect();
+          this.popup.show({
+            type: 'radiation',
+            data: station,
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
           });
@@ -2408,6 +2567,45 @@ export class MapComponent {
 
         this.overlays.appendChild(div);
       });
+
+      // FAA NOTAM Airspace Bubbles
+      if (this.notams.length > 0) {
+        this.notams.forEach((notam) => {
+          const pos = projection([notam.lon, notam.lat]);
+          if (!pos) return;
+
+          const div = document.createElement('div');
+          div.className = `notam-marker ${notam.type}`;
+          div.style.position = 'absolute';
+          div.style.left = `${pos[0]}px`;
+          div.style.top = `${pos[1]}px`;
+          const colorCfg = getNotamColor(notam.type);
+          const pxRadius = Math.max(14, Math.min(100, Math.round(notam.radiusNm * 0.75 * this.state.zoom)));
+          div.style.width = `${pxRadius * 2}px`;
+          div.style.height = `${pxRadius * 2}px`;
+          div.style.marginLeft = `-${pxRadius}px`;
+          div.style.marginTop = `-${pxRadius}px`;
+          div.style.borderRadius = '50%';
+          div.style.backgroundColor = `rgba(${colorCfg.fill[0]}, ${colorCfg.fill[1]}, ${colorCfg.fill[2]}, 0.35)`;
+          div.style.border = `1.5px solid rgba(${colorCfg.stroke[0]}, ${colorCfg.stroke[1]}, ${colorCfg.stroke[2]}, 0.85)`;
+          div.style.cursor = 'pointer';
+          div.style.pointerEvents = 'auto';
+          div.title = `${notam.typeLabel} - ${notam.notamNumber}: ${notam.name}`;
+
+          div.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const rect = this.container.getBoundingClientRect();
+            this.popup.show({
+              type: 'notam',
+              data: notam,
+              x: e.clientX - rect.left,
+              y: e.clientY - rect.top,
+            });
+          });
+
+          this.overlays.appendChild(div);
+        });
+      }
     }
 
     // Military Tracking (flights and vessels)
@@ -2678,7 +2876,11 @@ export class MapComponent {
         dot.style.width = `${size}px`;
         dot.style.height = `${size}px`;
         dot.style.backgroundColor = color;
-        dot.title = `${fire.region} — ${Math.round(fire.brightness)}K, ${fire.frp}MW`;
+        const timeDesc = [fire.acq_date, fire.daynight ? (fire.daynight === 'D' ? 'Day' : 'Night') : ''].filter(Boolean).join(' · ');
+        const confNum = fire.confidence != null ? Math.round(fire.confidence) : 0;
+        const confLabel = confNum >= 80 ? 'High' : confNum >= 40 ? 'Nominal' : confNum > 0 ? 'Low' : '';
+        const confText = confLabel ? `${confNum}% (${confLabel})` : `${confNum}%`;
+        dot.title = `🔥 ${fire.region || 'Fire'} — ${Math.round(fire.brightness)}K, ${fire.frp}MW (${confText})${timeDesc ? ` · ${timeDesc}` : ''}`;
 
         this.overlays.appendChild(dot);
       });
@@ -2734,6 +2936,18 @@ export class MapComponent {
       label.className = 'ais-disruption-label';
       label.textContent = event.name;
       div.appendChild(label);
+
+      const isEagle = Boolean(
+        event.source?.toLowerCase().includes('eagle') ||
+        event.id?.startsWith('eagle-') ||
+        event.description?.includes('eagleintelmari.com') ||
+        event.description?.includes('Eagle Intelligence')
+      );
+      if (isEagle) {
+        const rawSeverity = String(event.severity || 'low').toLowerCase();
+        const severityLabel = rawSeverity.charAt(0).toUpperCase() + rawSeverity.slice(1);
+        div.title = `AIS Chokepoint\n${t('popups.severity')}: ${severityLabel}\n${t('popups.source')}: eagleintelmari.com`;
+      }
 
       div.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -3034,6 +3248,14 @@ export class MapComponent {
       // Static layers or disabling: toggle active immediately
       btn?.classList.toggle('active', isEnabled);
       btn?.classList.remove('loading');
+    }
+
+    if (layer === 'dayNight') {
+      if (this.state.layers.dayNight) {
+        this.startDayNightTimer();
+      } else {
+        this.stopDayNightTimer();
+      }
     }
 
     this.onLayerChange?.(layer, this.state.layers[layer], source);
@@ -3526,6 +3748,11 @@ export class MapComponent {
 
   public setLayers(layers: MapLayers): void {
     this.state.layers = { ...layers };
+    if (this.state.layers.dayNight) {
+      this.startDayNightTimer();
+    } else {
+      this.stopDayNightTimer();
+    }
     this.syncLayerButtons();
     this.render();
   }
@@ -3578,6 +3805,11 @@ export class MapComponent {
     this.render();
   }
 
+  public setNotams(notams: FaaNotam[]): void {
+    this.notams = notams;
+    this.render();
+  }
+
   public setMilitaryFlights(flights: MilitaryFlight[], clusters: MilitaryFlightCluster[] = []): void {
     this.militaryFlights = flights;
     this.militaryFlightClusters = clusters;
@@ -3597,6 +3829,11 @@ export class MapComponent {
 
   public setFires(fires: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }>): void {
     this.firmsFireData = fires;
+    this.render();
+  }
+
+  public setRadiation(stations: RadiationStation[]): void {
+    this.radiationData = stations;
     this.render();
   }
 

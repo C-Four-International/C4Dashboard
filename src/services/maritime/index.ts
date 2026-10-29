@@ -8,6 +8,13 @@ import { createCircuitBreaker } from '@/utils';
 import type { AisDisruptionEvent, AisDensityZone, AisDisruptionType } from '@/types';
 import { dataFreshness } from '../data-freshness';
 import { isFeatureAvailable } from '../runtime-config';
+import {
+  getAisStreamApiKey,
+  connectAisStream,
+  disconnectAisStreamSocket,
+  registerAisStreamListener,
+  isAisStreamConnected,
+} from '../aisstream';
 
 // ---- Proto fallback (desktop safety when relay URL is unavailable) ----
 
@@ -61,7 +68,7 @@ const isClientRuntime = typeof window !== 'undefined';
 const aisConfigured = isClientRuntime && import.meta.env.VITE_ENABLE_AIS !== 'false';
 
 export function isAisConfigured(): boolean {
-  return aisConfigured && isFeatureAvailable('aisRelay');
+  return aisConfigured && (isFeatureAvailable('aisRelay') || Boolean(getAisStreamApiKey()));
 }
 
 // ---- AisPositionData (exported for military-vessels.ts) ----
@@ -550,9 +557,23 @@ if (isClientRuntime) {
 
 // ---- Exported Functions ----
 
+// Pipe live WebSocket AISStream reports into position callbacks
+registerAisStreamListener((data: AisPositionData) => {
+  for (const callback of positionCallbacks) {
+    try {
+      callback(data);
+    } catch {
+      // Ignore subscriber errors
+    }
+  }
+});
+
 export function registerAisCallback(callback: AisCallback): void {
   positionCallbacks.add(callback);
   startPolling();
+  if (getAisStreamApiKey()) {
+    connectAisStream();
+  }
 }
 
 export function unregisterAisCallback(callback: AisCallback): void {
@@ -564,6 +585,9 @@ export function unregisterAisCallback(callback: AisCallback): void {
 
 export function initAisStream(): void {
   startPolling();
+  if (getAisStreamApiKey()) {
+    connectAisStream();
+  }
 }
 
 export function disconnectAisStream(): void {
@@ -574,16 +598,25 @@ export function disconnectAisStream(): void {
   isPolling = false;
   inFlight = false;
   latestStatus.connected = false;
+  disconnectAisStreamSocket();
 }
 
 export function getAisStatus(): { connected: boolean; isStarved: boolean; vessels: number; messages: number } {
   const isFresh = Date.now() - lastPollAt <= SNAPSHOT_STALE_MS;
+  const wsConnected = isAisStreamConnected();
   return {
-    connected: latestStatus.connected && isFresh,
-    isStarved: latestStatus.isStarved,
+    connected: (latestStatus.connected && isFresh) || wsConnected,
+    isStarved: latestStatus.isStarved && !wsConnected,
     vessels: latestStatus.vessels,
     messages: latestStatus.messages,
   };
+}
+
+export async function ensureAisSnapshot(): Promise<void> {
+  const isFresh = Date.now() - lastPollAt <= SNAPSHOT_STALE_MS;
+  if (!isFresh || latestStatus.vessels === 0) {
+    await pollSnapshot(true);
+  }
 }
 
 export async function fetchAisSignals(): Promise<{ disruptions: AisDisruptionEvent[]; density: AisDensityZone[] }> {

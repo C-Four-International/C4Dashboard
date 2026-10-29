@@ -16,6 +16,7 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'strategic-risk': { name: 'Strategic Risk Overview', enabled: false, priority: 1 },
   intel: { name: 'Intel Feed', enabled: true, priority: 1 },
   'gdelt-intel': { name: 'Live Intelligence', enabled: false, priority: 1 },
+  'social-intel': { name: 'Social Media Intel', enabled: true, priority: 1 },
   cascade: { name: 'Infrastructure Cascade', enabled: true, priority: 1 },
   politics: { name: 'World News', enabled: true, priority: 1 },
   us: { name: 'United States', enabled: true, priority: 1 },
@@ -60,6 +61,7 @@ const FULL_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: false,
   irradiators: false,
+  radiation: false,
   sanctions: false,
   weather: false,
   weatherRadar: false,
@@ -82,6 +84,7 @@ const FULL_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled in full variant)
@@ -116,6 +119,7 @@ const FULL_MOBILE_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: false,
   irradiators: false,
+  radiation: false,
   sanctions: false,
   weather: false,
   weatherRadar: false,
@@ -138,6 +142,7 @@ const FULL_MOBILE_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled in full variant)
@@ -212,6 +217,7 @@ const TECH_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: false,
   irradiators: false,
+  radiation: false,
   sanctions: false,
   weather: true,
   weatherRadar: true,
@@ -234,6 +240,7 @@ const TECH_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (enabled in tech variant)
@@ -268,6 +275,7 @@ const TECH_MOBILE_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: false,
   irradiators: false,
+  radiation: false,
   sanctions: false,
   weather: false,
   weatherRadar: false,
@@ -290,6 +298,7 @@ const TECH_MOBILE_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (limited on mobile)
@@ -361,6 +370,7 @@ const FINANCE_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: false,
   irradiators: false,
+  radiation: false,
   sanctions: true,
   weather: true,
   weatherRadar: true,
@@ -383,6 +393,7 @@ const FINANCE_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled in finance variant)
@@ -417,6 +428,7 @@ const FINANCE_MOBILE_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: false,
   irradiators: false,
+  radiation: false,
   sanctions: false,
   weather: false,
   weatherRadar: false,
@@ -439,6 +451,7 @@ const FINANCE_MOBILE_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled)
@@ -489,6 +502,7 @@ const HAPPY_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: false,
   irradiators: false,
+  radiation: false,
   sanctions: false,
   weather: false,
   weatherRadar: false,
@@ -511,6 +525,7 @@ const HAPPY_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled)
@@ -545,6 +560,7 @@ const HAPPY_MOBILE_MAP_LAYERS: MapLayers = {
   ais: false,
   nuclear: false,
   irradiators: false,
+  radiation: false,
   sanctions: false,
   weather: false,
   weatherRadar: false,
@@ -567,6 +583,7 @@ const HAPPY_MOBILE_MAP_LAYERS: MapLayers = {
   fires: false,
   // Data source layers
   ucdpEvents: false,
+  humanConflict: false,
   displacement: false,
   climate: false,
   // Tech layers (disabled)
@@ -629,7 +646,7 @@ export const PANEL_CATEGORY_MAP: Record<string, { labelKey: string; panelKeys: s
   // Full (geopolitical) variant
   intelligence: {
     labelKey: 'header.panelCatIntelligence',
-    panelKeys: ['strategic-risk', 'intel', 'gdelt-intel', 'cascade'],
+    panelKeys: ['strategic-risk', 'intel', 'gdelt-intel', 'social-intel', 'cascade'],
     variants: ['full'],
   },
   regionalNews: {
