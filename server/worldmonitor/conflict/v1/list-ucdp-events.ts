@@ -20,6 +20,7 @@ import { CHROME_UA } from '../../../_shared/constants';
 const UCDP_PAGE_SIZE = 1000;
 const MAX_PAGES = 12;
 const TRAILING_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
+const UCDP_ACCESS_TOKEN = (process.env.UCDP_ACCESS_TOKEN || process.env.UC_DP_KEY || '').trim();
 
 const CACHE_KEY = 'ucdp:gedevents:sebuf:v1';
 const CACHE_TTL_FULL = 6 * 60 * 60;        // 6 hours for complete results
@@ -73,7 +74,7 @@ async function fetchGedPage(version: string, page: number): Promise<any> {
   const response = await fetch(
     `https://ucdpapi.pcr.uu.se/api/gedevents/${version}?pagesize=${UCDP_PAGE_SIZE}&page=${page}`,
     {
-      headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
+      headers: { Accept: 'application/json', 'User-Agent': CHROME_UA, ...(UCDP_ACCESS_TOKEN ? { 'x-ucdp-access-token': UCDP_ACCESS_TOKEN } : {}) },
       signal: AbortSignal.timeout(15000),
     },
   );

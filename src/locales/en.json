@@ -930,7 +930,7 @@
           "timeRecent": "Filter time-based observations to recent activity windows (1H/6H/24H).",
           "timeExtended": "Show extended historical observations from the past week, month, or all-time archives (7D/30D/ALL).",
           "geoConflicts": "Active armed conflict zones, contested borders, and military frontlines (Ukraine, Middle East, Myanmar, etc.). [Cache: 12 hours]",
-          "humanConflictDesc": "Live tracking of protests, battles, riots, and strategic developments from GDELT Cloud. [Cache: 24 hours]",
+          "humanConflictDesc": "Live tracking of armed conflicts, battles, and violence against civilians from UCDP. [Cache: 24 hours]",
           "geoHotspots": "Geopolitical tension regions and crisis flashpoints color-coded by real-time news velocity and GDELT coverage. [Cache: 1 hour]",
           "militaryBases": "Strategic military airfields, naval stations, radar installations, and command bases (150+ global sites). [Cache: Curated / Static]",
           "militaryNuclear": "Civilian nuclear power reactors, fuel enrichment plants, and monitored nuclear installations. [Cache: Curated / Static]",

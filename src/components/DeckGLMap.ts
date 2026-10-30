@@ -1690,7 +1690,7 @@ export class DeckGLMap {
       layers.push(this.createUcdpEventsLayer(filteredUcdpEvents));
     }
 
-    // Human Conflict layer (GDELT Cloud API via Railway relay)
+    // Human Conflict layer (UCDP API)
     if (mapLayers.humanConflict && filteredHumanConflict.length > 0) {
       layers.push(this.createHumanConflictLayer(filteredHumanConflict));
       layers.push(this.createGhostLayer('human-conflict-layer', filteredHumanConflict, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
@@ -4336,7 +4336,7 @@ export class DeckGLMap {
             ${locStr}
             ${fatStr}
             ${actorsStr}
-            <br/><small style="opacity:0.6;font-size:9px;">GDELT Cloud API</small>
+            <br/><small style="opacity:0.6;font-size:9px;">UCDP API</small>
           </div>`
         };
       }
@@ -5565,7 +5565,7 @@ export class DeckGLMap {
               shape: shapes.circle('#ef4444'),
               badge: 'Conflict Dot',
               name: t('components.deckgl.layers.humanConflict') || 'Human Conflict',
-              desc: 'Live tracking of protests, battles, riots, and strategic developments from gdeltcloud.com.',
+              desc: 'Live tracking of armed conflicts, battles, and violence against civilians from UCDP.',
               subswatches: [
                 { color: '#eb2d2d', label: 'Battles' },
                 { color: '#ff5f1e', label: 'Riots' },

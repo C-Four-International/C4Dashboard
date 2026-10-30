@@ -1,4 +1,4 @@
-import type { HumanConflictEvent } from '@/types';
+import type { HumanConflictCategory, HumanConflictEvent, UcdpGeoEvent } from '@/types';
 import { createCircuitBreaker } from '@/utils';
 
 const PROXY_URL = '/api/human-conflict';
@@ -18,7 +18,7 @@ const DIRECT_RAILWAY_URL = getDirectRailwayUrl();
 
 const breaker = createCircuitBreaker<HumanConflictEvent[]>({
   name: 'Human Conflict',
-  cacheTtlMs: 24 * 60 * 60 * 1000, // 24-hour lengthy client cache to stay within GDELT Cloud free plan limits
+  cacheTtlMs: 24 * 60 * 60 * 1000, // 24-hour lengthy client cache for UCDP conflict events
   persistCache: true,
 });
 
@@ -27,6 +27,52 @@ export interface FetchHumanConflictOptions {
   days?: number;
   limit?: number;
   country?: string;
+}
+
+function convertUcdpToHumanConflictEvents(
+  events: UcdpGeoEvent[],
+  options: FetchHumanConflictOptions,
+): HumanConflictEvent[] {
+  let mapped: HumanConflictEvent[] = events.map((e, idx) => {
+    const isOneSided = e.type_of_violence === 'one-sided';
+    const category: HumanConflictCategory = isOneSided ? 'riots' : 'battles';
+    const sideA = e.side_a || 'Armed forces';
+    const sideB = e.side_b || 'Opposing forces';
+    const country = e.country || '';
+    const title = `${sideA} vs ${sideB}${country ? ` (${country})` : ''}`;
+    const dateStr: string = (e.date_start ? e.date_start.split('T')[0] : '') || new Date().toISOString().slice(0, 10);
+    const fatalities = Math.max(0, e.deaths_best || 0);
+
+    return {
+      id: `ucdp-${e.id || idx}`,
+      title,
+      category,
+      subcategory: e.type_of_violence,
+      subcategoryLabel: (e.type_of_violence || '').replace(/-/g, ' ').toUpperCase(),
+      date: dateStr,
+      lat: e.latitude,
+      lon: e.longitude,
+      country,
+      location: country,
+      fatalities,
+      actors: [sideA, sideB].filter(Boolean),
+      significance: Math.min(10, Math.max(1, Math.ceil((fatalities || 1) / 5))),
+      source: 'ucdp',
+    };
+  }).filter(e => e.lat !== 0 || e.lon !== 0);
+
+  if (options.category) {
+    const allowed = options.category.toLowerCase().split(',').map(s => s.trim());
+    mapped = mapped.filter(e => allowed.includes(e.category.toLowerCase()));
+  }
+  if (options.country) {
+    const countryLower = options.country.toLowerCase();
+    mapped = mapped.filter(e => (e.country || '').toLowerCase() === countryLower);
+  }
+  if (options.limit) {
+    mapped = mapped.slice(0, Math.min(300, Math.max(1, options.limit)));
+  }
+  return mapped;
 }
 
 async function fetchFromEndpoint(baseUrl: string, params: URLSearchParams, timeoutMs = 15000): Promise<HumanConflictEvent[]> {
@@ -85,6 +131,17 @@ export async function fetchHumanConflictEvents(options: FetchHumanConflictOption
       } catch (directErr) {
         console.warn('[HumanConflictService] Direct Railway fetch failed:', directErr);
       }
+    }
+
+    // Strategy 3: Direct UCDP RPC client fallback
+    try {
+      const { fetchUcdpEvents } = await import('@/services/conflict');
+      const ucdpResp = await fetchUcdpEvents();
+      if (ucdpResp.data && ucdpResp.data.length > 0) {
+        return convertUcdpToHumanConflictEvents(ucdpResp.data, options);
+      }
+    } catch (ucdpErr) {
+      console.warn('[HumanConflictService] Direct UCDP fallback failed:', ucdpErr);
     }
 
     return [];

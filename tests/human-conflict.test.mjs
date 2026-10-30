@@ -3,19 +3,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
-test('Human Conflict Railway relay hook & GDELT Cloud integration', async (t) => {
+test('Human Conflict Railway relay hook & UCDP integration', async (t) => {
   const relayPath = path.resolve('scripts/ais-relay.cjs');
   const relayCode = fs.readFileSync(relayPath, 'utf8');
 
-  await t.test('ais-relay.cjs extracts GDELT_API_KEY from environment', () => {
-    assert.match(relayCode, /GDELT_API_KEY\s*=\s*process\.env\.GDELT_API_KEY/);
+  await t.test('ais-relay.cjs extracts UCDP_ACCESS_TOKEN from environment', () => {
+    assert.match(relayCode, /UCDP_ACCESS_TOKEN\s*=\s*\(process\.env\.UCDP_ACCESS_TOKEN/);
   });
 
   await t.test('ais-relay.cjs defines /human-conflict handler with caching and deduplication', () => {
     assert.match(relayCode, /handleHumanConflictRequest/);
     assert.match(relayCode, /humanConflictCache/);
-    assert.match(relayCode, /humanConflictInFlight/);
-    assert.match(relayCode, /https:\/\/gdeltcloud\.com\/api\/v2\/events/);
+    assert.match(relayCode, /canonicalFetchInFlight/);
+    assert.match(relayCode, /ucdpFetchAllEvents/);
   });
 
   await t.test('ais-relay.cjs supports protest, battle, riot, and strategic development categories', () => {
@@ -42,6 +42,12 @@ test('Human Conflict edge proxy & client service', async (t) => {
     assert.match(proxyCode, /\/human-conflict/);
     assert.match(proxyCode, /s-maxage=86400/);
     assert.match(proxyCode, /EDGE_CACHE_TTL_MS\s*=\s*24\s*\*\s*60\s*\*\s*60\s*\*\s*1000/);
+  });
+
+  await t.test('api/human-conflict.js queries UCDP directly with token fallback', () => {
+    assert.match(proxyCode, /UCDP_ACCESS_TOKEN/);
+    assert.match(proxyCode, /ucdpapi\.pcr\.uu\.se/);
+    assert.match(proxyCode, /x-ucdp-access-token/);
   });
 
   await t.test('api/human-conflict.js getRelayBaseUrl robustly normalizes URLs without throwing Invalid URL string', async () => {
@@ -159,4 +165,3 @@ test('Human Conflict layer integration in DeckGL and map layers', async (t) => {
     assert.match(enLocalesCode, /"humanConflict":\s*"Human Conflict"/);
   });
 });
-

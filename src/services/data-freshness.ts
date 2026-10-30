@@ -102,7 +102,7 @@ const SOURCE_METADATA: Record<DataSourceId, { name: string; requiredForRisk: boo
   bis: { name: 'BIS Central Banks', requiredForRisk: false, panelId: 'economic' },
   wto_trade: { name: 'WTO Trade Policy', requiredForRisk: false, panelId: 'trade-policy' },
   supply_chain: { name: 'Supply Chain Intelligence', requiredForRisk: false, panelId: 'supply-chain' },
-  gdelt_conflict: { name: 'Human Conflict (GDELT)', requiredForRisk: false, panelId: 'map' },
+  gdelt_conflict: { name: 'Human Conflict (UCDP)', requiredForRisk: false, panelId: 'map' },
 };
 
 class DataFreshnessTracker {
@@ -361,7 +361,7 @@ const INTELLIGENCE_GAP_MESSAGES: Record<DataSourceId, string> = {
   bis: 'Central bank policy data may be stale—BIS feed unavailable',
   wto_trade: 'Trade policy intelligence unavailable—WTO data not updating',
   supply_chain: 'Supply chain disruption status unavailable—chokepoint monitoring offline',
-  gdelt_conflict: 'Human conflict tracking degraded—GDELT Cloud API unavailable',
+  gdelt_conflict: 'Human conflict tracking degraded—UCDP API unavailable',
 };
 
 /**

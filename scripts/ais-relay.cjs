@@ -1132,6 +1132,7 @@ const UCDP_PAGE_SIZE = 1000;
 const UCDP_MAX_PAGES = 12;
 const UCDP_FETCH_TIMEOUT = 30000; // 30s per page (no Railway limit)
 const UCDP_TRAILING_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
+const UCDP_ACCESS_TOKEN = (process.env.UCDP_ACCESS_TOKEN || process.env.UC_DP_KEY || '').trim();
 
 let ucdpCache = { data: null, timestamp: 0 };
 let ucdpFetchInProgress = false;
@@ -1166,7 +1167,9 @@ async function ucdpFetchPage(version, page) {
   const url = `https://ucdpapi.pcr.uu.se/api/gedevents/${version}?pagesize=${UCDP_PAGE_SIZE}&page=${page}`;
 
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers: { Accept: 'application/json' }, timeout: UCDP_FETCH_TIMEOUT }, (res) => {
+    const headers = { Accept: 'application/json' };
+    if (UCDP_ACCESS_TOKEN) headers['x-ucdp-access-token'] = UCDP_ACCESS_TOKEN;
+    const req = https.get(url, { headers, timeout: UCDP_FETCH_TIMEOUT }, (res) => {
       if (res.statusCode !== 200) {
         res.resume();
         return reject(new Error(`UCDP API ${res.statusCode} (v${version} p${page})`));
@@ -1789,36 +1792,17 @@ function handleHumanConflictRequest(req, res) {
     return sendFilteredSnapshot('HIT', 'railway-cache');
   }
 
-  // 2. If GDELT Cloud returned 429/403 and cooldown is active, serve stale snapshot to protect free plan quota
-  if (canonicalConflictSnapshot && (Date.now() < gdeltCloudRateLimitUntil)) {
-    return sendFilteredSnapshot('STALE-COOLDOWN', 'railway-stale');
+  // 2. If UCDP cache already has data and is warm, convert and serve immediately
+  if (ucdpCache.data && (Array.isArray(ucdpCache.data.data) || Array.isArray(ucdpCache.data.events)) && (Date.now() - ucdpCache.timestamp < UCDP_CACHE_TTL_MS)) {
+    canonicalConflictSnapshot = convertUcdpToConflictEvents(ucdpCache.data);
+    canonicalConflictSnapshotTime = ucdpCache.timestamp || Date.now();
+    return sendFilteredSnapshot('HIT', 'ucdp-api');
   }
 
-  // 3. If API key is missing or exhausted, fall back to UCDP conflict feed
-  if (!GDELT_API_KEY) {
-    if (canonicalConflictSnapshot) return sendFilteredSnapshot('STALE-NO-KEY', 'railway-stale');
-    if (ucdpCache.data && Array.isArray(ucdpCache.data.events) && ucdpCache.data.events.length > 0) {
-      canonicalConflictSnapshot = convertUcdpToConflictEvents(ucdpCache.data);
-      canonicalConflictSnapshotTime = ucdpCache.timestamp || Date.now();
-      return sendFilteredSnapshot('UCDP-FALLBACK', 'ucdp-public');
-    }
-    console.warn('[Relay] GDELT_API_KEY not configured in Railway environment');
-    const fallback = JSON.stringify({
-      success: false,
-      message: 'GDELT_API_KEY environment variable not configured on Railway relay',
-      count: 0,
-      data: [],
-    });
-    return sendCompressed(req, res, 200, {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=60',
-    }, fallback);
-  }
-
-  // 4. In-flight request deduplication: wait for the single canonical fetch
+  // 3. In-flight request deduplication: wait for the single canonical fetch
   if (canonicalFetchInFlight) {
     canonicalFetchInFlight.then(() => {
-      sendFilteredSnapshot('DEDUP', 'railway');
+      sendFilteredSnapshot('DEDUP', 'ucdp-api');
     }).catch(err => {
       if (canonicalConflictSnapshot) {
         return sendFilteredSnapshot('STALE', 'railway-stale');
@@ -1829,107 +1813,36 @@ function handleHumanConflictRequest(req, res) {
     return;
   }
 
-  // 5. Fetch canonical global conflict dataset from gdeltcloud.com (single query for all clients)
-  const upstreamUrl = new URL('https://gdeltcloud.com/api/v2/events');
-  upstreamUrl.searchParams.set('event_family', 'conflict');
-  upstreamUrl.searchParams.set('category', 'Battles,Protests,Riots,Strategic developments');
-  upstreamUrl.searchParams.set('days', '14');
-  upstreamUrl.searchParams.set('limit', '300');
-
-  console.log('[Relay] Querying gdeltcloud.com canonical conflict events (MISS):', upstreamUrl.search);
-
-  canonicalFetchInFlight = new Promise((resolve, reject) => {
-    const request = https.get(upstreamUrl.toString(), {
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${GDELT_API_KEY}`,
-        'User-Agent': 'WorldMonitor-Relay/1.0 (+https://worldmonitor.app)',
-      },
-      timeout: 15000,
-    }, (response) => {
-      const encoding = response.headers['content-encoding'];
-      let stream = response;
-      if (encoding === 'gzip' || encoding === 'deflate') {
-        stream = encoding === 'gzip' ? response.pipe(zlib.createGunzip()) : response.pipe(zlib.createInflate());
+  // 4. Fetch canonical global conflict dataset from UCDP API
+  console.log('[Relay] Querying UCDP canonical conflict events (MISS)');
+  canonicalFetchInFlight = (async () => {
+    try {
+      let ucdpResult = ucdpCache.data;
+      if (!ucdpResult || (Date.now() - ucdpCache.timestamp >= UCDP_CACHE_TTL_MS)) {
+        ucdpResult = await ucdpFetchAllEvents();
+        ucdpCache = { data: ucdpResult, timestamp: Date.now() };
       }
-
-      let rawData = '';
-      stream.on('data', chunk => rawData += chunk);
-      stream.on('end', () => {
-        if (response.statusCode === 429) {
-          console.warn('[Relay] GDELT Cloud returned 429 (rate-limited/quota). Entering 30-min cooldown.');
-          gdeltCloudRateLimitUntil = Date.now() + 30 * 60 * 1000;
-          if (canonicalConflictSnapshot) {
-            return resolve(canonicalConflictSnapshot);
-          }
-          if (ucdpCache.data && ucdpCache.data.events?.length > 0) {
-            return resolve(convertUcdpToConflictEvents(ucdpCache.data));
-          }
-          return reject(new Error('GDELT Cloud API rate limit reached (429)'));
-        }
-
-        if (response.statusCode === 403) {
-          console.warn('[Relay] GDELT Cloud programmatic starter calls exhausted (403 PROGRAMMATIC_ACCESS_DENIED). Entering 24-hr cooldown.');
-          gdeltCloudRateLimitUntil = Date.now() + 24 * 60 * 60 * 1000;
-          if (canonicalConflictSnapshot) {
-            return resolve(canonicalConflictSnapshot);
-          }
-          if (ucdpCache.data && ucdpCache.data.events?.length > 0) {
-            const fallbackEvents = convertUcdpToConflictEvents(ucdpCache.data);
-            canonicalConflictSnapshot = fallbackEvents;
-            canonicalConflictSnapshotTime = Date.now();
-            return resolve(fallbackEvents);
-          }
-          return reject(new Error('GDELT Cloud programmatic starter calls exhausted (403)'));
-        }
-
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          console.error(`[Relay] GDELT Cloud upstream returned ${response.statusCode}:`, rawData.slice(0, 200));
-          return reject(new Error(`GDELT Cloud API HTTP ${response.statusCode}`));
-        }
-
-        try {
-          const parsed = JSON.parse(rawData);
-          const sanitizedEvents = parseAndSanitizeConflictEvents(parsed);
-          canonicalConflictSnapshot = sanitizedEvents;
-          canonicalConflictSnapshotTime = Date.now();
-          console.log(`[Relay] GDELT Cloud canonical conflict cached: ${sanitizedEvents.length} events (valid for 24 hours)`);
-          try {
-            require('fs').writeFileSync(CONFLICT_DISK_CACHE_FILE, JSON.stringify({
-              timestamp: canonicalConflictSnapshotTime,
-              events: sanitizedEvents,
-            }));
-          } catch {}
-          resolve(sanitizedEvents);
-        } catch (err) {
-          console.error('[Relay] GDELT Cloud JSON parse error:', err.message);
-          reject(new Error('Invalid JSON from GDELT Cloud API'));
-        }
-      });
-      stream.on('error', reject);
-    });
-
-    request.on('error', reject);
-    request.on('timeout', () => {
-      request.destroy();
-      reject(new Error('GDELT Cloud request timeout'));
-    });
-  });
+      const conflictEvents = convertUcdpToConflictEvents(ucdpResult);
+      canonicalConflictSnapshot = conflictEvents;
+      canonicalConflictSnapshotTime = Date.now();
+      saveConflictCacheToDisk();
+      return conflictEvents;
+    } finally {
+      canonicalFetchInFlight = null;
+    }
+  })();
 
   canonicalFetchInFlight
     .then(() => {
-      sendFilteredSnapshot('MISS', 'railway');
+      sendFilteredSnapshot('MISS', 'ucdp-api');
     })
     .catch(err => {
-      console.error('[Relay] Human Conflict error:', err.message);
+      console.error('[Relay] Human Conflict UCDP error:', err.message);
       if (canonicalConflictSnapshot) {
         return sendFilteredSnapshot('STALE', 'railway-stale');
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: false, error: err.message, count: 0, data: [] }));
-    })
-    .finally(() => {
-      canonicalFetchInFlight = null;
     });
 }
 

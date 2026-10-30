@@ -67,6 +67,68 @@ function normalizeConflictCategory(rawCategory, rawSubcategory, rawTitle) {
   return 'battles';
 }
 
+function convertUcdpToHumanConflictEvents(items) {
+  const list = Array.isArray(items) ? items : [];
+  return list
+    .map((item, idx) => {
+      const lat = Number(item.latitude ?? item.lat);
+      const lon = Number(item.longitude ?? item.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || (lat === 0 && lon === 0)) {
+        return null;
+      }
+
+      const rawType = item.type_of_violence ?? item.typeOfViolence ?? item.violenceType ?? 1;
+      let violenceType = 'state-based';
+      if (rawType === 1 || rawType === '1' || rawType === 'state-based' || rawType === 'UCDP_VIOLENCE_TYPE_STATE_BASED') {
+        violenceType = 'state-based';
+      } else if (rawType === 2 || rawType === '2' || rawType === 'non-state' || rawType === 'UCDP_VIOLENCE_TYPE_NON_STATE') {
+        violenceType = 'non-state';
+      } else if (rawType === 3 || rawType === '3' || rawType === 'one-sided' || rawType === 'UCDP_VIOLENCE_TYPE_ONE_SIDED') {
+        violenceType = 'one-sided';
+      }
+
+      const isOneSided = violenceType === 'one-sided';
+      const category = isOneSided ? 'riots' : 'battles';
+      const sideA = item.side_a || item.sideA || 'Armed forces';
+      const sideB = item.side_b || item.sideB || 'Opposing forces';
+      const country = item.country || '';
+      const title = `${sideA} vs ${sideB}${country ? ` (${country})` : ''}`;
+      const deaths = Math.max(0, Number(item.best ?? item.deaths_best ?? item.deathsBest ?? 0) || 0);
+
+      const rawDate = item.date_start ?? item.dateStart ?? item.date ?? '';
+      let dateStr = '';
+      if (typeof rawDate === 'number' && Number.isFinite(rawDate) && rawDate > 0) {
+        dateStr = new Date(rawDate).toISOString().split('T')[0];
+      } else if (rawDate) {
+        dateStr = String(rawDate).split('T')[0];
+      }
+      if (!dateStr) {
+        dateStr = new Date().toISOString().split('T')[0];
+      }
+
+      const actors = [sideA, sideB].filter(Boolean);
+
+      return {
+        id: String(item.id || `ucdp-${idx}-${lat.toFixed(3)}-${lon.toFixed(3)}`),
+        title,
+        category,
+        subcategory: violenceType,
+        subcategoryLabel: violenceType.replace(/-/g, ' ').toUpperCase(),
+        date: dateStr,
+        lat,
+        lon,
+        country,
+        location: country,
+        fatalities: deaths,
+        actors: actors.length > 0 ? actors : undefined,
+        significance: Math.min(10, Math.max(1, Math.ceil((deaths || 1) / 5))),
+        source: 'ucdp',
+        notes: item.source_original || undefined,
+      };
+    })
+    .filter(Boolean);
+}
+
 function parseAndSanitizeConflictEvents(parsed) {
   let list = [];
   if (Array.isArray(parsed)) {
@@ -77,6 +139,8 @@ function parseAndSanitizeConflictEvents(parsed) {
     list = parsed.events;
   } else if (parsed && Array.isArray(parsed.result)) {
     list = parsed.result;
+  } else if (parsed && Array.isArray(parsed.Result)) {
+    return convertUcdpToHumanConflictEvents(parsed.Result);
   } else if (parsed && Array.isArray(parsed.features)) {
     list = parsed.features.map(f => ({
       id: f.id || f.properties?.id,
@@ -84,6 +148,11 @@ function parseAndSanitizeConflictEvents(parsed) {
       lat: f.geometry?.coordinates?.[1],
       lon: f.geometry?.coordinates?.[0],
     }));
+  }
+
+  // Check if incoming structure is UCDP-formatted
+  if (list.length > 0 && (list[0].type_of_violence !== undefined || list[0].side_a !== undefined)) {
+    return convertUcdpToHumanConflictEvents(list);
   }
 
   return list
@@ -117,7 +186,7 @@ function parseAndSanitizeConflictEvents(parsed) {
       }
 
       return {
-        id: String(item.id || item.event_id || item.eventId || `gdelt-${idx}-${lat.toFixed(3)}-${lon.toFixed(3)}`),
+        id: String(item.id || item.event_id || item.eventId || `ucdp-${idx}-${lat.toFixed(3)}-${lon.toFixed(3)}`),
         title: rawTitle || `${category.replace(/_/g, ' ').toUpperCase()} in ${item.country || item.geo?.country || 'Region'}`,
         category,
         subcategory: rawSub || undefined,
@@ -130,14 +199,14 @@ function parseAndSanitizeConflictEvents(parsed) {
         fatalities: Math.max(0, Number(item.fatalities ?? item.deaths ?? item.deaths_best ?? 0) || 0),
         actors: actors.length > 0 ? actors : undefined,
         significance: Number(item.significance ?? item.goldstein_scale ?? item.severity ?? 1) || 1,
-        source: 'gdeltcloud',
+        source: 'ucdp',
         notes: item.notes || item.summary || item.description || undefined,
       };
     })
     .filter(Boolean);
 }
 
-// Edge module cache: single canonical dataset cached for 24 hours to fit GDELT Cloud free plan limits
+// Edge module cache: single canonical dataset cached for 24 hours
 const EDGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours lengthy cache
 let edgeCanonicalSnapshot = null;
 let edgeCanonicalSnapshotTime = 0;
@@ -156,6 +225,77 @@ function filterSnapshotEvents(events, categoryParam, countryParam, limitParam) {
   }
   const maxLimit = Math.min(300, Math.max(1, Number(limitParam || 250)));
   return list.slice(0, maxLimit);
+}
+
+async function fetchUcdpCanonicalSnapshot(timeoutMs = 15000) {
+  const token = (process.env.UCDP_ACCESS_TOKEN || process.env.UC_DP_KEY || '').trim();
+  const headers = {
+    Accept: 'application/json',
+    'User-Agent': 'WorldMonitor-Proxy/1.0 (+https://worldmonitor.app)',
+  };
+  if (token) {
+    headers['x-ucdp-access-token'] = token;
+  }
+
+  const year = new Date().getFullYear() - 2000;
+  const candidates = [`${year}.1`, `${year - 1}.1`, '25.1', '24.1'];
+
+  let version = null;
+  let page0Data = null;
+
+  for (const v of candidates) {
+    try {
+      const resp = await fetchWithTimeout(
+        `https://ucdpapi.pcr.uu.se/api/gedevents/${v}?pagesize=1000&page=0`,
+        { headers },
+        timeoutMs
+      );
+      if (resp.ok) {
+        const json = await resp.json();
+        if (Array.isArray(json?.Result)) {
+          version = v;
+          page0Data = json;
+          break;
+        }
+      }
+    } catch {
+      // ignore and try next candidate
+    }
+  }
+
+  if (!version || !page0Data) {
+    throw new Error('UCDP GED API discovery failed or returned non-200');
+  }
+
+  const totalPages = Math.max(1, Number(page0Data.TotalPages) || 1);
+  const newestPage = totalPages - 1;
+  const maxPages = 4;
+  const pagesToFetch = [];
+
+  for (let offset = 0; offset < maxPages && (newestPage - offset) >= 0; offset++) {
+    const page = newestPage - offset;
+    if (page === 0) {
+      pagesToFetch.push(Promise.resolve(page0Data));
+    } else {
+      pagesToFetch.push(
+        fetchWithTimeout(
+          `https://ucdpapi.pcr.uu.se/api/gedevents/${version}?pagesize=1000&page=${page}`,
+          { headers },
+          timeoutMs
+        ).then(r => (r.ok ? r.json() : null)).catch(() => null)
+      );
+    }
+  }
+
+  const results = await Promise.all(pagesToFetch);
+  const events = [];
+  for (const res of results) {
+    if (res && Array.isArray(res.Result)) {
+      events.push(...res.Result);
+    }
+  }
+
+  return convertUcdpToHumanConflictEvents(events);
 }
 
 export default async function handler(req) {
@@ -201,106 +341,76 @@ export default async function handler(req) {
         headers,
       });
     } catch (relayErr) {
-      console.warn('[HumanConflict Proxy] Railway relay request failed, evaluating direct fallback:', relayErr?.message || relayErr);
+      console.warn('[HumanConflict Proxy] Railway relay request failed, evaluating direct UCDP fallback:', relayErr?.message || relayErr);
     }
   }
 
-  // Strategy 2: Direct call to gdeltcloud.com if GDELT_API_KEY is present in runtime env
-  const gdeltKey = process.env.GDELT_API_KEY;
-  if (gdeltKey) {
-    const clientCategory = requestUrl.searchParams.get('category') || '';
-    const clientCountry = requestUrl.searchParams.get('country') || '';
-    const clientLimit = requestUrl.searchParams.get('limit') || '250';
+  // Strategy 2: Direct call to UCDP API
+  const clientCategory = requestUrl.searchParams.get('category') || '';
+  const clientCountry = requestUrl.searchParams.get('country') || '';
+  const clientLimit = requestUrl.searchParams.get('limit') || '250';
 
-    const makeResponse = (events, cacheHeader) => {
-      const filtered = filterSnapshotEvents(events, clientCategory, clientCountry, clientLimit);
-      return new Response(JSON.stringify({
-        success: true,
-        count: filtered.length,
-        data: filtered,
-        cached_at: new Date(edgeCanonicalSnapshotTime || Date.now()).toISOString(),
-      }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
-          'X-Cache': cacheHeader,
-          ...corsHeaders,
-        },
-      });
-    };
+  const makeResponse = (events, cacheHeader) => {
+    const filtered = filterSnapshotEvents(events, clientCategory, clientCountry, clientLimit);
+    return new Response(JSON.stringify({
+      success: true,
+      count: filtered.length,
+      data: filtered,
+      cached_at: new Date(edgeCanonicalSnapshotTime || Date.now()).toISOString(),
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
+        'X-Cache': cacheHeader,
+        'X-Conflict-Source': 'ucdp-api',
+        ...corsHeaders,
+      },
+    });
+  };
 
-    // 1. Fresh cache hit (< 24 hours)
-    if (edgeCanonicalSnapshot && (Date.now() - edgeCanonicalSnapshotTime < EDGE_CACHE_TTL_MS)) {
-      return makeResponse(edgeCanonicalSnapshot, 'HIT');
-    }
+  // 1. Fresh cache hit (< 24 hours)
+  if (edgeCanonicalSnapshot && (Date.now() - edgeCanonicalSnapshotTime < EDGE_CACHE_TTL_MS)) {
+    return makeResponse(edgeCanonicalSnapshot, 'HIT');
+  }
 
-    // 2. Upstream 429 cooldown active: serve stale snapshot to protect free plan limits
-    if (edgeCanonicalSnapshot && (Date.now() < edgeRateLimitUntil)) {
-      return makeResponse(edgeCanonicalSnapshot, 'STALE-COOLDOWN');
-    }
+  // 2. Upstream 429 cooldown active: serve stale snapshot
+  if (edgeCanonicalSnapshot && (Date.now() < edgeRateLimitUntil)) {
+    return makeResponse(edgeCanonicalSnapshot, 'STALE-COOLDOWN');
+  }
 
-    // 3. Deduplicate in-flight fetch
-    if (edgeCanonicalFetchInFlight) {
-      try {
-        const events = await edgeCanonicalFetchInFlight;
-        return makeResponse(events, 'DEDUP');
-      } catch {
-        if (edgeCanonicalSnapshot) return makeResponse(edgeCanonicalSnapshot, 'STALE');
-      }
-    }
-
-    // 4. Fetch canonical dataset (single query for all categories to minimize units)
+  // 3. Deduplicate in-flight fetch
+  if (edgeCanonicalFetchInFlight) {
     try {
-      edgeCanonicalFetchInFlight = (async () => {
-        const upstreamUrl = new URL('https://gdeltcloud.com/api/v2/events');
-        upstreamUrl.searchParams.set('event_family', 'conflict');
-        upstreamUrl.searchParams.set('category', 'Battles,Protests,Riots,Strategic developments');
-        upstreamUrl.searchParams.set('days', '14');
-        upstreamUrl.searchParams.set('limit', '300');
-
-        const upstreamResp = await fetchWithTimeout(upstreamUrl.toString(), {
-          headers: {
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${gdeltKey}`,
-            'User-Agent': 'WorldMonitor-Proxy/1.0 (+https://worldmonitor.app)',
-          },
-        }, 15000);
-
-        if (upstreamResp.status === 429) {
-          console.warn('[HumanConflict Proxy] GDELT Cloud 429 rate limit. Entering 30-min cooldown.');
-          edgeRateLimitUntil = Date.now() + 30 * 60 * 1000;
-          if (edgeCanonicalSnapshot) return edgeCanonicalSnapshot;
-          throw new Error('GDELT Cloud API 429 Rate Limit');
-        }
-
-        if (!upstreamResp.ok) {
-          throw new Error(`GDELT Cloud HTTP ${upstreamResp.status}`);
-        }
-
-        const raw = await upstreamResp.json();
-        const sanitized = parseAndSanitizeConflictEvents(raw);
-        edgeCanonicalSnapshot = sanitized;
-        edgeCanonicalSnapshotTime = Date.now();
-        return sanitized;
-      })();
-
       const events = await edgeCanonicalFetchInFlight;
-      return makeResponse(events, 'MISS');
-    } catch (directErr) {
-      console.error('[HumanConflict Proxy] Direct gdeltcloud fetch failed:', directErr);
-      if (edgeCanonicalSnapshot) {
-        return makeResponse(edgeCanonicalSnapshot, 'STALE');
-      }
-    } finally {
-      edgeCanonicalFetchInFlight = null;
+      return makeResponse(events, 'DEDUP');
+    } catch {
+      if (edgeCanonicalSnapshot) return makeResponse(edgeCanonicalSnapshot, 'STALE');
     }
   }
 
-  // Graceful degradation response if neither relay nor direct key succeeded
+  // 4. Fetch canonical dataset from UCDP API
+  try {
+    edgeCanonicalFetchInFlight = fetchUcdpCanonicalSnapshot(15000);
+    const events = await edgeCanonicalFetchInFlight;
+    if (events && events.length > 0) {
+      edgeCanonicalSnapshot = events;
+      edgeCanonicalSnapshotTime = Date.now();
+      return makeResponse(events, 'MISS');
+    }
+  } catch (directErr) {
+    console.error('[HumanConflict Proxy] Direct UCDP fetch failed:', directErr);
+    if (edgeCanonicalSnapshot) {
+      return makeResponse(edgeCanonicalSnapshot, 'STALE');
+    }
+  } finally {
+    edgeCanonicalFetchInFlight = null;
+  }
+
+  // Graceful degradation response
   return new Response(JSON.stringify({
     success: false,
-    message: relayBaseUrl ? 'Failed to fetch conflict data from relay' : 'WS_RELAY_URL or GDELT_API_KEY not configured',
+    message: relayBaseUrl ? 'Failed to fetch conflict data from relay or UCDP' : 'UCDP conflict data unavailable',
     count: 0,
     data: [],
   }), {
