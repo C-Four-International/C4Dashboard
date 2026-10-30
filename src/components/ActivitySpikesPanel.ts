@@ -176,6 +176,7 @@ export class ActivitySpikesPanel extends Panel {
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private onLocationClick?: (lat: number, lon: number) => void;
   private lastBucket: number = Math.floor(Date.now() / REFRESH_INTERVAL_MS);
+  private liveEvents: SpikeEventAnnotation[] | null = null;
 
   constructor() {
     super({
@@ -189,6 +190,7 @@ export class ActivitySpikesPanel extends Panel {
 
     this.setDataBadge('live', '15m static sync');
     this.render();
+    void this.syncOvhEvents();
     this.startAutoRefresh();
   }
 
@@ -200,7 +202,25 @@ export class ActivitySpikesPanel extends Panel {
     this.refreshTimer = setInterval(() => {
       this.lastBucket = Math.floor(Date.now() / REFRESH_INTERVAL_MS);
       this.updateGraphImage();
+      void this.syncOvhEvents();
     }, REFRESH_INTERVAL_MS);
+  }
+
+  private async syncOvhEvents(): Promise<void> {
+    const baseUrl = (import.meta.env.VITE_OVH_SPIKES_GRAPH_URL as string | undefined)?.trim();
+    if (!baseUrl) return;
+    try {
+      const normalized = baseUrl.replace(/\/$/, '');
+      const res = await fetch(`${normalized}/events.json?v=${this.lastBucket}`);
+      if (!res.ok) return;
+      const data = (await res.json()) as { events?: SpikeEventAnnotation[] };
+      if (Array.isArray(data?.events) && data.events.length > 0) {
+        this.liveEvents = data.events;
+        this.render();
+      }
+    } catch {
+      // Keep fallback events
+    }
   }
 
   public override destroy(): void {
@@ -561,10 +581,11 @@ export class ActivitySpikesPanel extends Panel {
       { id: 'taiwan-scs', label: 'Taiwan / SCS' },
     ];
 
+    const sourceEvents = this.liveEvents ?? SAMPLE_CONVERGENCE_EVENTS;
     const filteredEvents =
       this.selectedTheater === 'all'
-        ? SAMPLE_CONVERGENCE_EVENTS
-        : SAMPLE_CONVERGENCE_EVENTS.filter((e) => e.theaterId === this.selectedTheater);
+        ? sourceEvents
+        : sourceEvents.filter((e) => e.theaterId === this.selectedTheater);
 
     const activeTheaterCfg = this.selectedTheater !== 'all' ? THEATERS[this.selectedTheater] : null;
 
