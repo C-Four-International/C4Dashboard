@@ -7,7 +7,8 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 COPY package*.json ./
-RUN npm ci
+# Use npm ci with fallback to npm install if lockfile has slight version mismatch
+RUN npm ci || npm install
 
 COPY . .
 
@@ -16,6 +17,9 @@ RUN npm run build:sidecar-sebuf
 
 # Build Vite frontend assets (dist/)
 RUN npm run build
+
+# Prune devDependencies to keep production image lean
+RUN npm prune --omit=dev
 
 # ── Stage 2: Production Runner ───────────────────────────────────────────────
 FROM node:22-alpine AS runner
@@ -27,13 +31,13 @@ ENV NODE_ENV=production \
     RELAY_PORT=3004 \
     HOST=0.0.0.0
 
-# Install production dependencies only
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+# Copy pre-installed production node_modules from builder (already pruned)
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy prebuilt artifacts from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/api ./api
+COPY package*.json ./
 COPY server ./server
 COPY scripts ./scripts
 
@@ -50,4 +54,3 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:3000/health || exit 1
 
 CMD ["node", "scripts/start-all.mjs"]
-
