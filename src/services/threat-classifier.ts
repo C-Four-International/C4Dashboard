@@ -295,12 +295,103 @@ import {
   ApiError,
   type ClassifyEventResponse,
 } from '@/generated/client/worldmonitor/intelligence/v1/service_client';
+import { getAiFlowSettings } from '@/services/ai-flow-settings';
 
 const classifyClient = new IntelligenceServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 
 const VALID_LEVELS: Record<string, ThreatLevel> = {
   critical: 'critical', high: 'high', medium: 'medium', low: 'low', info: 'info',
 };
+
+// ── Persistent Client Cache for AI Threat Classifications ────────────────────
+const CLIENT_CACHE_STORAGE_KEY = 'wm-client-ai-threat-cache-v1';
+const CACHE_TTL_SUCCESS_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_TTL_NEGATIVE_MS = 15 * 60 * 1000; // 15 mins for failed/null
+const MAX_LOCAL_CACHE_ENTRIES = 400;
+
+interface ThreatCacheRecord {
+  threat: ThreatClassification | null;
+  expiresAt: number;
+}
+
+const clientThreatCache = new Map<string, ThreatCacheRecord>();
+let cacheHydrated = false;
+
+function normalizeHeadlineKey(title: string): string {
+  return title.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function hydrateClientThreatCache(): void {
+  if (cacheHydrated || typeof localStorage === 'undefined') return;
+  cacheHydrated = true;
+  try {
+    const raw = localStorage.getItem(CLIENT_CACHE_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Record<string, ThreatCacheRecord>;
+    const now = Date.now();
+    for (const [key, entry] of Object.entries(parsed)) {
+      if (entry && entry.expiresAt > now) {
+        clientThreatCache.set(key, entry);
+      }
+    }
+  } catch {
+    // Ignore storage parse errors
+  }
+}
+
+let persistDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+function persistClientThreatCache(): void {
+  if (typeof localStorage === 'undefined') return;
+  if (persistDebounceTimer) clearTimeout(persistDebounceTimer);
+  persistDebounceTimer = setTimeout(() => {
+    try {
+      const now = Date.now();
+      const records: Record<string, ThreatCacheRecord> = {};
+      let count = 0;
+      for (const [key, entry] of clientThreatCache.entries()) {
+        if (entry.expiresAt > now && count < MAX_LOCAL_CACHE_ENTRIES) {
+          records[key] = entry;
+          count++;
+        }
+      }
+      localStorage.setItem(CLIENT_CACHE_STORAGE_KEY, JSON.stringify(records));
+    } catch {
+      // Storage quota exceeded or private browsing
+    }
+  }, 2000);
+}
+
+function getClientThreatCache(key: string): ThreatClassification | null | undefined {
+  hydrateClientThreatCache();
+  const entry = clientThreatCache.get(key);
+  if (!entry) return undefined;
+  if (entry.expiresAt <= Date.now()) {
+    clientThreatCache.delete(key);
+    return undefined;
+  }
+  return entry.threat;
+}
+
+function setClientThreatCache(key: string, threat: ThreatClassification | null): void {
+  hydrateClientThreatCache();
+  const ttl = threat ? CACHE_TTL_SUCCESS_MS : CACHE_TTL_NEGATIVE_MS;
+  clientThreatCache.set(key, { threat, expiresAt: Date.now() + ttl });
+  if (clientThreatCache.size > MAX_LOCAL_CACHE_ENTRIES * 1.5) {
+    const now = Date.now();
+    for (const [k, v] of clientThreatCache.entries()) {
+      if (v.expiresAt <= now) clientThreatCache.delete(k);
+    }
+    if (clientThreatCache.size > MAX_LOCAL_CACHE_ENTRIES * 1.5) {
+      const excess = clientThreatCache.size - MAX_LOCAL_CACHE_ENTRIES;
+      let removed = 0;
+      for (const k of clientThreatCache.keys()) {
+        if (removed++ >= excess) break;
+        clientThreatCache.delete(k);
+      }
+    }
+  }
+  persistClientThreatCache();
+}
 
 function toThreat(resp: ClassifyEventResponse): ThreatClassification | null {
   const c = resp.classification;
@@ -330,24 +421,38 @@ function flushBatch(): void {
   if (batch.length === 0) return;
 
   // Fire parallel classifyEvent RPCs for each headline
-  const promises = batch.map((job) =>
-    classifyClient
+  const promises = batch.map((job) => {
+    const normKey = normalizeHeadlineKey(job.title);
+    const cached = getClientThreatCache(normKey);
+    if (cached !== undefined) {
+      job.resolve(cached);
+      return Promise.resolve();
+    }
+
+    return classifyClient
       .classifyEvent({ title: job.title, description: '', source: '', country: '' })
       .then((resp) => {
-        job.resolve(toThreat(resp));
+        const threat = toThreat(resp);
+        setClientThreatCache(normKey, threat);
+        job.resolve(threat);
       })
       .catch((err) => {
+        setClientThreatCache(normKey, null);
         if (err instanceof ApiError && (err.statusCode === 429 || err.statusCode >= 500)) {
           batchPaused = true;
           const delay = err.statusCode === 429 ? 60_000 : 30_000;
           console.warn(`[Classify] ${err.statusCode} — pausing AI classification for ${delay / 1000}s`);
           // Drain remaining queue
-          while (batchQueue.length > 0) batchQueue.shift()!.resolve(null);
+          while (batchQueue.length > 0) {
+            const item = batchQueue.shift()!;
+            setClientThreatCache(normalizeHeadlineKey(item.title), null);
+            item.resolve(null);
+          }
           setTimeout(() => { batchPaused = false; scheduleBatch(); }, delay);
         }
         job.resolve(null);
-      }),
-  );
+      });
+  });
 
   Promise.allSettled(promises).then(() => scheduleBatch());
 }
@@ -365,8 +470,31 @@ export function classifyWithAI(
   title: string,
   variant: string
 ): Promise<ThreatClassification | null> {
+  const normKey = normalizeHeadlineKey(title);
+  const cached = getClientThreatCache(normKey);
+  if (cached !== undefined) {
+    return Promise.resolve(cached);
+  }
+
+  // Check if AI classification is disabled by user settings
+  try {
+    const settings = getAiFlowSettings();
+    if (!settings.cloudLlm) {
+      return Promise.resolve(null);
+    }
+  } catch {
+    // Ignore settings read errors
+  }
+
   return new Promise((resolve) => {
-    batchQueue.push({ title, variant, resolve });
+    batchQueue.push({
+      title,
+      variant,
+      resolve: (result) => {
+        setClientThreatCache(normKey, result);
+        resolve(result);
+      },
+    });
     scheduleBatch();
   });
 }

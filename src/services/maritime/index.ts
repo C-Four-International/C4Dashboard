@@ -321,6 +321,20 @@ export async function fetchEagleChokepointStatus(): Promise<AisDisruptionEvent[]
   return chokepointDisruptions;
 }
 
+function getDirectRailwayUrl(): string {
+  let raw = (import.meta.env.VITE_WS_RELAY_URL || '').trim().replace(/^["']|["']$/g, '').trim();
+  if (!raw || raw === 'undefined' || raw === 'null') return '';
+  if (raw.startsWith('wss://')) raw = 'https://' + raw.slice(6);
+  else if (raw.startsWith('ws://')) raw = 'http://' + raw.slice(5);
+  else if (!raw.startsWith('http://') && !raw.startsWith('https://')) raw = `https://${raw}`;
+  try {
+    return new URL('/ais/snapshot', raw).toString();
+  } catch {
+    return '';
+  }
+}
+const DIRECT_RAILWAY_URL = getDirectRailwayUrl();
+
 // ---- Hybrid Fetch Strategy ----
 
 async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown> {
@@ -335,8 +349,24 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
 
   if (includeCandidates) {
     try {
-      const relayRes = await globalThis.fetch('/api/ais-snapshot?candidates=true');
-      if (relayRes.ok) {
+      let relayRes: Response | null = null;
+      if (DIRECT_RAILWAY_URL) {
+        try {
+          const directController = new AbortController();
+          const timer = setTimeout(() => directController.abort(), 8000);
+          relayRes = await globalThis.fetch(`${DIRECT_RAILWAY_URL}?candidates=true`, {
+            signal: directController.signal,
+          });
+          clearTimeout(timer);
+          if (!relayRes.ok) relayRes = null;
+        } catch {
+          relayRes = null;
+        }
+      }
+      if (!relayRes) {
+        relayRes = await globalThis.fetch('/api/ais-snapshot?candidates=true');
+      }
+      if (relayRes && relayRes.ok) {
         const relayData = await relayRes.json() as AisSnapshotResponse;
         if (relayData.candidateReports) candidateReports = relayData.candidateReports;
         if (relayData.density) relayDensity = relayData.density;

@@ -211,8 +211,18 @@ export default async function handler(request: Request): Promise<Response> {
     });
   }
 
-  const isReadRpc = request.method === 'POST' && (url.pathname.includes('/v1/list-') || url.pathname.includes('/v1/get-'));
+  const isClassifyRpc = url.pathname.includes('/v1/classify-event');
+  const isReadRpc = request.method === 'POST' && (
+    url.pathname.includes('/v1/list-') ||
+    url.pathname.includes('/v1/get-') ||
+    isClassifyRpc
+  );
   const bypassCache = request.headers.get('cache-control')?.includes('no-cache');
+
+  const cacheControlHeader = isClassifyRpc
+    ? 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800'
+    : 'public, max-age=15';
+  const edgeTtlMs = isClassifyRpc ? 300_000 : RPC_CACHE_TTL_MS;
 
   let bodyText = '';
   let cacheKey = '';
@@ -226,7 +236,7 @@ export default async function handler(request: Request): Promise<Response> {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'public, max-age=15',
+            'Cache-Control': cacheControlHeader,
             'X-Cache': 'HIT',
             ...corsHeaders,
           },
@@ -279,8 +289,8 @@ export default async function handler(request: Request): Promise<Response> {
         }
         if (rpcResponseCache.size > 200) rpcResponseCache.clear();
       }
-      rpcResponseCache.set(cacheKey, { body: resText, expiresAt: Date.now() + RPC_CACHE_TTL_MS });
-      mergedHeaders.set('Cache-Control', 'public, max-age=15');
+      rpcResponseCache.set(cacheKey, { body: resText, expiresAt: Date.now() + edgeTtlMs });
+      mergedHeaders.set('Cache-Control', cacheControlHeader);
       mergedHeaders.set('X-Cache', 'MISS');
       return new Response(resText, {
         status: response.status,
