@@ -469,6 +469,13 @@ export class PanelLayoutManager implements AppModule {
       const socialIntelPanel = new SocialMediaIntelPanel();
       this.ctx.panels['social-intel'] = socialIntelPanel;
 
+      const { ActivitySpikesPanel } = await import('@/components/ActivitySpikesPanel');
+      const activitySpikesPanel = new ActivitySpikesPanel();
+      activitySpikesPanel.setLocationClickHandler((lat: number, lon: number) => {
+        this.ctx.map?.setCenter(lat, lon, 4);
+      });
+      this.ctx.panels['activity-spikes'] = activitySpikesPanel;
+
       /*
       const ciiPanel = new CIIPanel();
       ciiPanel.setShareStoryHandler((code, name) => {
