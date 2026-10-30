@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${DOCKER_IMAGE:-ghcr.io/koala73/worldmonitor:latest}
+    image: ${DOCKER_IMAGE:-ghcr.io/c-four-international/c4dashboard:latest}
     container_name: worldmonitor
     restart: unless-stopped
     ports:

@@ -76,7 +76,7 @@ sudo mkdir -p /opt/worldmonitor
 sudo chown -R $USER:$USER /opt/worldmonitor
 cd /opt/worldmonitor
 
-git clone https://github.com/koala73/worldmonitor.git .
+git clone -b ovh-vps https://github.com/C-Four-International/C4Dashboard.git .
 
 # Copy production environment configuration template
 cp .env.production.example .env
@@ -152,7 +152,7 @@ sudo chown -R worldmonitor:worldmonitor /var/www/worldmonitor
 Clone the repository and install dependencies:
 ```bash
 cd /var/www/worldmonitor
-sudo -u worldmonitor git clone https://github.com/koala73/worldmonitor.git .
+sudo -u worldmonitor git clone -b ovh-vps https://github.com/C-Four-International/C4Dashboard.git .
 
 # Install dependencies and build production assets
 sudo -u worldmonitor npm ci
