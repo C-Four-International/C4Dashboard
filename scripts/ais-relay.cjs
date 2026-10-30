@@ -1872,7 +1872,7 @@ setInterval(() => {
 }, 60 * 1000);
 
 // CORS origin allowlist — only our domains can use this relay
-const ALLOWED_ORIGINS = [
+const DEFAULT_ALLOWED_ORIGINS = [
   'https://worldmonitor.app',
   'https://tech.worldmonitor.app',
   'https://finance.worldmonitor.app',
@@ -1880,13 +1880,30 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',   // Vite dev
   'http://localhost:5174',   // Vite dev alt port
   'http://localhost:4173',   // Vite preview
+  'http://localhost:3000',   // Standalone production server
   'https://localhost',       // Tauri desktop
   'tauri://localhost',       // Tauri iOS/macOS
 ];
 
+const CUSTOM_ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || process.env.RELAY_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+const ALLOWED_ORIGINS = [...DEFAULT_ALLOWED_ORIGINS, ...CUSTOM_ALLOWED_ORIGINS];
+
 function getCorsOrigin(req) {
   const origin = req.headers.origin || '';
+  if (!origin) return '';
+  if (CUSTOM_ALLOWED_ORIGINS.includes('*')) return origin;
   if (ALLOWED_ORIGINS.includes(origin)) return origin;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return origin;
+  if (req.headers && req.headers.host) {
+    try {
+      const parsed = new URL(origin);
+      if (parsed.host === req.headers.host) return origin;
+    } catch {}
+  }
   // Optional: allow Vercel preview deployments when explicitly enabled.
   if (ALLOW_VERCEL_PREVIEW_ORIGINS && origin.endsWith('.vercel.app')) return origin;
   return '';

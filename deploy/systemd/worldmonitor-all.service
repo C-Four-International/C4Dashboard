@@ -1,0 +1,37 @@
+[Unit]
+Description=WorldMonitor Unified Services (Web, API & Relay)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/worldmonitor
+
+EnvironmentFile=-/var/www/worldmonitor/.env
+EnvironmentFile=-/etc/worldmonitor/worldmonitor.env
+
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=RELAY_PORT=3004
+Environment=WS_RELAY_URL=http://127.0.0.1:3004
+
+ExecStart=/usr/bin/node scripts/start-all.mjs
+
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+LimitNOFILE=65536
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=worldmonitor-all
+
+[Install]
+WantedBy=multi-user.target
+

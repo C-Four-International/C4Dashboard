@@ -53,7 +53,12 @@
     "desktop:package:windows:tech:sign": "node scripts/desktop-package.mjs --os windows --variant tech --sign",
     "desktop:package": "node scripts/desktop-package.mjs",
     "relay": "node scripts/ais-relay.cjs",
-    "telegram:session": "node scripts/telegram/session-auth.mjs"
+    "telegram:session": "node scripts/telegram/session-auth.mjs",
+    "build:linux": "node scripts/build-sidecar-sebuf.mjs && tsc && vite build",
+    "build:prod": "node scripts/build-sidecar-sebuf.mjs && tsc && vite build",
+    "start": "node server/standalone.mjs",
+    "start:relay": "node scripts/ais-relay.cjs",
+    "start:all": "node scripts/start-all.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",

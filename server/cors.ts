@@ -27,13 +27,32 @@ const ALLOWED_ORIGIN_PATTERNS: RegExp[] =
     ? PRODUCTION_PATTERNS
     : [...PRODUCTION_PATTERNS, ...DEV_PATTERNS];
 
-function isAllowedOrigin(origin: string): boolean {
-  return Boolean(origin) && ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin));
+function isAllowedOrigin(origin: string, host?: string): boolean {
+  if (!origin) return false;
+  if (ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin))) return true;
+
+  // Custom origins from environment variable (e.g. self-hosted Linux VPS)
+  const envOrigins = process.env.ALLOWED_ORIGINS || process.env.VITE_ALLOWED_ORIGINS;
+  if (envOrigins) {
+    const list = envOrigins.split(',').map((s) => s.trim()).filter(Boolean);
+    if (list.includes('*') || list.includes(origin)) return true;
+  }
+
+  // Same-origin matching against Host header
+  if (host) {
+    try {
+      const parsed = new URL(origin);
+      if (parsed.host === host) return true;
+    } catch {}
+  }
+
+  return false;
 }
 
 export function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') || '';
-  const allowOrigin = isAllowedOrigin(origin) ? origin : 'https://worldmonitor.app';
+  const host = req.headers.get('host') || '';
+  const allowOrigin = isAllowedOrigin(origin, host) ? origin : 'https://worldmonitor.app';
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -46,5 +65,6 @@ export function getCorsHeaders(req: Request): Record<string, string> {
 export function isDisallowedOrigin(req: Request): boolean {
   const origin = req.headers.get('origin');
   if (!origin) return false;
-  return !isAllowedOrigin(origin);
+  const host = req.headers.get('host') || '';
+  return !isAllowedOrigin(origin, host);
 }

@@ -10,14 +10,31 @@ const ALLOWED_ORIGIN_PATTERNS = [
   /^asset:\/\/localhost$/,
 ];
 
-function isAllowedOrigin(origin) {
-  return Boolean(origin) && ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin));
+function isAllowedOrigin(origin, host) {
+  if (!origin) return false;
+  if (ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin))) {
+    return true;
+  }
+  // Allow custom origins from environment variable (e.g. for self-hosted Linux VPS)
+  const envOrigins = process.env.ALLOWED_ORIGINS || process.env.VITE_ALLOWED_ORIGINS;
+  if (envOrigins) {
+    const list = envOrigins.split(',').map((s) => s.trim()).filter(Boolean);
+    if (list.includes('*') || list.includes(origin)) return true;
+  }
+  // Check same-origin against Host header
+  if (host) {
+    try {
+      const parsed = new URL(origin);
+      if (parsed.host === host) return true;
+    } catch {}
+  }
+  return false;
 }
 
 export function getCorsHeaders(req, methods = 'GET, OPTIONS') {
-  const origin = req.headers.origin || (req.headers.get && req.headers.get('origin')) || '';
-  // Vercel serverless functions require explicit origins for authenticated CORS
-  const allowOrigin = isAllowedOrigin(origin) ? origin : 'https://worldmonitor.app';
+  const origin = req.headers?.origin || (req.headers?.get && req.headers.get('origin')) || '';
+  const host = req.headers?.host || (req.headers?.get && req.headers.get('host')) || '';
+  const allowOrigin = isAllowedOrigin(origin, host) ? origin : 'https://worldmonitor.app';
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': methods,
@@ -28,7 +45,8 @@ export function getCorsHeaders(req, methods = 'GET, OPTIONS') {
 }
 
 export function isDisallowedOrigin(req) {
-  const origin = req.headers.origin || (req.headers.get && req.headers.get('origin'));
+  const origin = req.headers?.origin || (req.headers?.get && req.headers.get('origin'));
   if (!origin) return false;
-  return !isAllowedOrigin(origin);
+  const host = req.headers?.host || (req.headers?.get && req.headers.get('host')) || '';
+  return !isAllowedOrigin(origin, host);
 }

@@ -1,0 +1,44 @@
+[Unit]
+Description=WorldMonitor Web Dashboard & API Server
+After=network.target worldmonitor-relay.service
+Wants=worldmonitor-relay.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/worldmonitor
+
+# Load production environment variables
+EnvironmentFile=-/var/www/worldmonitor/.env
+EnvironmentFile=-/etc/worldmonitor/worldmonitor.env
+
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOST=127.0.0.1
+Environment=RELAY_PORT=3004
+Environment=RELAY_HOST=127.0.0.1
+Environment=WS_RELAY_URL=http://127.0.0.1:3004
+
+ExecStart=/usr/bin/node server/standalone.mjs
+
+Restart=always
+RestartSec=5
+
+# Security Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+# Resource limits
+LimitNOFILE=65536
+
+# Standard logging to systemd journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=worldmonitor-web
+
+[Install]
+WantedBy=multi-user.target
+
