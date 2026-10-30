@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: worldmonitor:latest
+    image: ${DOCKER_IMAGE:-ghcr.io/koala73/worldmonitor:latest}
     container_name: worldmonitor
     restart: unless-stopped
     ports:
@@ -31,4 +31,3 @@ services:
           memory: 2G
         reservations:
           memory: 512M
-
