@@ -110,6 +110,7 @@ import type { HappinessData } from '@/services/happiness-data';
 import type { RenewableInstallation } from '@/services/renewable-installations';
 import type { SpeciesRecovery } from '@/services/conservation-data';
 import { getCountriesGeoJson, getCountryAtCoordinates } from '@/services/country-geometry';
+import { fetchAsisTile } from '@/services/asis-tiles';
 import type { FeatureCollection, Geometry } from 'geojson';
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
@@ -1469,12 +1470,18 @@ export class DeckGLMap {
 
     if (mapLayers.agriculturalStressDI) {
       layers.push(this.createAgriculturalStressLayer('DI_A', 'di', AGRICULTURAL_LAYER_OPACITY));
+    } else {
+      this.layerCache.delete('agricultural-stress-di-layer');
     }
     if (mapLayers.agriculturalStressASI) {
       layers.push(this.createAgriculturalStressLayer('ASI_A', 'asi', AGRICULTURAL_LAYER_OPACITY));
+    } else {
+      this.layerCache.delete('agricultural-stress-asi-layer');
     }
     if (mapLayers.agriculturalStressVCI) {
       layers.push(this.createAgriculturalStressLayer('VCI_M', 'vci', VEGETATION_LAYER_OPACITY));
+    } else {
+      this.layerCache.delete('agricultural-stress-vci-layer');
     }
 
     // Undersea cables layer
@@ -2107,26 +2114,24 @@ export class DeckGLMap {
   }
 
   private createAgriculturalStressLayer(service: string, id: string, opacity: number = AGRICULTURAL_LAYER_OPACITY): TileLayer {
-    return new TileLayer({
-      id: `agricultural-stress-${id}-layer`,
+    const cacheKey = `agricultural-stress-${id}-layer`;
+    const cached = this.layerCache.get(cacheKey) as TileLayer | undefined;
+    if (cached) return cached;
+
+    const layer = new TileLayer({
+      id: cacheKey,
       minZoom: 0,
       maxZoom: 8,
       tileSize: 256,
       opacity,
+      refinementStrategy: 'best-available',
+      maxRequests: 10,
+      maxCacheSize: 600,
+      extent: [-180, -60, 180, 85],
       getTileData: async (props: any) => {
         const { bbox } = props;
         if (!bbox) return null;
-        const url = `/api/asis?service=${service}&bbox=${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
-        try {
-          const response = await fetch(url, { signal: props.signal });
-          if (!response.ok) return null;
-          const contentType = response.headers.get('content-type') || '';
-          if (!contentType.includes('image')) return null;
-          const blob = await response.blob();
-          return typeof createImageBitmap === 'function' ? await createImageBitmap(blob) : null;
-        } catch {
-          return null;
-        }
+        return fetchAsisTile(service, bbox, props.signal);
       },
       renderSubLayers: (props: any) => {
         if (!props.data) return null;
@@ -2135,12 +2140,13 @@ export class DeckGLMap {
           data: undefined,
           image: props.data,
           bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]],
-          // Optional: If the FAO tiles have a solid white background covering the map, uncomment the line below:
-          // transparentColor: [255, 255, 255, 255]
         });
       },
       pickable: false,
     });
+
+    this.layerCache.set(cacheKey, layer);
+    return layer;
   }
 
   private createWaterTemperatureLayer(opacity: number = 0.72): TileLayer {
