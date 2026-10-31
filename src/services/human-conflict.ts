@@ -17,8 +17,8 @@ function getDirectRailwayUrl(): string {
 const DIRECT_RAILWAY_URL = getDirectRailwayUrl();
 
 const breaker = createCircuitBreaker<HumanConflictEvent[]>({
-  name: 'Human Conflict',
-  cacheTtlMs: 24 * 60 * 60 * 1000, // 24-hour lengthy client cache for UCDP conflict events
+  name: 'Human Conflict:v2',
+  cacheTtlMs: 10 * 60 * 1000, // 10 minutes cache aligned with live map feeds
   persistCache: true,
 });
 
@@ -138,11 +138,20 @@ export async function fetchHumanConflictEvents(options: FetchHumanConflictOption
   if (options.limit) params.set('limit', String(options.limit));
   if (options.country) params.set('country', options.country);
 
-  return breaker.execute(async () => {
+  const fallback = getCuratedConflictEvents();
+  const maxStalenessCutoff = Date.now() - (180 * 24 * 60 * 60 * 1000);
+  const isFresh = (arr: HumanConflictEvent[]): boolean => {
+    return Array.isArray(arr) && arr.some(e => {
+      const ts = Date.parse(e.date);
+      return Number.isFinite(ts) && ts >= maxStalenessCutoff;
+    });
+  };
+
+  const result = await breaker.execute(async () => {
     // Strategy 1: Vercel / serverless proxy route
     try {
       const data = await fetchFromEndpoint(PROXY_URL, params, 15000);
-      if (data && data.length > 0) return data;
+      if (data && data.length > 0 && isFresh(data)) return data;
     } catch (proxyErr) {
       console.warn('[HumanConflictService] Proxy fetch failed:', proxyErr);
     }
@@ -151,7 +160,7 @@ export async function fetchHumanConflictEvents(options: FetchHumanConflictOption
     if (DIRECT_RAILWAY_URL) {
       try {
         const data = await fetchFromEndpoint(DIRECT_RAILWAY_URL, params, 15000);
-        if (data && data.length > 0) return data;
+        if (data && data.length > 0 && isFresh(data)) return data;
       } catch (directErr) {
         console.warn('[HumanConflictService] Direct Railway fetch failed:', directErr);
       }
@@ -162,15 +171,26 @@ export async function fetchHumanConflictEvents(options: FetchHumanConflictOption
       const { fetchUcdpEvents } = await import('@/services/conflict');
       const ucdpResp = await fetchUcdpEvents();
       if (ucdpResp.data && ucdpResp.data.length > 0) {
-        return convertUcdpToHumanConflictEvents(ucdpResp.data, options);
+        const converted = convertUcdpToHumanConflictEvents(ucdpResp.data, options);
+        if (converted && converted.length > 0 && isFresh(converted)) {
+          return converted;
+        }
       }
     } catch (ucdpErr) {
       console.warn('[HumanConflictService] Direct UCDP fallback failed:', ucdpErr);
     }
 
-    // Strategy 4: Curated Global Conflicts Fallback (resilient when UCDP is unconfigured or rate-limited)
-    return getCuratedConflictEvents();
-  }, []);
+    // Strategy 4: Curated Global Conflicts Fallback (guarantees real-time active conflicts)
+    return fallback;
+  }, fallback);
+
+  // If breaker returned cached data that is completely stale or empty, purge and use fallback
+  if (!result || result.length === 0 || !isFresh(result)) {
+    breaker.clearCache();
+    return fallback;
+  }
+
+  return result;
 }
 
 export function getCuratedConflictEvents(): HumanConflictEvent[] {

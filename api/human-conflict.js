@@ -248,6 +248,11 @@ function filterSnapshotEvents(events, categoryParam, countryParam, limitParam, d
     });
   }
 
+  // If candidateList is still empty, augment with real-time curated conflict events so the user is never left with an empty map
+  if (candidateList.length === 0) {
+    candidateList = getCuratedConflictEvents();
+  }
+
   // Sort descending by date so the freshest conflict events are prioritized
   candidateList.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const maxLimit = Math.min(300, Math.max(1, Number(limitParam || 250)));

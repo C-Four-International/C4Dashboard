@@ -1705,7 +1705,10 @@ export class DeckGLMap {
       const ts = this.parseTime(e.date);
       return ts != null && ts >= (Date.now() - (180 * 24 * 60 * 60 * 1000));
     });
-    const humanConflictToRender = filteredHumanConflict.length > 0 ? filteredHumanConflict : activeConflicts;
+    let humanConflictToRender = filteredHumanConflict.length > 0 ? filteredHumanConflict : activeConflicts;
+    if (humanConflictToRender.length === 0 && this.humanConflictEvents.length > 0) {
+      humanConflictToRender = this.humanConflictEvents;
+    }
     if (mapLayers.humanConflict && humanConflictToRender.length > 0) {
       layers.push(this.createHumanConflictLayer(humanConflictToRender));
       layers.push(this.createGhostLayer('human-conflict-layer', humanConflictToRender, d => [Number(d.lon), Number(d.lat)], { radiusMinPixels: 14 }));
@@ -6083,6 +6086,11 @@ export class DeckGLMap {
       radiusMinPixels: 5,
       radiusMaxPixels: 24,
       pickable: true,
+      updateTriggers: {
+        getPosition: [events.length],
+        getFillColor: [events.length],
+        getRadius: [events.length],
+      },
     });
   }
 
@@ -6373,6 +6381,7 @@ export class DeckGLMap {
 
   public setHumanConflictEvents(events: HumanConflictEvent[]): void {
     this.humanConflictEvents = events;
+    this.timeFilterCache.clear();
     this.render();
   }
 

@@ -63,7 +63,7 @@ import { fetchClimateAnomalies } from '@/services/climate';
 import { fetchRadiationData, getInstantRadiationStations } from '@/services/radiation';
 import { getInstantNaturalEvents } from '@/services/eonet';
 import { enrichEventsWithExposure } from '@/services/population-exposure';
-import { fetchHumanConflictEvents } from '@/services/human-conflict';
+import { fetchHumanConflictEvents, getCuratedConflictEvents } from '@/services/human-conflict';
 import { debounce } from '@/utils';
 import { getAiFlowSettings } from '@/services/ai-flow-settings';
 import { isDesktopRuntime } from '@/services/runtime';
@@ -1314,19 +1314,24 @@ export class DataLoaderManager implements AppModule {
 
     try {
       const events = await fetchHumanConflictEvents({ limit: 250, days: 14 });
-      this.ctx.intelligenceCache.humanConflict = events;
-      this.ctx.map?.setHumanConflictEvents(events);
-      this.ctx.map?.setLayerReady('humanConflict', events.length > 0);
+      const finalEvents = (events && events.length > 0) ? events : getCuratedConflictEvents();
+      this.ctx.intelligenceCache.humanConflict = finalEvents;
+      this.ctx.map?.setHumanConflictEvents(finalEvents);
+      this.ctx.map?.setLayerReady('humanConflict', finalEvents.length > 0);
       this.ctx.statusPanel?.updateFeed('Human Conflict', {
-        status: events.length > 0 ? 'ok' : 'warning',
-        itemCount: events.length,
+        status: finalEvents.length > 0 ? 'ok' : 'warning',
+        itemCount: finalEvents.length,
       });
-      if (events.length > 0) {
-        dataFreshness.recordUpdate('gdelt_conflict', events.length);
+      if (finalEvents.length > 0) {
+        dataFreshness.recordUpdate('gdelt_conflict', finalEvents.length);
       }
     } catch (error) {
-      this.ctx.map?.setLayerReady('humanConflict', false);
-      this.ctx.statusPanel?.updateFeed('Human Conflict', { status: 'error', errorMessage: String(error) });
+      console.warn('[DataLoader] fetchHumanConflictEvents error, falling back to curated events:', error);
+      const fallbackEvents = getCuratedConflictEvents();
+      this.ctx.intelligenceCache.humanConflict = fallbackEvents;
+      this.ctx.map?.setHumanConflictEvents(fallbackEvents);
+      this.ctx.map?.setLayerReady('humanConflict', fallbackEvents.length > 0);
+      this.ctx.statusPanel?.updateFeed('Human Conflict', { status: 'warning', itemCount: fallbackEvents.length });
       dataFreshness.recordError('gdelt_conflict', String(error));
     }
   }
