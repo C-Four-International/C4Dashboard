@@ -3819,6 +3819,10 @@ export class MapComponent {
     }
   }
 
+  public setHumanConflictEvents(_events: import('@/types').HumanConflictEvent[]): void {
+    // SVG/mobile fallback intentionally does not render this layer to stay lightweight.
+  }
+
   public setCyberThreats(_threats: CyberThreat[]): void {
     // SVG/mobile fallback intentionally does not render this layer to stay lightweight.
   }

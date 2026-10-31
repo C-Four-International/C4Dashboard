@@ -223,6 +223,8 @@ function filterSnapshotEvents(events, categoryParam, countryParam, limitParam) {
     const countryLower = countryParam.toLowerCase();
     list = list.filter(e => (e.country || '').toLowerCase() === countryLower);
   }
+  // Sort descending by date so the freshest conflict events are prioritized
+  list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const maxLimit = Math.min(300, Math.max(1, Number(limitParam || 250)));
   return list.slice(0, maxLimit);
 }
@@ -267,7 +269,7 @@ async function fetchUcdpCanonicalSnapshot(timeoutMs = 15000) {
     throw new Error('UCDP GED API discovery failed or returned non-200');
   }
 
-  const totalPages = Math.max(1, Number(page0Data.TotalPages) || 1);
+  const totalPages = Math.max(1, Number(page0Data.TotalPages ?? page0Data.total_pages ?? page0Data.Totalpages) || 1);
   const newestPage = totalPages - 1;
   const maxPages = 4;
   const pagesToFetch = [];
@@ -295,7 +297,21 @@ async function fetchUcdpCanonicalSnapshot(timeoutMs = 15000) {
     }
   }
 
-  return convertUcdpToHumanConflictEvents(events);
+  const ucdpEvents = convertUcdpToHumanConflictEvents(events);
+  const curated = getCuratedConflictEvents();
+
+  // Combine curated real-time active conflicts with UCDP dataset
+  const seenIds = new Set(curated.map(e => e.id));
+  const merged = [...curated];
+  for (const ev of ucdpEvents) {
+    if (!seenIds.has(ev.id)) {
+      seenIds.add(ev.id);
+      merged.push(ev);
+    }
+  }
+
+  merged.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return merged;
 }
 
 export default async function handler(req) {

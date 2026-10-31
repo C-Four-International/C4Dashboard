@@ -1,4 +1,4 @@
-import type { ConflictZone, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, NuclearFacility, EconomicCenter, GammaIrradiator, Pipeline, UnderseaCable, CableAdvisory, RepairShip, InternetOutage, AIDataCenter, AisDisruptionEvent, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, Port, Spaceport, CriticalMineralProject, CyberThreat, BgpAnomaly, AQIStation, AQIClusterData } from '@/types';
+import type { ConflictZone, HumanConflictEvent, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, NuclearFacility, EconomicCenter, GammaIrradiator, Pipeline, UnderseaCable, CableAdvisory, RepairShip, InternetOutage, AIDataCenter, AisDisruptionEvent, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, Port, Spaceport, CriticalMineralProject, CyberThreat, BgpAnomaly, AQIStation, AQIClusterData } from '@/types';
 import type { RadiationStation } from '@/services/radiation';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { FaaNotam } from '@/services/notams';
@@ -17,7 +17,7 @@ import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot
 import { getCableHealthRecord } from '@/services/cable-health';
 import { getAqiCategory, getStationParticulates } from '@/services/aqi';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'radiation' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'notam' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'climate' | 'aqiCluster' | 'aqiStation';
+export type PopupType = 'conflict' | 'humanConflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'radiation' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'notam' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'climate' | 'aqiCluster' | 'aqiStation';
 
 interface TechEventPopupData {
   id: string;
@@ -351,6 +351,8 @@ export class MapPopup {
     switch (data.type) {
       case 'conflict':
         return this.renderConflictPopup(data.data as ConflictZone);
+      case 'humanConflict':
+        return this.renderHumanConflictPopup(data.data as unknown as HumanConflictEvent);
       case 'hotspot':
         return this.renderHotspotPopup(data.data as Hotspot, data.relatedNews);
       case 'earthquake':
@@ -491,6 +493,68 @@ export class MapPopup {
             <ul class="popup-list">
               ${conflict.keyDevelopments.map(d => `<li>${escapeHtml(d)}</li>`).join('')}
             </ul>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  private renderHumanConflictPopup(event: HumanConflictEvent): string {
+    const catLabels: Record<string, string> = {
+      battles: 'Battle / Armed Clash',
+      riots: 'Riot / Violent Demonstration',
+      protests: 'Protest / Demonstration',
+      strategic_developments: 'Strategic Development',
+    };
+    const catIcons: Record<string, string> = {
+      battles: '⚔️',
+      riots: '🔥',
+      protests: '📢',
+      strategic_developments: '♟️',
+    };
+    const icon = catIcons[event.category] || '💥';
+    const label = catLabels[event.category] || event.category;
+    const severityClass = (event.fatalities || 0) >= 20 ? 'high' : (event.fatalities || 0) >= 5 ? 'medium' : 'low';
+    const fatalitiesStr = event.fatalities !== undefined && event.fatalities >= 0
+      ? String(event.fatalities)
+      : t('popups.unknown');
+
+    const locParts = [event.location, event.country].filter(Boolean);
+    const locText = locParts.length > 0 ? Array.from(new Set(locParts)).join(', ') : `${event.lat.toFixed(2)}°N, ${event.lon.toFixed(2)}°E`;
+
+    return `
+      <div class="popup-header conflict">
+        <span class="popup-title">${icon} ${escapeHtml(label.toUpperCase())}</span>
+        <span class="popup-badge ${severityClass}">SIG ${event.significance || 1}/10</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; line-height: 1.3;">${escapeHtml(event.title)}</h4>
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">${t('popups.startDate') || 'Date'}</span>
+            <span class="stat-value">${escapeHtml(event.date || t('popups.unknown'))}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">${t('popups.casualties') || 'Fatalities'}</span>
+            <span class="stat-value" style="color: #ef4444; font-weight: 700;">${escapeHtml(fatalitiesStr)}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">${t('popups.location')}</span>
+            <span class="stat-value">${escapeHtml(locText)}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Source</span>
+            <span class="stat-value">${escapeHtml((event.source || 'UCDP').toUpperCase())}</span>
+          </div>
+        </div>
+        ${event.notes ? `<p class="popup-description">${escapeHtml(event.notes)}</p>` : ''}
+        ${event.actors && event.actors.length > 0 ? `
+          <div class="popup-section">
+            <span class="section-label">${t('popups.belligerents')}</span>
+            <div class="popup-tags">
+              ${event.actors.map(a => `<span class="popup-tag">${escapeHtml(a)}</span>`).join('')}
+            </div>
           </div>
         ` : ''}
       </div>

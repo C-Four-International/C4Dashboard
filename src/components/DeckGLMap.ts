@@ -1686,14 +1686,16 @@ export class DeckGLMap {
     }
 
     // UCDP georeferenced events layer
-    if (mapLayers.ucdpEvents && filteredUcdpEvents.length > 0) {
-      layers.push(this.createUcdpEventsLayer(filteredUcdpEvents));
+    const ucdpEventsToRender = filteredUcdpEvents.length > 0 ? filteredUcdpEvents : this.ucdpEvents;
+    if (mapLayers.ucdpEvents && ucdpEventsToRender.length > 0) {
+      layers.push(this.createUcdpEventsLayer(ucdpEventsToRender));
     }
 
     // Human Conflict layer (UCDP API)
-    if (mapLayers.humanConflict && filteredHumanConflict.length > 0) {
-      layers.push(this.createHumanConflictLayer(filteredHumanConflict));
-      layers.push(this.createGhostLayer('human-conflict-layer', filteredHumanConflict, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
+    const humanConflictToRender = filteredHumanConflict.length > 0 ? filteredHumanConflict : this.humanConflictEvents;
+    if (mapLayers.humanConflict && humanConflictToRender.length > 0) {
+      layers.push(this.createHumanConflictLayer(humanConflictToRender));
+      layers.push(this.createGhostLayer('human-conflict-layer', humanConflictToRender, d => [Number(d.lon), Number(d.lat)], { radiusMinPixels: 14 }));
     }
 
     // Displacement flows arc layer
@@ -4604,6 +4606,7 @@ export class DeckGLMap {
       'cable-advisories-layer': 'cable-advisory',
       'repair-ships-layer': 'repair-ship',
       'climate-points-layer': 'climate',
+      'human-conflict-layer': 'humanConflict',
     };
 
     const popupType = layerToPopupType[layerId];
@@ -6046,7 +6049,7 @@ export class DeckGLMap {
     return new ScatterplotLayer<HumanConflictEvent>({
       id: 'human-conflict-layer',
       data: events,
-      getPosition: (d) => [d.lon, d.lat],
+      getPosition: (d) => [Number(d.lon), Number(d.lat)],
       getRadius: (d) => {
         const base = 8000;
         const fatBonus = Math.min(35000, Math.sqrt(Math.max(0, d.fatalities || 0)) * 5000);

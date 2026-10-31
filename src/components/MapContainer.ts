@@ -369,6 +369,8 @@ export class MapContainer {
   public setHumanConflictEvents(events: HumanConflictEvent[]): void {
     if (this.useDeckGL) {
       this.deckGLMap?.setHumanConflictEvents(events);
+    } else {
+      this.svgMap?.setHumanConflictEvents(events);
     }
   }
 
