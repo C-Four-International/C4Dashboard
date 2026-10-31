@@ -46,7 +46,7 @@ export const THEATERS = {
     jammingProbe: { lat: 33.5, lon: 34.5, dist: 250 },
     lat: 34.0,
     lon: 33.5,
-    color: '#38bdf8',
+    color: '#0284c7',
   },
   'iran-centcom': {
     id: 'iran-centcom',
@@ -57,7 +57,7 @@ export const THEATERS = {
     jammingProbe: { lat: 27.5, lon: 51.5, dist: 250 },
     lat: 27.5,
     lon: 51.0,
-    color: '#f59e0b',
+    color: '#d97706',
   },
   'black-sea': {
     id: 'black-sea',
@@ -68,7 +68,7 @@ export const THEATERS = {
     jammingProbe: { lat: 46.5, lon: 32.5, dist: 250 },
     lat: 44.5,
     lon: 33.5,
-    color: '#a855f7',
+    color: '#7c3aed',
   },
   'taiwan-scs': {
     id: 'taiwan-scs',
@@ -79,7 +79,7 @@ export const THEATERS = {
     jammingProbe: { lat: 24.0, lon: 120.0, dist: 250 },
     lat: 23.5,
     lon: 119.5,
-    color: '#22c55e',
+    color: '#16a34a',
   },
 };
 
@@ -538,10 +538,10 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
       const isCrit = s === 3;
       const isElev = s === 2;
       const stroke = isCrit
-        ? 'rgba(239, 68, 68, 0.55)'
+        ? 'rgba(220, 38, 38, 0.5)'
         : isElev
-          ? 'rgba(245, 158, 11, 0.45)'
-          : 'rgba(148, 163, 184, 0.14)';
+          ? 'rgba(217, 119, 6, 0.5)'
+          : 'rgba(100, 116, 139, 0.18)';
       const dash = isCrit || isElev ? 'stroke-dasharray="4,3"' : '';
       const labelColor = isCrit ? '#f87171' : isElev ? '#fbbf24' : '#64748b';
       return `
@@ -557,14 +557,14 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
   const spikeBandsSvg = relevantEvents
     .map((ev) => {
       const cx = xAt(ev.dayIndex);
-      const bandColor = ev.severity === 'critical' ? 'rgba(239, 68, 68, 0.13)' : 'rgba(245, 158, 11, 0.12)';
+      const bandColor = ev.severity === 'critical' ? 'rgba(220, 38, 38, 0.08)' : 'rgba(217, 119, 6, 0.08)';
       const lineColor = ev.severity === 'critical' ? '#ef4444' : '#f59e0b';
       const pillW = 90;
       const pillX = Math.min(W - padR - pillW, Math.max(padL + 2, cx - pillW / 2));
       return `
         <rect x="${(cx - 8).toFixed(1)}" y="${topPlotY}" width="16" height="${topPlotH + botPlotH + 36}" fill="${bandColor}" />
         <line x1="${cx.toFixed(1)}" y1="${topPlotY}" x2="${cx.toFixed(1)}" y2="${botPlotY + botPlotH}" stroke="${lineColor}" stroke-width="1" stroke-dasharray="2,2" opacity="0.8" />
-        <rect x="${pillX.toFixed(1)}" y="${topPlotY + 3}" width="${pillW}" height="14" rx="3" fill="rgba(15, 23, 42, 0.92)" stroke="${lineColor}" stroke-width="0.8" />
+        <rect x="${pillX.toFixed(1)}" y="${topPlotY + 3}" width="${pillW}" height="14" rx="3" fill="#ffffff" stroke="${lineColor}" stroke-width="0.8" />
         <text x="${(pillX + pillW / 2).toFixed(1)}" y="${topPlotY + 12.5}" text-anchor="middle" fill="${lineColor}" font-size="8.5" font-weight="700" font-family="monospace">${escapeXml(ev.theaterId.toUpperCase())} +${ev.zScore.toFixed(1)}σ</text>
       `;
     })
@@ -580,7 +580,7 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
         const cfg = THEATERS[tid];
         const vals = bucketsByTheater[tid].map((b) => b.composite_z);
         return `
-          <path d="${buildAreaPath(vals)}" fill="${cfg.color}" opacity="0.07" />
+          <path d="${buildAreaPath(vals)}" fill="${cfg.color}" opacity="0.12" />
           <polyline fill="none" stroke="${cfg.color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" points="${buildPolyline(vals)}" />
         `;
       })
@@ -597,7 +597,7 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
         (item, idx) => `
         <g transform="translate(${padL + idx * 132}, 30)">
           <line x1="0" y1="-3" x2="12" y2="-3" stroke="${item.color}" stroke-width="2.4" />
-          <text x="16" y="0" fill="#cbd5e1" font-size="9.5" font-family="monospace" font-weight="600">${item.label}</text>
+          <text x="16" y="0" fill="#334155" font-size="9.5" font-family="monospace" font-weight="600">${item.label}</text>
         </g>
       `
       )
@@ -605,16 +605,16 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
   } else {
     const buckets = bucketsByTheater[theater];
     const layerDefs = [
-      { name: 'TANKER / AWACS (LEAD)', color: '#38bdf8', data: buckets.map((b) => b.z_tanker_awacs) },
-      { name: 'ISR / RECON', color: '#a855f7', data: buckets.map((b) => b.z_isr_recon) },
-      { name: 'GNSS JAMMING', color: '#f59e0b', data: buckets.map((b) => b.z_gnss_jamming) },
-      { name: 'FIRMS THERMAL', color: '#ef4444', data: buckets.map((b) => b.z_thermal) },
+      { name: 'TANKER / AWACS (LEAD)', color: '#0284c7', data: buckets.map((b) => b.z_tanker_awacs) },
+      { name: 'ISR / RECON', color: '#7c3aed', data: buckets.map((b) => b.z_isr_recon) },
+      { name: 'GNSS JAMMING', color: '#d97706', data: buckets.map((b) => b.z_gnss_jamming) },
+      { name: 'FIRMS THERMAL', color: '#dc2626', data: buckets.map((b) => b.z_thermal) },
     ];
 
     topLinesSvg = layerDefs
       .map(
         (l) => `
-        <path d="${buildAreaPath(l.data)}" fill="${l.color}" opacity="0.06" />
+        <path d="${buildAreaPath(l.data)}" fill="${l.color}" opacity="0.1" />
         <polyline fill="none" stroke="${l.color}" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round" points="${buildPolyline(l.data)}" />
       `
       )
@@ -625,7 +625,7 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
         (item, idx) => `
         <g transform="translate(${padL + idx * 165}, 30)">
           <line x1="0" y1="-3" x2="12" y2="-3" stroke="${item.color}" stroke-width="2.4" />
-          <text x="16" y="0" fill="#cbd5e1" font-size="9" font-family="monospace" font-weight="600">${item.name}</text>
+          <text x="16" y="0" fill="#334155" font-size="9" font-family="monospace" font-weight="600">${item.name}</text>
         </g>
       `
       )
@@ -680,10 +680,10 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
     const x = xAt(i) - barW / 2;
     const yBase = botPlotY + botPlotH;
     return `
-      <rect x="${x.toFixed(1)}" y="${(yBase - hTanker).toFixed(1)}" width="${barW.toFixed(1)}" height="${hTanker.toFixed(1)}" fill="#38bdf8" opacity="0.85" />
-      <rect x="${x.toFixed(1)}" y="${(yBase - hTanker - hIsr).toFixed(1)}" width="${barW.toFixed(1)}" height="${hIsr.toFixed(1)}" fill="#a855f7" opacity="0.85" />
-      <rect x="${x.toFixed(1)}" y="${(yBase - hTanker - hIsr - hJam).toFixed(1)}" width="${barW.toFixed(1)}" height="${hJam.toFixed(1)}" fill="#f59e0b" opacity="0.85" />
-      <rect x="${x.toFixed(1)}" y="${(yBase - hTanker - hIsr - hJam - hTherm).toFixed(1)}" width="${barW.toFixed(1)}" height="${hTherm.toFixed(1)}" fill="#ef4444" opacity="0.9" />
+      <rect x="${x.toFixed(1)}" y="${(yBase - hTanker).toFixed(1)}" width="${barW.toFixed(1)}" height="${hTanker.toFixed(1)}" fill="#0284c7" opacity="0.85" />
+      <rect x="${x.toFixed(1)}" y="${(yBase - hTanker - hIsr).toFixed(1)}" width="${barW.toFixed(1)}" height="${hIsr.toFixed(1)}" fill="#7c3aed" opacity="0.85" />
+      <rect x="${x.toFixed(1)}" y="${(yBase - hTanker - hIsr - hJam).toFixed(1)}" width="${barW.toFixed(1)}" height="${hJam.toFixed(1)}" fill="#d97706" opacity="0.85" />
+      <rect x="${x.toFixed(1)}" y="${(yBase - hTanker - hIsr - hJam - hTherm).toFixed(1)}" width="${barW.toFixed(1)}" height="${hTherm.toFixed(1)}" fill="#dc2626" opacity="0.9" />
     `;
   }).join('');
 
@@ -700,8 +700,8 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
     .map((tk) => {
       const x = xAt(tk.idx).toFixed(1);
       return `
-        <line x1="${x}" y1="${botPlotY + botPlotH}" x2="${x}" y2="${botPlotY + botPlotH + 4}" stroke="#475569" stroke-width="1" />
-        <text x="${x}" y="${botPlotY + botPlotH + 15}" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-family="monospace">${tk.label}</text>
+        <line x1="${x}" y1="${botPlotY + botPlotH}" x2="${x}" y2="${botPlotY + botPlotH + 4}" stroke="#cbd5e1" stroke-width="1" />
+        <text x="${x}" y="${botPlotY + botPlotH + 15}" text-anchor="middle" fill="#64748b" font-size="9.5" font-family="monospace">${tk.label}</text>
       `;
     })
     .join('');
@@ -714,21 +714,21 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
   const timestampStr = new Date().toISOString().slice(0, 16).replace('T', ' ') + 'Z';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" height="100%">
-  <rect width="${W}" height="${H}" fill="#090d16" rx="4" />
-  <rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" fill="none" stroke="rgba(148, 163, 184, 0.16)" rx="4" />
-  <text x="${padL}" y="16" fill="#f8fafc" font-size="10.5" font-weight="700" font-family="monospace" letter-spacing="0.4">${escapeXml(titleText)}</text>
+  <rect width="${W}" height="${H}" fill="#ffffff" rx="4" />
+  <rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" fill="none" stroke="#e2e8f0" rx="4" />
+  <text x="${padL}" y="16" fill="#0f172a" font-size="10.5" font-weight="700" font-family="monospace" letter-spacing="0.4">${escapeXml(titleText)}</text>
   <text x="${W - padR}" y="16" text-anchor="end" fill="#64748b" font-size="9" font-family="monospace">OVH SQLITE 30D • ${timestampStr}</text>
   ${legendItemsSvg}
   <g transform="translate(${W - padR - 145}, 30)">
-    <line x1="0" y1="-3" x2="10" y2="-3" stroke="#ef4444" stroke-width="1.2" stroke-dasharray="3,2" />
-    <text x="14" y="0" fill="#f87171" font-size="8.5" font-family="monospace">CRIT (+3σ) / ELEV (+2σ)</text>
+    <line x1="0" y1="-3" x2="10" y2="-3" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="3,2" />
+    <text x="14" y="0" fill="#dc2626" font-size="8.5" font-family="monospace">CRIT (+3σ) / ELEV (+2σ)</text>
   </g>
-  <rect x="${padL}" y="${topPlotY}" width="${plotW}" height="${topPlotH}" fill="rgba(15, 23, 42, 0.55)" stroke="rgba(148, 163, 184, 0.12)" />
+  <rect x="${padL}" y="${topPlotY}" width="${plotW}" height="${topPlotH}" fill="#f8fafc" stroke="#cbd5e1" />
   ${gridLinesSvg}
   ${spikeBandsSvg}
   ${topLinesSvg}
-  <text x="${padL}" y="${botPlotY - 7}" fill="#94a3b8" font-size="9" font-weight="700" font-family="monospace" letter-spacing="0.3">SIGNAL COMPOSITION STACK (TANKER/AWACS • ISR • GNSS JAMMING • FIRMS THERMAL)</text>
-  <rect x="${padL}" y="${botPlotY}" width="${plotW}" height="${botPlotH}" fill="rgba(15, 23, 42, 0.55)" stroke="rgba(148, 163, 184, 0.12)" />
+  <text x="${padL}" y="${botPlotY - 7}" fill="#64748b" font-size="9" font-weight="700" font-family="monospace" letter-spacing="0.3">SIGNAL COMPOSITION STACK (TANKER/AWACS • ISR • GNSS JAMMING • FIRMS THERMAL)</text>
+  <rect x="${padL}" y="${botPlotY}" width="${plotW}" height="${botPlotH}" fill="#f8fafc" stroke="#cbd5e1" />
   ${barsSvg}
   ${xAxisLabelsSvg}
 </svg>`;
