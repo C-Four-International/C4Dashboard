@@ -234,9 +234,10 @@ sudo systemctl reload nginx
 
 ---
 
-### Step 3: Obtain Let's Encrypt SSL Certificate
+### Step 3: Obtain Let's Encrypt SSL Certificate (Apex & www)
 ```bash
-sudo certbot --nginx -d your-domain.com
+# Obtain/expand certificate covering BOTH root and www subdomain
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com --expand
 ```
 
 Certbot automatically configures automatic certificate renewal via a systemd timer on Debian 12:
