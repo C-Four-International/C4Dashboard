@@ -134,3 +134,4 @@ export function clearAsisTileCache(): void {
     caches.delete(CACHE_NAME).catch(() => {});
   }
 }
+
