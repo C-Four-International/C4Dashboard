@@ -1,8 +1,8 @@
 import './styles/base-layer.css';
 import './styles/happy-theme.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { inject } from '@vercel/analytics';
-import { injectSpeedInsights } from '@vercel/speed-insights';
+// Vercel analytics loaded lazily only on vercel.app hosts
+
 import { App } from './App';
 
 // ─── Sentry Lazy-Load ────────────────────────────────────────────────────────
@@ -208,8 +208,11 @@ const chunkReloadStorageKey = installChunkReloadGuard(__APP_VERSION__);
 
 // Tracking Initialization Logic
 function initializeTracking() {
-  inject();
-  injectSpeedInsights();
+  if (location.hostname.includes('vercel.app')) {
+    void import('@vercel/analytics').then(({ inject }) => inject()).catch(() => {});
+    void import('@vercel/speed-insights').then(({ injectSpeedInsights }) => injectSpeedInsights()).catch(() => {});
+  }
+
   void initAnalytics().then(() => {
     // Only track snapshot if secrets are loaded/available. If desktop secrets load later, 
     // we may miss it, but this is the safest ordering.

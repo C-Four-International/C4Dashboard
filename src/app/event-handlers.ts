@@ -4,12 +4,16 @@ import type { MapView } from '@/components';
 import type { ClusteredEvent } from '@/types';
 import type { DashboardSnapshot } from '@/services/storage';
 import {
-  PlaybackControl,
-  StatusPanel,
-  PizzIntIndicator,
-  CIIPanel,
-  PredictionPanel,
-} from '@/components';
+  PlaybackControl } from '@/components/PlaybackControl';
+import { StatusPanel } from '@/components/StatusPanel';
+import { PizzIntIndicator } from '@/components/PizzIntIndicator';
+import type { CIIPanel } from '@/components/CIIPanel';
+import type { PredictionPanel } from '@/components/PredictionPanel';
+
+
+
+
+
 import {
   buildMapUrl,
   debounce,
@@ -54,6 +58,7 @@ export interface EventHandlerCallbacks {
   loadDataForLayer: (layer: string) => void;
   waitForAisData: () => void;
   syncDataFreshnessWithLayers: () => void;
+  ensurePanel?: (key: string) => Promise<void>;
 }
 
 export class EventHandlerManager implements AppModule {
@@ -546,7 +551,7 @@ export class EventHandlerManager implements AppModule {
       liquidity: 0,
     }));
     this.ctx.latestPredictions = predictions;
-    (this.ctx.panels['polymarket'] as PredictionPanel).renderPredictions(predictions);
+    (this.ctx.panels['polymarket'] as PredictionPanel | undefined)?.renderPredictions(predictions);
 
     this.ctx.map?.setHotspotLevels(snapshot.hotspotLevels);
   }
@@ -703,7 +708,11 @@ export class EventHandlerManager implements AppModule {
         return;
       }
       const panel = this.ctx.panels[key];
-      panel?.toggle(config.enabled);
+      if (panel) {
+        panel.toggle(config.enabled);
+      } else if (config.enabled) {
+        void this.callbacks.ensurePanel?.(key);
+      }
     });
   }
 }

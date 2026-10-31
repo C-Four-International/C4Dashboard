@@ -284,6 +284,8 @@ export class LiveWebcamsPanel extends Panel {
   private allFallbacksFailed: Set<string> = new Set();
   private allFallbacksRetryTimeout: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private healthCheckTokens: Map<string, number> = new Map();
+  private isReadyToMount = false;
+  private initialMountTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     super({ id: 'live-webcams', title: t('panels.liveWebcams') });
@@ -294,6 +296,20 @@ export class LiveWebcamsPanel extends Panel {
     this.setupMessageListener();
     subscribeStreamQualityChange(() => this.render());
     this.render();
+    this.initialMountTimer = setTimeout(() => {
+      const mountWhenIdle = () => {
+        if (this.isReadyToMount) return;
+        this.isReadyToMount = true;
+        if (this.isVisible && !this.isIdle && !document.hidden) {
+          this.render();
+        }
+      };
+      if ('requestIdleCallback' in window) {
+        (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => void }).requestIdleCallback(mountWhenIdle, { timeout: 2000 });
+      } else {
+        mountWhenIdle();
+      }
+    }, 2000);
   }
 
   private get filteredFeeds(): WebcamFeed[] {
@@ -919,6 +935,11 @@ export class LiveWebcamsPanel extends Panel {
       return;
     }
 
+    if (!this.isReadyToMount) {
+      this.content.innerHTML = '<div class="webcam-placeholder">Initializing webcams…</div>';
+      return;
+    }
+
     if (this.viewMode === 'grid') {
       this.renderGrid();
     } else {
@@ -1112,6 +1133,10 @@ export class LiveWebcamsPanel extends Panel {
 
   public destroy(): void {
     this.healthCheckTokens.clear();
+    if (this.initialMountTimer) {
+      clearTimeout(this.initialMountTimer);
+      this.initialMountTimer = null;
+    }
     if (this.idleTimeout) {
       clearTimeout(this.idleTimeout);
       this.idleTimeout = null;

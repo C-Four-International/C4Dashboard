@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
-import { brotliCompress, gzipSync } from 'node:zlib';
+import { brotliCompress, constants as zlibConstants, gzipSync } from 'node:zlib';
 
 const brotliCompressAsync = promisify(brotliCompress);
 
@@ -250,7 +250,9 @@ async function maybeCompress(body, headers, acceptEncoding = '') {
 
   if (acceptEncoding.includes('br')) {
     headers['Content-Encoding'] = 'br';
-    return await brotliCompressAsync(body);
+    return await brotliCompressAsync(body, {
+      params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 4 },
+    });
   }
   if (acceptEncoding.includes('gzip')) {
     headers['Content-Encoding'] = 'gzip';
@@ -357,7 +359,6 @@ async function serveStaticFile(req, res, filePath, urlPath) {
       return true;
     }
 
-    let fileBuffer = await fs.promises.readFile(filePath);
     const headers = {
       'Content-Type': contentType,
       'Cache-Control': cacheControl,
@@ -369,7 +370,20 @@ async function serveStaticFile(req, res, filePath, urlPath) {
     }
 
     const acceptEncoding = req.headers['accept-encoding'] || '';
-    fileBuffer = await maybeCompress(fileBuffer, headers, acceptEncoding);
+    let fileBuffer;
+    if (acceptEncoding.includes('br')) {
+      try {
+        fileBuffer = await fs.promises.readFile(`${filePath}.br`);
+        headers['Content-Encoding'] = 'br';
+        headers['Vary'] = 'Accept-Encoding';
+      } catch {
+        // No pre-compressed .br file on disk; fall back to raw + dynamic compression
+      }
+    }
+    if (!fileBuffer) {
+      fileBuffer = await fs.promises.readFile(filePath);
+      fileBuffer = await maybeCompress(fileBuffer, headers, acceptEncoding);
+    }
     headers['Content-Length'] = Buffer.byteLength(fileBuffer);
 
     res.writeHead(200, headers);

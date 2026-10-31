@@ -414,7 +414,7 @@ export class NewsPanel extends Panel {
     this.deviationEl.title = `z-score: ${zScore} (vs 7-day avg)`;
   }
 
-  public renderNews(items: NewsItem[]): void {
+  public renderNews(items: NewsItem[], options?: { skipCluster?: boolean }): void {
     if (items.length === 0) {
       this.renderRequestId += 1; // Cancel in-flight clustering from previous renders.
       this.setDataBadge('unavailable');
@@ -428,7 +428,7 @@ export class NewsPanel extends Panel {
     // then upgrade to clustered view in the background when ready.
     this.renderFlat(items);
 
-    if (this.clusteredMode) {
+    if (this.clusteredMode && !options?.skipCluster) {
       void this.renderClustersAsync(items);
     }
   }

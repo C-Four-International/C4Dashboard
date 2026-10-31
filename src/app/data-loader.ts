@@ -73,22 +73,22 @@ import { classifyWithAI } from '@/services/threat-classifier';
 import { ingestHeadlines } from '@/services/trending-keywords';
 import { ResearchServiceClient } from '@/generated/client/worldmonitor/research/v1/service_client';
 import {
-  MonitorPanel,
-  InsightsPanel,
-  CIIPanel,
-  StrategicPosturePanel,
-  TechReadinessPanel,
+  type MonitorPanel,
+  type InsightsPanel,
+  type CIIPanel,
+  type StrategicPosturePanel,
+  type TechReadinessPanel,
   // UcdpEventsPanel,
-  DisplacementPanel,
-  ClimateAnomalyPanel,
-  PopulationExposurePanel,
-  TradePolicyPanel,
-  SupplyChainPanel,
+  type DisplacementPanel,
+  type ClimateAnomalyPanel,
+  type PopulationExposurePanel,
+  type TradePolicyPanel,
+  type SupplyChainPanel,
 } from '@/components';
-import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
+import type { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { classifyNewsItem } from '@/services/positive-classifier';
 import { fetchGivingSummary } from '@/services/giving';
-import { GivingPanel } from '@/components';
+import type { GivingPanel } from '@/components/GivingPanel';
 import { fetchProgressData } from '@/services/progress-data';
 import { fetchConservationWins } from '@/services/conservation-data';
 import { fetchRenewableEnergyData, fetchEnergyCapacity } from '@/services/renewable-energy-data';
@@ -332,10 +332,12 @@ export class DataLoaderManager implements AppModule {
       });
     }
 
-    // Global giving activity data (all variants)
+    // Global giving activity data (only when panel is enabled)
     tasks.push({
+
+
       name: 'giving',
-      task: runGuarded('giving', async () => {
+      task: !this.ctx.panelSettings['giving']?.enabled ? Promise.resolve() : runGuarded('giving', async () => {
         const givingResult = await fetchGivingSummary();
         if (!givingResult.ok) {
           dataFreshness.recordError('giving', 'Giving data unavailable (retaining prior state)');
@@ -553,7 +555,7 @@ export class DataLoaderManager implements AppModule {
     return labels[range];
   }
 
-  renderNewsForCategory(category: string, items: NewsItem[]): void {
+  renderNewsForCategory(category: string, items: NewsItem[], options?: { skipCluster?: boolean }): void {
     this.ctx.newsByCategory[category] = items;
     const panel = this.ctx.newsPanels[category];
     if (!panel) return;
@@ -562,7 +564,7 @@ export class DataLoaderManager implements AppModule {
       panel.renderFilteredEmpty(`No items in ${this.getTimeRangeLabel()}`);
       return;
     }
-    panel.renderNews(filteredItems);
+    panel.renderNews(filteredItems, options);
   }
 
   applyTimeRangeFilterToNewsPanels(): void {
@@ -640,7 +642,7 @@ export class DataLoaderManager implements AppModule {
 
       const flushPendingRender = () => {
         if (!pendingItems) return;
-        this.renderNewsForCategory(category, pendingItems);
+        this.renderNewsForCategory(category, pendingItems, { skipCluster: true });
         pendingItems = null;
         lastRenderTime = Date.now();
       };
@@ -726,6 +728,7 @@ export class DataLoaderManager implements AppModule {
 
     const categories = Object.entries(FEEDS)
       .filter((entry): entry is [string, typeof FEEDS[keyof typeof FEEDS]] => Array.isArray(entry[1]) && entry[1].length > 0)
+      .filter(([key]) => SITE_VARIANT === 'happy' || this.ctx.panelSettings[key]?.enabled !== false)
       .map(([key, feeds]) => ({ key, feeds }));
 
     const digest = await digestPromise;
@@ -1177,8 +1180,12 @@ export class DataLoaderManager implements AppModule {
     })());
     */
 
-    tasks.push(this.loadDisplacement());
-    tasks.push(this.loadClimate());
+    if (this.ctx.panelSettings['displacement']?.enabled || this.ctx.mapLayers.displacement) {
+      tasks.push(this.loadDisplacement());
+    }
+    if (this.ctx.panelSettings['climate']?.enabled || this.ctx.mapLayers.climate) {
+      tasks.push(this.loadClimate());
+    }
 
     await Promise.allSettled(tasks);
 
@@ -1190,7 +1197,7 @@ export class DataLoaderManager implements AppModule {
         })),
       ];
       if (events.length > 0) {
-        const exposures = await enrichEventsWithExposure(events);
+        const exposures = this.ctx.panelSettings['population-exposure']?.enabled ? await enrichEventsWithExposure(events) : [];
         (this.ctx.panels['population-exposure'] as PopulationExposurePanel)?.setExposures(exposures);
         if (exposures.length > 0) dataFreshness.recordUpdate('worldpop', exposures.length);
       } else {
@@ -1322,8 +1329,14 @@ export class DataLoaderManager implements AppModule {
         status: finalEvents.length > 0 ? 'ok' : 'warning',
         itemCount: finalEvents.length,
       });
+<<<<<<< Updated upstream
       if (finalEvents.length > 0) {
         dataFreshness.recordUpdate('gdelt_conflict', finalEvents.length);
+=======
+      if (events.length > 0) {
+
+        dataFreshness.recordUpdate('gdelt_conflict', events.length);
+>>>>>>> Stashed changes
       }
     } catch (error) {
       console.warn('[DataLoader] fetchHumanConflictEvents error, falling back to curated events:', error);
@@ -1693,7 +1706,7 @@ export class DataLoaderManager implements AppModule {
 
   updateMonitorResults(): void {
     const monitorPanel = this.ctx.panels['monitors'] as MonitorPanel;
-    monitorPanel.renderResults(this.ctx.allNews);
+    monitorPanel?.renderResults(this.ctx.allNews);
   }
 
   async runCorrelationAnalysis(): Promise<void> {

@@ -15,7 +15,8 @@ import { startLearning } from '@/services/country-instability';
 import { dataFreshness } from '@/services/data-freshness';
 import { loadFromStorage, parseMapUrlState, saveToStorage, isMobileDevice } from '@/utils';
 import type { ParsedMapUrlState } from '@/utils';
-import { SignalModal, IntelligenceGapBadge } from '@/components';
+import { SignalModal } from '@/components/SignalModal';
+import { IntelligenceGapBadge } from '@/components/IntelligenceGapBadge';
 import { isDesktopRuntime } from '@/services/runtime';
 import { trackEvent, trackDeeplinkOpened } from '@/services/analytics';
 import { preloadCountryGeometry, getCountryNameByCode } from '@/services/country-geometry';
@@ -283,6 +284,7 @@ export class App {
       loadDataForLayer: (layer) => { void this.dataLoader.loadDataForLayer(layer as keyof MapLayers); },
       waitForAisData: () => this.dataLoader.waitForAisData(),
       syncDataFreshnessWithLayers: () => this.dataLoader.syncDataFreshnessWithLayers(),
+      ensurePanel: (key) => this.panelLayout.ensurePanel(key),
     });
 
     // Wire cross-module callback: DataLoader → SearchManager
@@ -376,7 +378,7 @@ export class App {
 
     // Phase 6: Data loading
     this.dataLoader.syncDataFreshnessWithLayers();
-    await preloadCountryGeometry();
+    void preloadCountryGeometry();
     await this.dataLoader.loadAllData();
 
     startLearning();

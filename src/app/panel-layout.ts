@@ -3,7 +3,8 @@ import type { RelatedAsset } from '@/types';
 import type { TheaterPostureSummary } from '@/services/military-surge';
 // Only truly foundational components are statically imported — everything else
 // is dynamically imported inside createPanels() to enable Rollup code-splitting.
-import { MapContainer, NewsPanel } from '@/components';
+import { MapContainer } from '@/components/MapContainer';
+import { NewsPanel } from '@/components/NewsPanel';
 import { debounce, saveToStorage } from '@/utils';
 import { escapeHtml } from '@/utils/sanitize';
 import {
@@ -29,6 +30,7 @@ export class PanelLayoutManager implements AppModule {
   private callbacks: PanelLayoutCallbacks;
   private panelDragCleanupHandlers: Array<() => void> = [];
   private criticalBannerEl: HTMLElement | null = null;
+  private lazyPanelFactories = new Map<string, () => Promise<void>>();
   private readonly applyTimeRangeFilterDebounced: () => void;
 
   constructor(ctx: AppContext, callbacks: PanelLayoutCallbacks) {
@@ -46,6 +48,7 @@ export class PanelLayoutManager implements AppModule {
   destroy(): void {
     this.panelDragCleanupHandlers.forEach((cleanup) => cleanup());
     this.panelDragCleanupHandlers = [];
+    this.lazyPanelFactories.clear();
     if (this.criticalBannerEl) {
       this.criticalBannerEl.remove();
       this.criticalBannerEl = null;
@@ -252,8 +255,60 @@ export class PanelLayoutManager implements AppModule {
         return;
       }
       const panel = this.ctx.panels[key];
-      panel?.toggle(config.enabled);
+      if (panel) {
+        panel.toggle(config.enabled);
+      } else if (config.enabled) {
+        void this.ensurePanel(key);
+      }
     });
+  }
+
+  private shouldCreatePanel(key: string): boolean {
+    if (key === 'runtime-config') return this.ctx.isDesktopApp;
+    const config = this.ctx.panelSettings[key] ?? DEFAULT_PANELS[key];
+    return Boolean(config?.enabled);
+  }
+
+  private registerPanelLoad(key: string, factory: () => Promise<void> | void, tasks: Promise<void>[]): void {
+    if (this.shouldCreatePanel(key)) {
+      tasks.push(Promise.resolve(factory()));
+    } else {
+      this.lazyPanelFactories.set(key, async () => {
+        await factory();
+      });
+    }
+  }
+
+  private registerNewsPanel(key: string, label: string, tasks: Promise<void>[], feedKey: string = key): void {
+    this.registerPanelLoad(key, () => {
+      const panel = new NewsPanel(key, label);
+      this.attachRelatedAssetHandlers(panel);
+      this.ctx.newsPanels[feedKey] = panel;
+      this.ctx.panels[key] = panel;
+    }, tasks);
+  }
+
+  async ensurePanel(key: string): Promise<void> {
+    if (this.ctx.panels[key]) {
+      this.ctx.panels[key]!.toggle(Boolean(this.ctx.panelSettings[key]?.enabled));
+      return;
+    }
+    const factory = this.lazyPanelFactories.get(key);
+    if (!factory) return;
+    this.lazyPanelFactories.delete(key);
+    await factory();
+    const panel = this.ctx.panels[key];
+    const panelsGrid = document.getElementById('panelsGrid');
+    if (panel && panelsGrid) {
+      const el = panel.getElement();
+      this.makeDraggable(el, key);
+      panelsGrid.appendChild(el);
+      panel.toggle(Boolean(this.ctx.panelSettings[key]?.enabled));
+      const existingNews = this.ctx.newsByCategory[key];
+      if (existingNews && this.ctx.newsPanels[key]) {
+        this.ctx.newsPanels[key]!.renderNews(this.filterItemsByTimeRange(existingNews));
+      }
+    }
   }
 
   private async createPanels(): Promise<void> {
@@ -270,205 +325,114 @@ export class PanelLayoutManager implements AppModule {
 
     this.ctx.map.initEscalationGetters();
     this.ctx.currentTimeRange = this.ctx.map.getTimeRange();
+    const panelTasks: Promise<void>[] = [];
 
-    const politicsPanel = new NewsPanel('politics', t('panels.politics'));
-    this.attachRelatedAssetHandlers(politicsPanel);
-    this.ctx.newsPanels['politics'] = politicsPanel;
-    this.ctx.panels['politics'] = politicsPanel;
+    this.registerNewsPanel('politics', t('panels.politics'), panelTasks);
+    this.registerNewsPanel('tech', t('panels.tech'), panelTasks);
+    this.registerNewsPanel('finance', t('panels.finance'), panelTasks);
 
-    const techPanel = new NewsPanel('tech', t('panels.tech'));
-    this.attachRelatedAssetHandlers(techPanel);
-    this.ctx.newsPanels['tech'] = techPanel;
-    this.ctx.panels['tech'] = techPanel;
+    this.registerPanelLoad('heatmap', async () => {
+      const { HeatmapPanel } = await import('@/components/MarketPanel');
+      this.ctx.panels['heatmap'] = new HeatmapPanel();
+    }, panelTasks);
 
-    const financePanel = new NewsPanel('finance', t('panels.finance'));
-    this.attachRelatedAssetHandlers(financePanel);
-    this.ctx.newsPanels['finance'] = financePanel;
-    this.ctx.panels['finance'] = financePanel;
+    this.registerPanelLoad('markets', async () => {
+      const { MarketPanel } = await import('@/components/MarketPanel');
+      this.ctx.panels['markets'] = new MarketPanel();
+    }, panelTasks);
 
-    const { HeatmapPanel, MarketPanel, CommoditiesPanel } = await import('@/components/MarketPanel');
-    const heatmapPanel = new HeatmapPanel();
-    this.ctx.panels['heatmap'] = heatmapPanel;
+    this.registerPanelLoad('monitors', async () => {
+      const { MonitorPanel } = await import('@/components/MonitorPanel');
+      const monitorPanel = new MonitorPanel(this.ctx.monitors);
+      this.ctx.panels['monitors'] = monitorPanel;
+      monitorPanel.onChanged((monitors) => {
+        this.ctx.monitors = monitors;
+        saveToStorage(STORAGE_KEYS.monitors, monitors);
+        this.callbacks.updateMonitorResults();
+      });
+    }, panelTasks);
 
-    const marketsPanel = new MarketPanel();
-    this.ctx.panels['markets'] = marketsPanel;
+    this.registerPanelLoad('commodities', async () => {
+      const { CommoditiesPanel } = await import('@/components/MarketPanel');
+      this.ctx.panels['commodities'] = new CommoditiesPanel();
+    }, panelTasks);
 
-    const { MonitorPanel } = await import('@/components/MonitorPanel');
-    const monitorPanel = new MonitorPanel(this.ctx.monitors);
-    this.ctx.panels['monitors'] = monitorPanel;
-    monitorPanel.onChanged((monitors) => {
-      this.ctx.monitors = monitors;
-      saveToStorage(STORAGE_KEYS.monitors, monitors);
-      this.callbacks.updateMonitorResults();
-    });
+    this.registerPanelLoad('polymarket', async () => {
+      const { PredictionPanel } = await import('@/components/PredictionPanel');
+      this.ctx.panels['polymarket'] = new PredictionPanel();
+    }, panelTasks);
 
-    const commoditiesPanel = new CommoditiesPanel();
-    this.ctx.panels['commodities'] = commoditiesPanel;
+    this.registerNewsPanel('gov', t('panels.gov'), panelTasks);
+    this.registerNewsPanel('intel', t('panels.intel'), panelTasks);
 
-    const { PredictionPanel } = await import('@/components/PredictionPanel');
-    const predictionPanel = new PredictionPanel();
-    this.ctx.panels['polymarket'] = predictionPanel;
+    this.registerPanelLoad('crypto', async () => {
+      const { CryptoPanel } = await import('@/components/MarketPanel');
+      this.ctx.panels['crypto'] = new CryptoPanel();
+    }, panelTasks);
 
-    const govPanel = new NewsPanel('gov', t('panels.gov'));
-    this.attachRelatedAssetHandlers(govPanel);
-    this.ctx.newsPanels['gov'] = govPanel;
-    this.ctx.panels['gov'] = govPanel;
+    this.registerNewsPanel('middleeast', t('panels.middleeast'), panelTasks);
+    this.registerNewsPanel('layoffs', t('panels.layoffs'), panelTasks);
+    this.registerNewsPanel('ai', t('panels.ai'), panelTasks);
+    this.registerNewsPanel('startups', t('panels.startups'), panelTasks);
+    this.registerNewsPanel('vcblogs', t('panels.vcblogs'), panelTasks);
+    this.registerNewsPanel('regionalStartups', t('panels.regionalStartups'), panelTasks);
+    this.registerNewsPanel('unicorns', t('panels.unicorns'), panelTasks);
+    this.registerNewsPanel('accelerators', t('panels.accelerators'), panelTasks);
+    this.registerNewsPanel('funding', t('panels.funding'), panelTasks);
+    this.registerNewsPanel('producthunt', t('panels.producthunt'), panelTasks);
+    this.registerNewsPanel('security', t('panels.security'), panelTasks);
+    this.registerNewsPanel('policy', t('panels.policy'), panelTasks);
+    this.registerNewsPanel('hardware', t('panels.hardware'), panelTasks);
+    this.registerNewsPanel('cloud', t('panels.cloud'), panelTasks);
+    this.registerNewsPanel('dev', t('panels.dev'), panelTasks);
+    this.registerNewsPanel('github', t('panels.github'), panelTasks);
+    this.registerNewsPanel('ipo', t('panels.ipo'), panelTasks);
+    this.registerNewsPanel('thinktanks', t('panels.thinktanks'), panelTasks);
 
-    const intelPanel = new NewsPanel('intel', t('panels.intel'));
-    this.attachRelatedAssetHandlers(intelPanel);
-    this.ctx.newsPanels['intel'] = intelPanel;
-    this.ctx.panels['intel'] = intelPanel;
-
-    const { CryptoPanel } = await import('@/components/MarketPanel');
-    const cryptoPanel = new CryptoPanel();
-    this.ctx.panels['crypto'] = cryptoPanel;
-
-    const middleeastPanel = new NewsPanel('middleeast', t('panels.middleeast'));
-    this.attachRelatedAssetHandlers(middleeastPanel);
-    this.ctx.newsPanels['middleeast'] = middleeastPanel;
-    this.ctx.panels['middleeast'] = middleeastPanel;
-
-    const layoffsPanel = new NewsPanel('layoffs', t('panels.layoffs'));
-    this.attachRelatedAssetHandlers(layoffsPanel);
-    this.ctx.newsPanels['layoffs'] = layoffsPanel;
-    this.ctx.panels['layoffs'] = layoffsPanel;
-
-    const aiPanel = new NewsPanel('ai', t('panels.ai'));
-    this.attachRelatedAssetHandlers(aiPanel);
-    this.ctx.newsPanels['ai'] = aiPanel;
-    this.ctx.panels['ai'] = aiPanel;
-
-    const startupsPanel = new NewsPanel('startups', t('panels.startups'));
-    this.attachRelatedAssetHandlers(startupsPanel);
-    this.ctx.newsPanels['startups'] = startupsPanel;
-    this.ctx.panels['startups'] = startupsPanel;
-
-    const vcblogsPanel = new NewsPanel('vcblogs', t('panels.vcblogs'));
-    this.attachRelatedAssetHandlers(vcblogsPanel);
-    this.ctx.newsPanels['vcblogs'] = vcblogsPanel;
-    this.ctx.panels['vcblogs'] = vcblogsPanel;
-
-    const regionalStartupsPanel = new NewsPanel('regionalStartups', t('panels.regionalStartups'));
-    this.attachRelatedAssetHandlers(regionalStartupsPanel);
-    this.ctx.newsPanels['regionalStartups'] = regionalStartupsPanel;
-    this.ctx.panels['regionalStartups'] = regionalStartupsPanel;
-
-    const unicornsPanel = new NewsPanel('unicorns', t('panels.unicorns'));
-    this.attachRelatedAssetHandlers(unicornsPanel);
-    this.ctx.newsPanels['unicorns'] = unicornsPanel;
-    this.ctx.panels['unicorns'] = unicornsPanel;
-
-    const acceleratorsPanel = new NewsPanel('accelerators', t('panels.accelerators'));
-    this.attachRelatedAssetHandlers(acceleratorsPanel);
-    this.ctx.newsPanels['accelerators'] = acceleratorsPanel;
-    this.ctx.panels['accelerators'] = acceleratorsPanel;
-
-    const fundingPanel = new NewsPanel('funding', t('panels.funding'));
-    this.attachRelatedAssetHandlers(fundingPanel);
-    this.ctx.newsPanels['funding'] = fundingPanel;
-    this.ctx.panels['funding'] = fundingPanel;
-
-    const producthuntPanel = new NewsPanel('producthunt', t('panels.producthunt'));
-    this.attachRelatedAssetHandlers(producthuntPanel);
-    this.ctx.newsPanels['producthunt'] = producthuntPanel;
-    this.ctx.panels['producthunt'] = producthuntPanel;
-
-    const securityPanel = new NewsPanel('security', t('panels.security'));
-    this.attachRelatedAssetHandlers(securityPanel);
-    this.ctx.newsPanels['security'] = securityPanel;
-    this.ctx.panels['security'] = securityPanel;
-
-    const policyPanel = new NewsPanel('policy', t('panels.policy'));
-    this.attachRelatedAssetHandlers(policyPanel);
-    this.ctx.newsPanels['policy'] = policyPanel;
-    this.ctx.panels['policy'] = policyPanel;
-
-    const hardwarePanel = new NewsPanel('hardware', t('panels.hardware'));
-    this.attachRelatedAssetHandlers(hardwarePanel);
-    this.ctx.newsPanels['hardware'] = hardwarePanel;
-    this.ctx.panels['hardware'] = hardwarePanel;
-
-    const cloudPanel = new NewsPanel('cloud', t('panels.cloud'));
-    this.attachRelatedAssetHandlers(cloudPanel);
-    this.ctx.newsPanels['cloud'] = cloudPanel;
-    this.ctx.panels['cloud'] = cloudPanel;
-
-    const devPanel = new NewsPanel('dev', t('panels.dev'));
-    this.attachRelatedAssetHandlers(devPanel);
-    this.ctx.newsPanels['dev'] = devPanel;
-    this.ctx.panels['dev'] = devPanel;
-
-    const githubPanel = new NewsPanel('github', t('panels.github'));
-    this.attachRelatedAssetHandlers(githubPanel);
-    this.ctx.newsPanels['github'] = githubPanel;
-    this.ctx.panels['github'] = githubPanel;
-
-    const ipoPanel = new NewsPanel('ipo', t('panels.ipo'));
-    this.attachRelatedAssetHandlers(ipoPanel);
-    this.ctx.newsPanels['ipo'] = ipoPanel;
-    this.ctx.panels['ipo'] = ipoPanel;
-
-    const thinktanksPanel = new NewsPanel('thinktanks', t('panels.thinktanks'));
-    this.attachRelatedAssetHandlers(thinktanksPanel);
-    this.ctx.newsPanels['thinktanks'] = thinktanksPanel;
-    this.ctx.panels['thinktanks'] = thinktanksPanel;
-
-    const { EconomicPanel } = await import('@/components/EconomicPanel');
-    const economicPanel = new EconomicPanel();
-    this.ctx.panels['economic'] = economicPanel;
+    this.registerPanelLoad('economic', async () => {
+      const { EconomicPanel } = await import('@/components/EconomicPanel');
+      this.ctx.panels['economic'] = new EconomicPanel();
+    }, panelTasks);
 
     if (SITE_VARIANT === 'full' || SITE_VARIANT === 'finance') {
-      const { TradePolicyPanel } = await import('@/components/TradePolicyPanel');
-      const { SupplyChainPanel } = await import('@/components/SupplyChainPanel');
-      const tradePolicyPanel = new TradePolicyPanel();
-      this.ctx.panels['trade-policy'] = tradePolicyPanel;
+      this.registerPanelLoad('trade-policy', async () => {
+        const { TradePolicyPanel } = await import('@/components/TradePolicyPanel');
+        this.ctx.panels['trade-policy'] = new TradePolicyPanel();
+      }, panelTasks);
 
-      const supplyChainPanel = new SupplyChainPanel();
-      this.ctx.panels['supply-chain'] = supplyChainPanel;
+      this.registerPanelLoad('supply-chain', async () => {
+        const { SupplyChainPanel } = await import('@/components/SupplyChainPanel');
+        this.ctx.panels['supply-chain'] = new SupplyChainPanel();
+      }, panelTasks);
     }
 
-    const africaPanel = new NewsPanel('africa', t('panels.africa'));
-    this.attachRelatedAssetHandlers(africaPanel);
-    this.ctx.newsPanels['africa'] = africaPanel;
-    this.ctx.panels['africa'] = africaPanel;
-
-    const latamPanel = new NewsPanel('latam', t('panels.latam'));
-    this.attachRelatedAssetHandlers(latamPanel);
-    this.ctx.newsPanels['latam'] = latamPanel;
-    this.ctx.panels['latam'] = latamPanel;
-
-    const asiaPanel = new NewsPanel('asia', t('panels.asia'));
-    this.attachRelatedAssetHandlers(asiaPanel);
-    this.ctx.newsPanels['asia'] = asiaPanel;
-    this.ctx.panels['asia'] = asiaPanel;
-
-    const energyPanel = new NewsPanel('energy', t('panels.energy'));
-    this.attachRelatedAssetHandlers(energyPanel);
-    this.ctx.newsPanels['energy'] = energyPanel;
-    this.ctx.panels['energy'] = energyPanel;
+    this.registerNewsPanel('africa', t('panels.africa'), panelTasks);
+    this.registerNewsPanel('latam', t('panels.latam'), panelTasks);
+    this.registerNewsPanel('asia', t('panels.asia'), panelTasks);
+    this.registerNewsPanel('energy', t('panels.energy'), panelTasks);
 
     for (const key of Object.keys(FEEDS)) {
-      if (this.ctx.newsPanels[key]) continue;
+      if (this.ctx.newsPanels[key] || this.lazyPanelFactories.has(key)) continue;
       if (!Array.isArray((FEEDS as Record<string, unknown>)[key])) continue;
-      const panelKey = this.ctx.panels[key] && !this.ctx.newsPanels[key] ? `${key}-news` : key;
-      if (this.ctx.panels[panelKey]) continue;
+      const panelKey = (this.ctx.panels[key] || this.lazyPanelFactories.has(key)) && !this.ctx.newsPanels[key] ? `${key}-news` : key;
+      if (this.ctx.panels[panelKey] || this.lazyPanelFactories.has(panelKey)) continue;
       const panelConfig = DEFAULT_PANELS[panelKey] ?? DEFAULT_PANELS[key];
       const label = panelConfig?.name ?? key.charAt(0).toUpperCase() + key.slice(1);
-      const panel = new NewsPanel(panelKey, label);
-      this.attachRelatedAssetHandlers(panel);
-      this.ctx.newsPanels[key] = panel;
-      this.ctx.panels[panelKey] = panel;
+      this.registerNewsPanel(panelKey, label, panelTasks, key);
     }
 
     if (SITE_VARIANT === 'full') {
-      const { GdeltIntelPanel } = await import('@/components/GdeltIntelPanel');
-      const gdeltIntelPanel = new GdeltIntelPanel();
-      this.ctx.panels['gdelt-intel'] = gdeltIntelPanel;
+      this.registerPanelLoad('gdelt-intel', async () => {
+        const { GdeltIntelPanel } = await import('@/components/GdeltIntelPanel');
+        this.ctx.panels['gdelt-intel'] = new GdeltIntelPanel();
+      }, panelTasks);
 
-      const { SocialMediaIntelPanel } = await import('@/components/SocialMediaIntelPanel');
-      const socialIntelPanel = new SocialMediaIntelPanel();
-      this.ctx.panels['social-intel'] = socialIntelPanel;
+      this.registerPanelLoad('social-intel', async () => {
+        const { SocialMediaIntelPanel } = await import('@/components/SocialMediaIntelPanel');
+        this.ctx.panels['social-intel'] = new SocialMediaIntelPanel();
+      }, panelTasks);
 
+<<<<<<< Updated upstream
       /*
       const ciiPanel = new CIIPanel();
       ciiPanel.setShareStoryHandler((code, name) => {
@@ -476,110 +440,143 @@ export class PanelLayoutManager implements AppModule {
       });
       this.ctx.panels['cii'] = ciiPanel;
       */
+=======
+      this.registerPanelLoad('activity-spikes', async () => {
+        const { ActivitySpikesPanel } = await import('@/components/ActivitySpikesPanel');
+        const activitySpikesPanel = new ActivitySpikesPanel();
+        activitySpikesPanel.setLocationClickHandler((lat: number, lon: number) => {
+          this.ctx.map?.setCenter(lat, lon, 4);
+        });
+        this.ctx.panels['activity-spikes'] = activitySpikesPanel;
+      }, panelTasks);
 
-      const { CascadePanel } = await import('@/components/CascadePanel');
-      const cascadePanel = new CascadePanel();
-      this.ctx.panels['cascade'] = cascadePanel;
+      this.registerPanelLoad('cascade', async () => {
+        const { CascadePanel } = await import('@/components/CascadePanel');
+        this.ctx.panels['cascade'] = new CascadePanel();
+      }, panelTasks);
+>>>>>>> Stashed changes
 
-      const { SatelliteFiresPanel } = await import('@/components/SatelliteFiresPanel');
-      const satelliteFiresPanel = new SatelliteFiresPanel();
-      this.ctx.panels['satellite-fires'] = satelliteFiresPanel;
+      this.registerPanelLoad('satellite-fires', async () => {
+        const { SatelliteFiresPanel } = await import('@/components/SatelliteFiresPanel');
+        this.ctx.panels['satellite-fires'] = new SatelliteFiresPanel();
+      }, panelTasks);
 
-      const { StrategicRiskPanel } = await import('@/components/StrategicRiskPanel');
-      const strategicRiskPanel = new StrategicRiskPanel();
-      strategicRiskPanel.setLocationClickHandler((lat: number, lon: number) => {
-        this.ctx.map?.setCenter(lat, lon, 4);
-      });
-      this.ctx.panels['strategic-risk'] = strategicRiskPanel;
+      this.registerPanelLoad('strategic-risk', async () => {
+        const { StrategicRiskPanel } = await import('@/components/StrategicRiskPanel');
+        const strategicRiskPanel = new StrategicRiskPanel();
+        strategicRiskPanel.setLocationClickHandler((lat: number, lon: number) => {
+          this.ctx.map?.setCenter(lat, lon, 4);
+        });
+        this.ctx.panels['strategic-risk'] = strategicRiskPanel;
+      }, panelTasks);
 
-      const { StrategicPosturePanel } = await import('@/components/StrategicPosturePanel');
-      const strategicPosturePanel = new StrategicPosturePanel();
-      strategicPosturePanel.setLocationClickHandler((lat: number, lon: number) => {
-        console.log('[App] StrategicPosture handler called:', { lat, lon, hasMap: !!this.ctx.map });
-        this.ctx.map?.setCenter(lat, lon, 4);
-      });
-      this.ctx.panels['strategic-posture'] = strategicPosturePanel;
+      this.registerPanelLoad('strategic-posture', async () => {
+        const { StrategicPosturePanel } = await import('@/components/StrategicPosturePanel');
+        const strategicPosturePanel = new StrategicPosturePanel();
+        strategicPosturePanel.setLocationClickHandler((lat: number, lon: number) => {
+          console.log('[App] StrategicPosture handler called:', { lat, lon, hasMap: !!this.ctx.map });
+          this.ctx.map?.setCenter(lat, lon, 4);
+        });
+        this.ctx.panels['strategic-posture'] = strategicPosturePanel;
+      }, panelTasks);
 
-      /*
-      const ucdpEventsPanel = new UcdpEventsPanel();
-      ucdpEventsPanel.setEventClickHandler((lat, lon) => {
-        this.ctx.map?.setCenter(lat, lon, 5);
-      });
-      this.ctx.panels['ucdp-events'] = ucdpEventsPanel;
-      */
+      this.registerPanelLoad('displacement', async () => {
+        const { DisplacementPanel } = await import('@/components/DisplacementPanel');
+        const displacementPanel = new DisplacementPanel();
+        displacementPanel.setCountryClickHandler((lat: number, lon: number) => {
+          this.ctx.map?.setCenter(lat, lon, 4);
+        });
+        this.ctx.panels['displacement'] = displacementPanel;
+      }, panelTasks);
 
-      const { DisplacementPanel } = await import('@/components/DisplacementPanel');
-      const displacementPanel = new DisplacementPanel();
-      displacementPanel.setCountryClickHandler((lat: number, lon: number) => {
-        this.ctx.map?.setCenter(lat, lon, 4);
-      });
-      this.ctx.panels['displacement'] = displacementPanel;
+      this.registerPanelLoad('climate', async () => {
+        const { ClimateAnomalyPanel } = await import('@/components/ClimateAnomalyPanel');
+        const climatePanel = new ClimateAnomalyPanel();
+        climatePanel.setZoneClickHandler((lat: number, lon: number, anomaly?: import('@/services/climate').ClimateAnomaly) => {
+          this.ctx.map?.setCenter(lat, lon, 4);
+          if (anomaly) {
+            this.ctx.map?.showClimateAnomaly(anomaly);
+          }
+        });
+        this.ctx.panels['climate'] = climatePanel;
+      }, panelTasks);
 
-      const { ClimateAnomalyPanel } = await import('@/components/ClimateAnomalyPanel');
-      const climatePanel = new ClimateAnomalyPanel();
-      climatePanel.setZoneClickHandler((lat: number, lon: number, anomaly?: import('@/services/climate').ClimateAnomaly) => {
-        this.ctx.map?.setCenter(lat, lon, 4);
-        if (anomaly) {
-          this.ctx.map?.showClimateAnomaly(anomaly);
-        }
-      });
-      this.ctx.panels['climate'] = climatePanel;
-
-      const { PopulationExposurePanel } = await import('@/components/PopulationExposurePanel');
-      const populationExposurePanel = new PopulationExposurePanel();
-      this.ctx.panels['population-exposure'] = populationExposurePanel;
+      this.registerPanelLoad('population-exposure', async () => {
+        const { PopulationExposurePanel } = await import('@/components/PopulationExposurePanel');
+        this.ctx.panels['population-exposure'] = new PopulationExposurePanel();
+      }, panelTasks);
     }
 
     if (SITE_VARIANT === 'finance') {
-      const { InvestmentsPanel } = await import('@/components/InvestmentsPanel');
-      const { focusInvestmentOnMap } = await import('@/services/investments-focus');
-      const investmentsPanel = new InvestmentsPanel((inv) => {
-        focusInvestmentOnMap(this.ctx.map, this.ctx.mapLayers, inv.lat, inv.lon);
-      });
-      this.ctx.panels['gcc-investments'] = investmentsPanel;
+      this.registerPanelLoad('gcc-investments', async () => {
+        const { InvestmentsPanel } = await import('@/components/InvestmentsPanel');
+        const { focusInvestmentOnMap } = await import('@/services/investments-focus');
+        const investmentsPanel = new InvestmentsPanel((inv) => {
+          focusInvestmentOnMap(this.ctx.map, this.ctx.mapLayers, inv.lat, inv.lon);
+        });
+        this.ctx.panels['gcc-investments'] = investmentsPanel;
+      }, panelTasks);
     }
 
     if (SITE_VARIANT !== 'happy') {
-      const { LiveNewsPanel } = await import('@/components/LiveNewsPanel');
-      const liveNewsPanel = new LiveNewsPanel();
-      this.ctx.panels['live-news'] = liveNewsPanel;
+      this.registerPanelLoad('live-news', async () => {
+        const { LiveNewsPanel } = await import('@/components/LiveNewsPanel');
+        this.ctx.panels['live-news'] = new LiveNewsPanel();
+      }, panelTasks);
 
-      const { LiveWebcamsPanel } = await import('@/components/LiveWebcamsPanel');
-      const liveWebcamsPanel = new LiveWebcamsPanel();
-      this.ctx.panels['live-webcams'] = liveWebcamsPanel;
+      this.registerPanelLoad('live-webcams', async () => {
+        const { LiveWebcamsPanel } = await import('@/components/LiveWebcamsPanel');
+        this.ctx.panels['live-webcams'] = new LiveWebcamsPanel();
+      }, panelTasks);
 
-      const { TechEventsPanel } = await import('@/components/TechEventsPanel');
-      this.ctx.panels['events'] = new TechEventsPanel('events');
+      this.registerPanelLoad('events', async () => {
+        const { TechEventsPanel } = await import('@/components/TechEventsPanel');
+        this.ctx.panels['events'] = new TechEventsPanel('events');
+      }, panelTasks);
 
-      const { ServiceStatusPanel } = await import('@/components/ServiceStatusPanel');
-      const serviceStatusPanel = new ServiceStatusPanel();
-      this.ctx.panels['service-status'] = serviceStatusPanel;
+      this.registerPanelLoad('service-status', async () => {
+        const { ServiceStatusPanel } = await import('@/components/ServiceStatusPanel');
+        this.ctx.panels['service-status'] = new ServiceStatusPanel();
+      }, panelTasks);
 
-      const { TechReadinessPanel } = await import('@/components/TechReadinessPanel');
-      const techReadinessPanel = new TechReadinessPanel();
-      this.ctx.panels['tech-readiness'] = techReadinessPanel;
+      this.registerPanelLoad('tech-readiness', async () => {
+        const { TechReadinessPanel } = await import('@/components/TechReadinessPanel');
+        this.ctx.panels['tech-readiness'] = new TechReadinessPanel();
+      }, panelTasks);
 
-      const { MacroSignalsPanel } = await import('@/components/MacroSignalsPanel');
-      const { ETFFlowsPanel } = await import('@/components/ETFFlowsPanel');
-      const { StablecoinPanel } = await import('@/components/StablecoinPanel');
-      this.ctx.panels['macro-signals'] = new MacroSignalsPanel();
-      this.ctx.panels['etf-flows'] = new ETFFlowsPanel();
-      this.ctx.panels['stablecoins'] = new StablecoinPanel();
+      this.registerPanelLoad('macro-signals', async () => {
+        const { MacroSignalsPanel } = await import('@/components/MacroSignalsPanel');
+        this.ctx.panels['macro-signals'] = new MacroSignalsPanel();
+      }, panelTasks);
+
+      this.registerPanelLoad('etf-flows', async () => {
+        const { ETFFlowsPanel } = await import('@/components/ETFFlowsPanel');
+        this.ctx.panels['etf-flows'] = new ETFFlowsPanel();
+      }, panelTasks);
+
+      this.registerPanelLoad('stablecoins', async () => {
+        const { StablecoinPanel } = await import('@/components/StablecoinPanel');
+        this.ctx.panels['stablecoins'] = new StablecoinPanel();
+      }, panelTasks);
     }
 
     if (this.ctx.isDesktopApp) {
-      const { RuntimeConfigPanel } = await import('@/components/RuntimeConfigPanel');
-      const runtimeConfigPanel = new RuntimeConfigPanel({ mode: 'alert' });
-      this.ctx.panels['runtime-config'] = runtimeConfigPanel;
+      this.registerPanelLoad('runtime-config', async () => {
+        const { RuntimeConfigPanel } = await import('@/components/RuntimeConfigPanel');
+        this.ctx.panels['runtime-config'] = new RuntimeConfigPanel({ mode: 'alert' });
+      }, panelTasks);
     }
 
-    const { InsightsPanel } = await import('@/components/InsightsPanel');
-    const insightsPanel = new InsightsPanel();
-    this.ctx.panels['insights'] = insightsPanel;
+    this.registerPanelLoad('insights', async () => {
+      const { InsightsPanel } = await import('@/components/InsightsPanel');
+      this.ctx.panels['insights'] = new InsightsPanel();
+    }, panelTasks);
 
     // Global Giving panel (all variants)
-    const { GivingPanel } = await import('@/components/GivingPanel');
-    this.ctx.panels['giving'] = new GivingPanel();
+    this.registerPanelLoad('giving', async () => {
+      const { GivingPanel } = await import('@/components/GivingPanel');
+      this.ctx.panels['giving'] = new GivingPanel();
+    }, panelTasks);
 
     // Happy variant panels
     if (SITE_VARIANT === 'happy') {
@@ -620,6 +617,8 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.renewablePanel = new RenewableEnergyPanel();
       this.ctx.panels['renewable'] = this.ctx.renewablePanel!;
     }
+
+    await Promise.all(panelTasks);
 
     const defaultOrder = Object.keys(DEFAULT_PANELS).filter(k => k !== 'map');
     const savedOrder = this.getSavedPanelOrder();

@@ -1464,6 +1464,7 @@ export class DeckGLMap {
     }
 
     if (mapLayers.alertStatus) {
+      this.ensureAlertStatusRegionData();
       const alertLayer = this.createAlertStatusLayer();
       if (alertLayer) layers.push(alertLayer);
     }
@@ -6852,6 +6853,31 @@ export class DeckGLMap {
     }
   }
 
+  private alertRegionDataLoading = false;
+
+  private ensureAlertStatusRegionData(): void {
+    if (this.alertRegionDataLoading || this.usStateFeatures.length > 0) return;
+    this.alertRegionDataLoading = true;
+    const alertStatusService = AlertStatusService.getInstance();
+    Promise.all([
+      fetch(MAP_URLS.us).then(r => r.json()),
+      fetch(MAP_URLS.canada).then(r => r.json()),
+      alertStatusService.fetchStatuses()
+    ]).then(([usData, canadaData]) => {
+      if (usData) {
+        const states = topojson.feature(usData as any, usData.objects.states);
+        this.usStateFeatures = 'features' in states ? (states.features as any[]) : [states as any];
+      }
+      if (canadaData && canadaData.features) {
+        this.canadaProvinceFeatures = canadaData.features;
+      }
+      this.debouncedRebuildLayers();
+    }).catch(e => {
+      this.alertRegionDataLoading = false;
+      console.error('Failed to load region data:', e);
+    });
+  }
+
   private loadCountryBoundaries(): void {
     if (!this.maplibreMap || this.countryGeoJsonLoaded) return;
     this.countryGeoJsonLoaded = true;
@@ -6863,22 +6889,9 @@ export class DeckGLMap {
         // Schedule layer rebuild so Conflict Zones can switch from boxes to precise country polygons
         this.debouncedRebuildLayers();
 
-        // Also fetch US and Canada regions for alert status
-        const alertStatusService = AlertStatusService.getInstance();
-        Promise.all([
-          fetch(MAP_URLS.us).then(r => r.json()),
-          fetch(MAP_URLS.canada).then(r => r.json()),
-          alertStatusService.fetchStatuses()
-        ]).then(([usData, canadaData]) => {
-          if (usData) {
-            const states = topojson.feature(usData as any, usData.objects.states);
-            this.usStateFeatures = 'features' in states ? (states.features as any[]) : [states as any];
-          }
-          if (canadaData && canadaData.features) {
-            this.canadaProvinceFeatures = canadaData.features;
-          }
-          this.debouncedRebuildLayers();
-        }).catch(e => console.error('Failed to load region data:', e));
+        if (this.state.layers.alertStatus) {
+          this.ensureAlertStatusRegionData();
+        }
 
         this.maplibreMap.addSource('country-boundaries', {
           type: 'geojson',
@@ -6938,27 +6951,35 @@ export class DeckGLMap {
     this.countryHoverSetup = true;
     const map = this.maplibreMap;
     let hoveredName: string | null = null;
+    let hoverRafId = 0;
+    let lastPoint: maplibregl.Point | null = null;
 
     map.on('mousemove', (e) => {
       if (!this.onCountryClick) return;
-      const features = map.queryRenderedFeatures(e.point, { layers: ['country-interactive'] });
-      const name = features?.[0]?.properties?.name as string | undefined;
+      lastPoint = e.point;
+      if (hoverRafId) return;
+      hoverRafId = requestAnimationFrame(() => {
+        hoverRafId = 0;
+        if (!lastPoint) return;
+        const features = map.queryRenderedFeatures(lastPoint, { layers: ['country-interactive'] });
+        const name = features?.[0]?.properties?.name as string | undefined;
 
-      try {
-        if (name && name !== hoveredName) {
-          hoveredName = name;
-          if (map.getLayer('country-hover-fill')) {
-            map.setFilter('country-hover-fill', ['==', ['get', 'name'], name]);
+        try {
+          if (name && name !== hoveredName) {
+            hoveredName = name;
+            if (map.getLayer('country-hover-fill')) {
+              map.setFilter('country-hover-fill', ['==', ['get', 'name'], name]);
+            }
+            map.getCanvas().style.cursor = 'pointer';
+          } else if (!name && hoveredName) {
+            hoveredName = null;
+            if (map.getLayer('country-hover-fill')) {
+              map.setFilter('country-hover-fill', ['==', ['get', 'name'], '']);
+            }
+            map.getCanvas().style.cursor = '';
           }
-          map.getCanvas().style.cursor = 'pointer';
-        } else if (!name && hoveredName) {
-          hoveredName = null;
-          if (map.getLayer('country-hover-fill')) {
-            map.setFilter('country-hover-fill', ['==', ['get', 'name'], '']);
-          }
-          map.getCanvas().style.cursor = '';
-        }
-      } catch { /* style not done loading during theme switch */ }
+        } catch { /* style not done loading during theme switch */ }
+      });
     });
 
     map.on('mouseout', () => {
