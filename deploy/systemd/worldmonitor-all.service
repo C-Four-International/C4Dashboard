@@ -6,9 +6,8 @@ After=network.target
 Type=simple
 User=www-data
 Group=www-data
-WorkingDirectory=/var/www/worldmonitor
+WorkingDirectory=/opt/dashboard/C4Dashboard
 
-EnvironmentFile=-/var/www/worldmonitor/.env
 EnvironmentFile=-/opt/dashboard/C4Dashboard/.env
 EnvironmentFile=-/etc/worldmonitor/worldmonitor.env
 
@@ -35,4 +34,3 @@ SyslogIdentifier=worldmonitor-all
 
 [Install]
 WantedBy=multi-user.target
-

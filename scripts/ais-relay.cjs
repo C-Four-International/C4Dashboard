@@ -23,6 +23,7 @@ try {
   const envCandidates = [
     path.resolve(process.cwd(), '.env'),
     path.resolve(__dirname, '..', '.env'),
+    '/opt/dashboard/C4Dashboard/.env',
     '/etc/worldmonitor/worldmonitor.env',
     '/var/www/worldmonitor/.env',
     '/opt/worldmonitor/.env',
