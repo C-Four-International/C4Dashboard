@@ -305,9 +305,13 @@ async function fetchFromOpenSky(): Promise<MilitaryFlight[]> {
   const seenHexCodes = new Set<string>();
   let allFailed = true;
 
-  const results = await Promise.all(
-    MILITARY_QUERY_REGIONS.map(region => fetchQueryRegion(region))
-  );
+  // Stagger regional requests slightly by 250ms to prevent triggering upstream 429 burst limit
+  const results: RegionResult[] = [];
+  for (const region of MILITARY_QUERY_REGIONS) {
+    const res = await fetchQueryRegion(region);
+    results.push(res);
+    await new Promise((r) => setTimeout(r, 250));
+  }
 
   for (const result of results) {
     let flights: MilitaryFlight[];
@@ -436,25 +440,26 @@ async function fetchFromTar1090(url: string, sourceName: string): Promise<Milita
  * Fetch from fallback sources, combining and deduplicating results.
  */
 async function fetchFromFallbackSources(): Promise<MilitaryFlight[]> {
-  const [adsbFiResult] = await Promise.allSettled([
-    fetchFromTar1090('/api/adsbfi', 'ADSB.fi')
+  const [adsbFiResult, adsbLolResult] = await Promise.allSettled([
+    fetchFromTar1090('/api/adsbfi', 'ADSB.fi'),
+    fetchFromTar1090('https://api.adsb.lol/v2/mil', 'ADSB.lol').catch(() => []),
   ]);
 
   const allFlights: MilitaryFlight[] = [];
   const seenHexCodes = new Set<string>();
 
-  if (adsbFiResult.status === 'fulfilled') {
-    console.log(`[Military Flights] ADSB.fi fallback succeeded, returned ${adsbFiResult.value.length} flights`);
-    for (const flight of adsbFiResult.value) {
-      if (!seenHexCodes.has(flight.hexCode)) {
-        seenHexCodes.add(flight.hexCode);
-        allFlights.push(flight);
+  for (const res of [adsbFiResult, adsbLolResult]) {
+    if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+      for (const flight of res.value) {
+        if (!seenHexCodes.has(flight.hexCode)) {
+          seenHexCodes.add(flight.hexCode);
+          allFlights.push(flight);
+        }
       }
     }
-  } else {
-    console.warn(`[Military Flights] ADSB.fi fallback failed:`, adsbFiResult.reason);
   }
 
+  console.log(`[Military Flights] ADSB sources combined, returned ${allFlights.length} unique flights`);
   return allFlights;
 }
 
@@ -646,16 +651,41 @@ export async function fetchMilitaryFlights(): Promise<{
       return { flights: flightCache.data, clusters };
     }
 
-    // Fetch from ADSB.lol first (more reliable, no IP blocking), fallback to OpenSky
-    let flights: MilitaryFlight[] = [];
-    try {
-      console.log('[Military Flights] Attempting to fetch from ADSB.lol (primary)...');
-      flights = await fetchFromFallbackSources();
-      console.log(`[Military Flights] ADSB.lol fetch completed with ${flights.length} flights.`);
-    } catch (error) {
-      console.error(`[Military Flights] ADSB.lol threw an error: ${error instanceof Error ? error.message : String(error)}. Falling back to OpenSky...`);
-      flights = await fetchFromOpenSky();
+    // Query BOTH the dedicated military ADSB feeds AND OpenSky in parallel.
+    // Combining them gives comprehensive global coverage (OpenSky covers broad airspace,
+    // ADSB feeds provide real-time high-density tactical coverage).
+    const [adsbResult, openSkyResult] = await Promise.allSettled([
+      fetchFromFallbackSources(),
+      fetchFromOpenSky(),
+    ]);
+
+    const flightsMap = new Map<string, MilitaryFlight>();
+
+    // 1. Ingest ADSB feeds
+    if (adsbResult.status === 'fulfilled' && adsbResult.value.length > 0) {
+      for (const flight of adsbResult.value) {
+        flightsMap.set(flight.hexCode, flight);
+      }
+      console.log(`[Military Flights] Ingested ${adsbResult.value.length} flights from ADSB feeds`);
+    } else if (adsbResult.status === 'rejected') {
+      console.warn(`[Military Flights] ADSB feeds failed:`, adsbResult.reason);
     }
+
+    // 2. Ingest OpenSky regional queries and add unique flights
+    if (openSkyResult.status === 'fulfilled' && openSkyResult.value.length > 0) {
+      let addedFromOpenSky = 0;
+      for (const flight of openSkyResult.value) {
+        if (!flightsMap.has(flight.hexCode)) {
+          flightsMap.set(flight.hexCode, flight);
+          addedFromOpenSky++;
+        }
+      }
+      console.log(`[Military Flights] Added ${addedFromOpenSky} additional unique flights from OpenSky (total: ${flightsMap.size})`);
+    } else if (openSkyResult.status === 'rejected') {
+      console.warn(`[Military Flights] OpenSky query failed:`, openSkyResult.reason);
+    }
+
+    let flights = Array.from(flightsMap.values());
 
     if (flights.length === 0) {
       throw new Error('No flights returned from any upstream');
@@ -664,9 +694,9 @@ export async function fetchMilitaryFlights(): Promise<{
     // Enrich with Wingbits aircraft details (owner, operator, type)
     flights = await enrichFlightsWithWingbits(flights);
 
-    // Update cache (15 minutes base TTL + up to 2 minutes jitter to avoid rate limits)
-    const jitter = Math.floor(Math.random() * 2 * 60 * 1000);
-    const cacheTtl = (15 * 60 * 1000) + jitter;
+    // Cache for 3-5 minutes (base 3 min + up to 1 min jitter) to keep aircraft positions accurate
+    const jitter = Math.floor(Math.random() * 60 * 1000);
+    const cacheTtl = (3 * 60 * 1000) + jitter;
     flightCache = { data: flights, expiresAt: Date.now() + cacheTtl };
 
     // Generate clusters

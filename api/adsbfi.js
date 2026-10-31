@@ -59,45 +59,54 @@ export default async function handler(req, res) {
       'https://api.adsb.lol/v2/mil',
     ];
 
-    let response = null;
-    let lastStatus = 502;
-    for (const upstreamUrl of upstreams) {
-      try {
-        const resp = await fetch(upstreamUrl, {
+    // Fetch from all upstreams in parallel to maximize global coverage
+    const results = await Promise.allSettled(
+      upstreams.map(async (url) => {
+        const resp = await fetch(url, {
           headers: {
             'Accept': 'application/json',
             'User-Agent': 'WorldMonitor/EdgeProxy',
           },
-          // 8 second timeout per upstream
           signal: AbortSignal.timeout(8000),
         });
-        if (resp.ok) {
-          response = resp;
-          break;
-        } else {
-          lastStatus = resp.status;
+        if (!resp.ok) return null;
+        return resp.json();
+      })
+    );
+
+    const mergedAc = [];
+    const seenHex = new Set();
+    for (const res of results) {
+      if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.ac)) {
+        for (const plane of res.value.ac) {
+          if (plane && plane.hex && !seenHex.has(plane.hex)) {
+            seenHex.add(plane.hex);
+            mergedAc.push(plane);
+          }
         }
-      } catch {
-        // Try next upstream
       }
     }
 
-    if (!response || !response.ok) {
+    if (mergedAc.length === 0) {
       if (cachedText) {
         return sendText(200, cachedText, {
           'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
           'X-Cache': 'STALE',
         });
       }
-      return sendJson(lastStatus, { error: `ADSB upstream returned ${lastStatus}` });
+      return sendJson(502, { error: 'All ADSB military upstreams failed' });
     }
 
-    // Stream text directly to eliminate JSON.parse and JSON.stringify Active CPU
-    const text = await response.text();
-    cachedText = text;
+    const payload = JSON.stringify({
+      ac: mergedAc,
+      total: mergedAc.length,
+      ctime: Math.floor(Date.now() / 1000),
+    });
+
+    cachedText = payload;
     cacheTimestamp = Date.now();
 
-    return sendText(200, text, {
+    return sendText(200, payload, {
       'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
       'X-Cache': 'MISS',
     });
