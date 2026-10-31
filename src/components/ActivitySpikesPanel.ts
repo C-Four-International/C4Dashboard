@@ -812,7 +812,6 @@ export class ActivitySpikesPanel extends Panel {
 
     const ovhUrl = this.getOvhGraphUrl(this.selectedTheater, this.lastBucket);
     const fallbackDataUri = this.generateStaticGraphSvgDataUri(this.selectedTheater, this.lastBucket);
-    const nextSrc = ovhUrl || fallbackDataUri;
 
     if (ovhUrl) {
       modalImg.onerror = () => {
