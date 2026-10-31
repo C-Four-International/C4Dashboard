@@ -9,6 +9,7 @@ Group=www-data
 WorkingDirectory=/var/www/worldmonitor
 
 EnvironmentFile=-/var/www/worldmonitor/.env
+EnvironmentFile=-/opt/dashboard/C4Dashboard/.env
 EnvironmentFile=-/etc/worldmonitor/worldmonitor.env
 
 Environment=NODE_ENV=production

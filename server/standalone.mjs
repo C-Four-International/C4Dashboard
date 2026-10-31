@@ -29,6 +29,38 @@ const brotliCompressAsync = promisify(brotliCompress);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
 
+// ── Automatically resolve and load .env if present ─────────────────────────
+try {
+  const envCandidates = [
+    path.resolve(process.cwd(), '.env'),
+    path.resolve(projectRoot, '.env'),
+    '/etc/worldmonitor/worldmonitor.env',
+    '/var/www/worldmonitor/.env',
+    '/opt/worldmonitor/.env',
+  ];
+  for (const envPath of envCandidates) {
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      for (const line of content.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eqIdx = trimmed.indexOf('=');
+        if (eqIdx > 0) {
+          const key = trimmed.slice(0, eqIdx).trim();
+          let val = trimmed.slice(eqIdx + 1).trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          if (!(key in process.env)) {
+            process.env[key] = val;
+          }
+        }
+      }
+      break;
+    }
+  }
+} catch {}
+
 // ── Environment Configuration ───────────────────────────────────────────────
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -453,7 +485,17 @@ export async function createStandaloneServer() {
   return {
     server,
     start() {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
+        server.once('error', (err) => {
+          if (err.code === 'EADDRINUSE') {
+            console.error(`[Server] Error: Port ${PORT} is already in use (EADDRINUSE).`);
+            console.error(`[Server] Check if another service (or Docker container) is running on port ${PORT}.`);
+          } else {
+            console.error('[Server] Fatal startup error:', err);
+          }
+          reject(err);
+        });
+
         server.listen(PORT, HOST, () => {
           console.log(`[Server] WorldMonitor dashboard running at http://${HOST}:${PORT}`);
           console.log(`[Server] Serving static files from: ${DIST_DIR}`);
@@ -472,16 +514,21 @@ export async function createStandaloneServer() {
 const isDirectRun = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 
 if (isDirectRun) {
-  const app = await createStandaloneServer();
-  await app.start();
+  try {
+    const app = await createStandaloneServer();
+    await app.start();
 
-  const shutdown = async () => {
-    console.log('\n[Server] Shutting down gracefully...');
-    await app.close();
-    process.exit(0);
-  };
+    const shutdown = async () => {
+      console.log('\n[Server] Shutting down gracefully...');
+      await app.close();
+      process.exit(0);
+    };
 
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+  } catch (err) {
+    console.error('[Server] Startup failed:', err.message || err);
+    process.exit(1);
+  }
 }
 

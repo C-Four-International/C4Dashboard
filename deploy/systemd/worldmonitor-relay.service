@@ -10,6 +10,7 @@ WorkingDirectory=/var/www/worldmonitor
 
 # Load production environment variables
 EnvironmentFile=-/var/www/worldmonitor/.env
+EnvironmentFile=-/opt/worldmonitor/.env
 EnvironmentFile=-/etc/worldmonitor/worldmonitor.env
 
 Environment=NODE_ENV=production
