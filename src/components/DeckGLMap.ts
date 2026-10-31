@@ -2115,12 +2115,19 @@ export class DeckGLMap {
         const { bbox } = props;
         if (!bbox) return null;
         const url = `/api/asis?service=${service}&bbox=${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch tile');
-        const blob = await response.blob();
-        return createImageBitmap(blob);
+        try {
+          const response = await fetch(url, { signal: props.signal });
+          if (!response.ok) return null;
+          const contentType = response.headers.get('content-type') || '';
+          if (!contentType.includes('image')) return null;
+          const blob = await response.blob();
+          return typeof createImageBitmap === 'function' ? await createImageBitmap(blob) : null;
+        } catch {
+          return null;
+        }
       },
       renderSubLayers: (props: any) => {
+        if (!props.data) return null;
         const { boundingBox } = props.tile;
         return new BitmapLayer(props, {
           data: undefined,

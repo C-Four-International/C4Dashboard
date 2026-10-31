@@ -418,6 +418,13 @@ export async function createStandaloneServer() {
       return proxyPosthog(req, res, target);
     }
 
+    // 2b. Stub Vercel analytics / speed-insights in standalone environments
+    if (pathname.startsWith('/_vercel/')) {
+      res.writeHead(200, { 'Content-Type': 'application/javascript' });
+      res.end('/* standalone: vercel analytics stubbed */');
+      return;
+    }
+
     // 3. API Routes (/api/*)
     if (pathname.startsWith('/api/')) {
       // Find matching route module
