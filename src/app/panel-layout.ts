@@ -5,6 +5,7 @@ import type { TheaterPostureSummary } from '@/services/military-surge';
 // is dynamically imported inside createPanels() to enable Rollup code-splitting.
 import { MapContainer } from '@/components/MapContainer';
 import { NewsPanel } from '@/components/NewsPanel';
+import type { Panel } from '@/components/Panel';
 import { debounce, saveToStorage } from '@/utils';
 import { escapeHtml } from '@/utils/sanitize';
 import {
@@ -254,7 +255,7 @@ export class PanelLayoutManager implements AppModule {
         }
         return;
       }
-      const panel = this.ctx.panels[key];
+      const panel: Panel | undefined = (this.ctx.panels as Record<string, Panel>)[key];
       if (panel) {
         panel.toggle(config.enabled);
       } else if (config.enabled) {
@@ -297,7 +298,7 @@ export class PanelLayoutManager implements AppModule {
     if (!factory) return;
     this.lazyPanelFactories.delete(key);
     await factory();
-    const panel = this.ctx.panels[key];
+    const panel: Panel | undefined = (this.ctx.panels as Record<string, Panel>)[key];
     const panelsGrid = document.getElementById('panelsGrid');
     if (panel && panelsGrid) {
       const el = panel.getElement();
@@ -661,7 +662,7 @@ export class PanelLayoutManager implements AppModule {
     }
 
     panelOrder.forEach((key: string) => {
-      const panel = this.ctx.panels[key];
+      const panel: Panel | undefined = (this.ctx.panels as Record<string, Panel>)[key];
       if (panel) {
         const el = panel.getElement();
         this.makeDraggable(el, key);
