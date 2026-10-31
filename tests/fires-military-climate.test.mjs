@@ -84,4 +84,14 @@ test('Military vessel classification guards against false-positive AIS signals',
     !vesselsSrc.includes("suffix.startsWith('00')"),
     'analyzeMmsi must not treat arbitrary suffix 00 as military warships'
   );
+
+  // Must reject explicit non-combatant AIS ship types (fishing, cargo, tanker, pleasure craft)
+  assert.ok(
+    vesselsSrc.includes('isNonCombatantShipType'),
+    'must export and check isNonCombatantShipType'
+  );
+  assert.ok(
+    vesselsSrc.includes('isCommercialVesselName'),
+    'must filter out commercial vessel names'
+  );
 });

@@ -38,7 +38,9 @@ function scheduleVesselsUpdateNotification(): void {
   notifyDebounceTimer = setTimeout(() => {
     notifyDebounceTimer = null;
     if (vesselUpdateListeners.size === 0) return;
-    const vessels = Array.from(trackedVessels.values());
+    const vessels = Array.from(trackedVessels.values()).filter(
+      (v) => !isNonCombatantShipTypeName(v.aisShipType) && !isCommercialVesselName(v.name)
+    );
     const clusters = clusterVessels(vessels);
     for (const listener of vesselUpdateListeners) {
       try {
@@ -197,6 +199,72 @@ function analyzeMmsi(mmsi: string): { isPotentialMilitary: boolean; country?: st
 }
 
 /**
+ * Known non-combatant AIS ship types (ITU-R M.1371 standard)
+ * Disqualifies fishing, cargo, tankers, tugs, yachts, and civilian transports from military tracking.
+ */
+export function isNonCombatantShipType(shipType: number | undefined): boolean {
+  if (shipType === undefined || shipType === null || !Number.isFinite(shipType)) return false;
+  // 30 = Fishing
+  if (shipType === 30) return true;
+  // 31-34 = Towing, Dredging, Diving
+  if (shipType >= 31 && shipType <= 34) return true;
+  // 36-37 = Sailing, Pleasure Craft
+  if (shipType === 36 || shipType === 37) return true;
+  // 40-49 = High Speed Craft (civilian ferries/transits unless code 35/55)
+  if (shipType >= 40 && shipType <= 49) return true;
+  // 50 = Pilot, 52 = Tug, 53 = Port Tender, 54 = Anti-Pollution
+  if (shipType === 50 || shipType === 52 || shipType === 53 || shipType === 54) return true;
+  // 56-59 = Local/Medical/Special civilian craft
+  if (shipType >= 56 && shipType <= 59) return true;
+  // 60-69 = Passenger (ferries, cruise ships)
+  // 70-79 = Cargo (bulk carriers, container, general cargo)
+  // 80-89 = Tanker (crude oil, chemical, LNG, LPG)
+  if (shipType >= 60 && shipType <= 89) return true;
+  return false;
+}
+
+/**
+ * Check if human-readable AIS ship type string is a non-combatant
+ */
+export function isNonCombatantShipTypeName(typeName: string | undefined): boolean {
+  if (!typeName) return false;
+  const lower = typeName.toLowerCase();
+  return (
+    lower.includes('fishing') ||
+    lower.includes('cargo') ||
+    lower.includes('tanker') ||
+    lower.includes('passenger') ||
+    lower.includes('pleasure') ||
+    lower.includes('sailing') ||
+    lower.includes('tug') ||
+    lower.includes('towing') ||
+    lower.includes('dredging') ||
+    lower.includes('diving') ||
+    lower.includes('pilot') ||
+    lower.includes('port tender') ||
+    lower.includes('high speed craft') ||
+    lower.includes('wing in ground')
+  );
+}
+
+/**
+ * Filter out obvious commercial or civilian vessel names
+ */
+export function isCommercialVesselName(name: string): boolean {
+  if (!name) return false;
+  const normalized = name.toUpperCase().trim();
+
+  const commercialKeywords = [
+    /\b(?:CARGO|CONTAINER|BULKER|BULK|TANKER|FEEDER|EXPRESS|FREIGHTER|BARGE|TUG|TUGBOAT|TRAWLER|FISHER|FISHING|FERRY|CRUISE|YACHT|PILOT|DREDGER|DREDGING)\b/,
+    /\b(?:MAERSK|MSC\b|CMA\s+CGM|COSCO|EVERGREEN|HAPAG|OOCL|WAN\s+HAI|YANG\s+MING|ZIM\b)/,
+    /\b(?:YU|HUO|HAI)\s*\d+/, // Chinese fishing (Yu) / cargo (Huo) hull numbering
+    /\b(?:F\/V|M\/V|M\/T|S\/V)\b/, // Fishing vessel, Merchant vessel, Motor tanker, Sailing vessel
+  ];
+
+  return commercialKeywords.some(pattern => pattern.test(normalized));
+}
+
+/**
  * Match vessel name against known military vessels
  */
 function matchKnownVessel(name: string): typeof KNOWN_NAVAL_VESSELS[number] | undefined {
@@ -204,14 +272,30 @@ function matchKnownVessel(name: string): typeof KNOWN_NAVAL_VESSELS[number] | un
 
   const normalized = name.toUpperCase().trim();
 
+  // Obvious commercial/civilian names must never be matched as warships
+  if (isCommercialVesselName(normalized)) return undefined;
+
   for (const vessel of KNOWN_NAVAL_VESSELS) {
-    if (normalized.includes(vessel.name.toUpperCase())) {
-      return vessel;
+    const vName = vessel.name.toUpperCase();
+    const isSingleWord = !vName.includes(' ') && !vName.includes('.');
+
+    if (isSingleWord) {
+      // For single-word names (like Liaoning, Shandong, Fujian):
+      // Require exact match OR naval prefix: "CNS <Name>", "PLAN <Name>", "PLANS <Name>"
+      const singleWordRegex = new RegExp(`^(?:CNS|PLAN|PLANS)?\\s*${vName}(?:\\s*(?:${vessel.hullNumber || ''}|CV-\\d+))?$`, 'i');
+      if (singleWordRegex.test(normalized)) {
+        return vessel;
+      }
+    } else {
+      // For multi-word names (e.g. "USS Gerald R. Ford", "HMS Queen Elizabeth", "Admiral Kuznetsov"):
+      if (normalized === vName || normalized.startsWith(vName) || normalized.includes(vName)) {
+        return vessel;
+      }
     }
+
     if (vessel.hullNumber) {
       const hull = vessel.hullNumber.toUpperCase();
       // Hull number should match as a distinct token (e.g. "CVN-78", "DDG-1000", "CV-16", "R08")
-      // Avoid loose substring matches where "16" matches any commercial ship name with 16
       const escaped = hull.replace(/[-\\/\\^$*+?.()|[\]{}]/g, '\\$&');
       const regex = new RegExp(`(?:^|[^A-Z0-9])(?:CV-)?${escaped}(?:[^A-Z0-9]|$)`, 'i');
       if (regex.test(normalized)) {
@@ -383,14 +467,59 @@ function processAisPosition(data: AisPositionData): void {
 
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
+  // 1. HARD DISQUALIFICATION: Explicit non-combatant AIS ship types (fishing, cargo, tanker, passenger, tugs, etc.)
+  if (isNonCombatantShipType(data.shipType)) {
+    if (trackedVessels.has(mmsi)) {
+      trackedVessels.delete(mmsi);
+      vesselHistory.delete(mmsi);
+      scheduleVesselsUpdateNotification();
+    }
+    return;
+  }
+
+  // 2. HARD DISQUALIFICATION: Obvious commercial or fishing vessel names
+  if (isCommercialVesselName(name)) {
+    if (trackedVessels.has(mmsi)) {
+      trackedVessels.delete(mmsi);
+      vesselHistory.delete(mmsi);
+      scheduleVesselsUpdateNotification();
+    }
+    return;
+  }
+
   // Check if this is a military/government vessel
   const mmsiAnalysis = analyzeMmsi(mmsi);
   const knownVessel = matchKnownVessel(name);
   const aisType = data.shipType ? getVesselTypeFromAis(data.shipType) : undefined;
 
   // Filter to only display military vessel positions on the map
-  const isMilitary = knownVessel || mmsiAnalysis.isPotentialMilitary || aisType;
-  if (!isMilitary) return;
+  // Must be a confirmed known naval vessel, or explicit military/law enforcement AIS code (35 or 55),
+  // or a verified military MMSI prefix (only if not an unknown civilian ship)
+  const isMilitary = Boolean(
+    knownVessel ||
+    aisType ||
+    (mmsiAnalysis.isPotentialMilitary && (data.shipType === 35 || data.shipType === 55 || !data.shipType))
+  );
+
+  if (!isMilitary) {
+    if (trackedVessels.has(mmsi)) {
+      trackedVessels.delete(mmsi);
+      vesselHistory.delete(mmsi);
+      scheduleVesselsUpdateNotification();
+    }
+    return;
+  }
+
+  // If the AIS ship type string is a non-combatant, reject
+  const aisShipTypeName = getAisShipTypeName(data.shipType);
+  if (isNonCombatantShipTypeName(aisShipTypeName)) {
+    if (trackedVessels.has(mmsi)) {
+      trackedVessels.delete(mmsi);
+      vesselHistory.delete(mmsi);
+      scheduleVesselsUpdateNotification();
+    }
+    return;
+  }
 
   messageCount++;
 
@@ -486,9 +615,13 @@ function cleanup(): void {
   const now = Date.now();
   const staleCutoff = now - VESSEL_STALE_TIME;
 
-  // Remove stale vessels
+  // Remove stale or non-combatant vessels
   for (const [mmsi, vessel] of trackedVessels) {
-    if (vessel.lastAisUpdate.getTime() < staleCutoff) {
+    if (
+      vessel.lastAisUpdate.getTime() < staleCutoff ||
+      isNonCombatantShipTypeName(vessel.aisShipType) ||
+      isCommercialVesselName(vessel.name)
+    ) {
       trackedVessels.delete(mmsi);
       vesselHistory.delete(mmsi);
     }
@@ -641,9 +774,11 @@ export async function fetchMilitaryVessels(): Promise<{
       // Clean up old data
       cleanup();
 
-      // Convert tracked vessels to array
-      vessels = Array.from(trackedVessels.values());
-      console.log(`[Military Vessels] After cleanup, returning ${vessels.length} vessels (trackedVessels.size: ${trackedVessels.size})`);
+      // Convert tracked vessels to array, strictly excluding non-combatants
+      vessels = Array.from(trackedVessels.values()).filter(
+        (v) => !isNonCombatantShipTypeName(v.aisShipType) && !isCommercialVesselName(v.name)
+      );
+      console.log(`[Military Vessels] After cleanup, returning ${vessels.length} combatant vessels (trackedVessels.size: ${trackedVessels.size})`);
 
       // Only cache non-empty results - empty results due to timing shouldn't block future calls
       // if (vessels.length > 0) {

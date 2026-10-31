@@ -6307,9 +6307,26 @@ export class DeckGLMap {
   }
 
   public setMilitaryVessels(vessels: MilitaryVessel[], clusters: MilitaryVesselCluster[] = []): void {
-    this.militaryVessels = vessels;
+    const combatants = vessels.filter((v) => {
+      const type = (v.aisShipType || '').toLowerCase();
+      if (
+        type.includes('cargo') ||
+        type.includes('fishing') ||
+        type.includes('tanker') ||
+        type.includes('pleasure') ||
+        type.includes('passenger') ||
+        type.includes('tug') ||
+        type.includes('towing') ||
+        type.includes('dredging') ||
+        type.includes('pilot')
+      ) {
+        return false;
+      }
+      return true;
+    });
+    this.militaryVessels = combatants;
     this.militaryVesselClusters = clusters;
-    this.rebuildMilitaryVesselSupercluster(vessels);
+    this.rebuildMilitaryVesselSupercluster(combatants);
     this.render();
   }
 

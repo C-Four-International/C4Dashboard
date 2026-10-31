@@ -395,14 +395,15 @@ export interface VesselPattern {
 
 // Military vessel MMSI patterns
 export const MILITARY_VESSEL_PATTERNS: VesselPattern[] = [
-  // US Navy vessels (various MMSI ranges)
-  { mmsiPrefix: '3699', operator: 'usn', country: 'USA', vesselType: 'destroyer' },
+  // US Navy / Coast Guard verified blocks
   { mmsiPrefix: '369970', operator: 'usn', country: 'USA' },
+  { mmsiPrefix: '369971', operator: 'usn', country: 'USA' },
+  { mmsiPrefix: '366970', operator: 'usn', country: 'USA' },
+  { mmsiPrefix: '366971', operator: 'usn', country: 'USA' },
+  { mmsiPrefix: '367970', operator: 'usn', country: 'USA' },
 
   // UK Royal Navy
   { mmsiPrefix: '2320', operator: 'rn', country: 'UK' },
-
-  // Note: Many military vessels don't broadcast AIS or use obscured identities
 ];
 
 /**
