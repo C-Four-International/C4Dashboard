@@ -440,27 +440,14 @@ async function fetchFromTar1090(url: string, sourceName: string): Promise<Milita
  * Fetch from fallback sources, combining and deduplicating results.
  */
 async function fetchFromFallbackSources(): Promise<MilitaryFlight[]> {
-  const [adsbFiResult, adsbLolResult] = await Promise.allSettled([
-    fetchFromTar1090('/api/adsbfi', 'ADSB.fi'),
-    fetchFromTar1090('https://api.adsb.lol/v2/mil', 'ADSB.lol').catch(() => []),
-  ]);
-
-  const allFlights: MilitaryFlight[] = [];
-  const seenHexCodes = new Set<string>();
-
-  for (const res of [adsbFiResult, adsbLolResult]) {
-    if (res.status === 'fulfilled' && Array.isArray(res.value)) {
-      for (const flight of res.value) {
-        if (!seenHexCodes.has(flight.hexCode)) {
-          seenHexCodes.add(flight.hexCode);
-          allFlights.push(flight);
-        }
-      }
-    }
+  try {
+    const flights = await fetchFromTar1090('/api/adsbfi', 'ADSB Unified Feed (adsb.fi + adsb.lol)');
+    console.log(`[Military Flights] ADSB sources returned ${flights.length} unique flights`);
+    return flights;
+  } catch (err) {
+    console.warn('[Military Flights] Failed to fetch fallback military aircraft:', err);
+    return [];
   }
-
-  console.log(`[Military Flights] ADSB sources combined, returned ${allFlights.length} unique flights`);
-  return allFlights;
 }
 
 
