@@ -41,33 +41,45 @@ export default async function handler(req) {
   }
 
   try {
-    const endpoints = [
-      'https://api.adsb.lol/v2/lat/33.0/lon/35.0/dist/250',
-      'https://api.adsb.lol/v2/lat/47.0/lon/32.0/dist/250',
-      'https://api.adsb.lol/v2/lat/55.0/lon/21.0/dist/250',
-      'https://api.adsb.lol/v2/lat/38.0/lon/127.0/dist/250'
+    const regions = [
+      { lat: 33.0, lon: 35.0, dist: 250 },
+      { lat: 47.0, lon: 32.0, dist: 250 },
+      { lat: 55.0, lon: 21.0, dist: 250 },
+      { lat: 38.0, lon: 127.0, dist: 250 }
     ];
 
-    // Fetch all 4 regions in parallel with Promise.allSettled instead of serial for-await loop
-    const results = await Promise.allSettled(
-      endpoints.map(url =>
-        fetch(url, {
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'WorldMonitor/GPSJammingEdge',
-          },
-          signal: AbortSignal.timeout(6000),
-        }).then(async res => {
-          if (!res.ok) return null;
-          return res.json();
-        })
-      )
-    );
+    const fetchRegion = async (r) => {
+      const upstreams = [
+        `https://opendata.adsb.fi/api/v2/lat/${r.lat}/lon/${r.lon}/dist/${r.dist}`,
+        `https://api.adsb.lol/v2/lat/${r.lat}/lon/${r.lon}/dist/${r.dist}`
+      ];
+      for (const url of upstreams) {
+        try {
+          const res = await fetch(url, {
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'WorldMonitor/GPSJammingEdge',
+            },
+            signal: AbortSignal.timeout(6000),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const planes = data.aircraft || data.ac || [];
+            if (planes.length > 0) return planes;
+          }
+        } catch {
+          // Try next upstream
+        }
+      }
+      return [];
+    };
+
+    const results = await Promise.allSettled(regions.map(fetchRegion));
 
     const jammedPoints = [];
     for (const res of results) {
-      if (res.status === 'fulfilled' && res.value?.ac) {
-        for (const plane of res.value.ac) {
+      if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+        for (const plane of res.value) {
           if (plane.lat && plane.lon && (plane.nic < 8 || plane.nac_p < 9)) {
             const weight = ((8 - (plane.nic || 0)) + (9 - (plane.nac_p || 0))) / 17;
             jammedPoints.push([plane.lon, plane.lat, Math.max(0.1, weight)]);
