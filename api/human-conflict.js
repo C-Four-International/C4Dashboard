@@ -213,7 +213,7 @@ let edgeCanonicalSnapshotTime = 0;
 let edgeRateLimitUntil = 0;
 let edgeCanonicalFetchInFlight = null;
 
-function filterSnapshotEvents(events, categoryParam, countryParam, limitParam) {
+function filterSnapshotEvents(events, categoryParam, countryParam, limitParam, daysParam) {
   let list = Array.isArray(events) ? events : [];
   if (categoryParam) {
     const allowed = categoryParam.toLowerCase().split(',').map(s => s.trim());
@@ -223,10 +223,35 @@ function filterSnapshotEvents(events, categoryParam, countryParam, limitParam) {
     const countryLower = countryParam.toLowerCase();
     list = list.filter(e => (e.country || '').toLowerCase() === countryLower);
   }
+
+  // Staleness filter: enforce strict freshness window
+  const now = Date.now();
+  const maxDays = Number(daysParam) > 0 ? Number(daysParam) : 90;
+  const cutoffMs = now - (maxDays * 24 * 60 * 60 * 1000);
+
+  // 1. Filter events within requested active days
+  const freshList = list.filter(e => {
+    if (!e.date) return false;
+    const ts = Date.parse(e.date);
+    return Number.isFinite(ts) && ts >= cutoffMs;
+  });
+
+  // 2. Active conflicts horizon: if strict window has few events, allow up to 180 days.
+  // Strictly filter out any multi-year stale historical archives (e.g. 2010/2015).
+  let candidateList = freshList;
+  if (candidateList.length < 10) {
+    const maxStalenessCutoff = now - (180 * 24 * 60 * 60 * 1000);
+    candidateList = list.filter(e => {
+      if (!e.date) return false;
+      const ts = Date.parse(e.date);
+      return Number.isFinite(ts) && ts >= maxStalenessCutoff;
+    });
+  }
+
   // Sort descending by date so the freshest conflict events are prioritized
-  list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  candidateList.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const maxLimit = Math.min(300, Math.max(1, Number(limitParam || 250)));
-  return list.slice(0, maxLimit);
+  return candidateList.slice(0, maxLimit);
 }
 
 async function fetchUcdpCanonicalSnapshot(timeoutMs = 15000) {
@@ -301,9 +326,17 @@ async function fetchUcdpCanonicalSnapshot(timeoutMs = 15000) {
   const curated = getCuratedConflictEvents();
 
   // Combine curated real-time active conflicts with UCDP dataset
+  // Discard any UCDP events older than 180 days to permanently purge historical archives (e.g. 2010)
+  const now = Date.now();
+  const maxStalenessCutoff = now - (180 * 24 * 60 * 60 * 1000);
+  const freshUcdp = ucdpEvents.filter(e => {
+    const ts = Date.parse(e.date);
+    return Number.isFinite(ts) && ts >= maxStalenessCutoff;
+  });
+
   const seenIds = new Set(curated.map(e => e.id));
   const merged = [...curated];
-  for (const ev of ucdpEvents) {
+  for (const ev of freshUcdp) {
     if (!seenIds.has(ev.id)) {
       seenIds.add(ev.id);
       merged.push(ev);
@@ -376,9 +409,10 @@ export default async function handler(req) {
   const clientCategory = requestUrl.searchParams.get('category') || '';
   const clientCountry = requestUrl.searchParams.get('country') || '';
   const clientLimit = requestUrl.searchParams.get('limit') || '250';
+  const clientDays = requestUrl.searchParams.get('days') || '';
 
   const makeResponse = (events, cacheHeader) => {
-    const filtered = filterSnapshotEvents(events, clientCategory, clientCountry, clientLimit);
+    const filtered = filterSnapshotEvents(events, clientCategory, clientCountry, clientLimit, clientDays);
     return new Response(JSON.stringify({
       success: true,
       count: filtered.length,

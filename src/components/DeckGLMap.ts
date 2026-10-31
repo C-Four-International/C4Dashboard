@@ -1699,7 +1699,13 @@ export class DeckGLMap {
     }
 
     // Human Conflict layer (UCDP API)
-    const humanConflictToRender = filteredHumanConflict.length > 0 ? filteredHumanConflict : this.humanConflictEvents;
+    // Filter out stale events: prioritize user's selected time range (e.g. 7d, 24h).
+    // If none match strict range, limit to active conflicts within 180 days and strictly purge old historical records.
+    const activeConflicts = this.humanConflictEvents.filter(e => {
+      const ts = this.parseTime(e.date);
+      return ts != null && ts >= (Date.now() - (180 * 24 * 60 * 60 * 1000));
+    });
+    const humanConflictToRender = filteredHumanConflict.length > 0 ? filteredHumanConflict : activeConflicts;
     if (mapLayers.humanConflict && humanConflictToRender.length > 0) {
       layers.push(this.createHumanConflictLayer(humanConflictToRender));
       layers.push(this.createGhostLayer('human-conflict-layer', humanConflictToRender, d => [Number(d.lon), Number(d.lat)], { radiusMinPixels: 14 }));

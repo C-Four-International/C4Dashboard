@@ -69,6 +69,30 @@ function convertUcdpToHumanConflictEvents(
     const countryLower = options.country.toLowerCase();
     mapped = mapped.filter(e => (e.country || '').toLowerCase() === countryLower);
   }
+
+  // Staleness filter: enforce freshness and purge historical multi-year records
+  const now = Date.now();
+  const maxDays = options.days && options.days > 0 ? options.days : 90;
+  const cutoffMs = now - (maxDays * 24 * 60 * 60 * 1000);
+
+  const freshMapped = mapped.filter(e => {
+    const ts = Date.parse(e.date);
+    return Number.isFinite(ts) && ts >= cutoffMs;
+  });
+
+  if (freshMapped.length >= 10) {
+    mapped = freshMapped;
+  } else {
+    const maxStalenessCutoff = now - (180 * 24 * 60 * 60 * 1000);
+    mapped = mapped.filter(e => {
+      const ts = Date.parse(e.date);
+      return Number.isFinite(ts) && ts >= maxStalenessCutoff;
+    });
+  }
+
+  // Sort descending by date (freshest first)
+  mapped.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
   if (options.limit) {
     mapped = mapped.slice(0, Math.min(300, Math.max(1, options.limit)));
   }
