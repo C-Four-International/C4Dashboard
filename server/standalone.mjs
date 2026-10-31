@@ -30,6 +30,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
 
 // ── Automatically resolve and load .env if present ─────────────────────────
+let envLoadedFrom = null;
 try {
   const envCandidates = [
     path.resolve(process.cwd(), '.env'),
@@ -57,6 +58,7 @@ try {
           }
         }
       }
+      envLoadedFrom = envPath;
       break;
     }
   }
@@ -217,6 +219,10 @@ async function importHandler(modulePath) {
 
 function toHeaders(nodeHeaders) {
   const headers = new Headers();
+  const effectiveHost = nodeHeaders['x-forwarded-host'] || nodeHeaders['host'];
+  if (effectiveHost) {
+    headers.set('host', String(effectiveHost));
+  }
   for (const [key, value] of Object.entries(nodeHeaders)) {
     if (key.toLowerCase() === 'host') continue;
     if (Array.isArray(value)) {
@@ -396,6 +402,8 @@ export async function createStandaloneServer() {
         uptime: Math.round(process.uptime()),
         timestamp: new Date().toISOString(),
         relay: `${RELAY_HOST}:${RELAY_PORT}`,
+        envLoadedFrom: envLoadedFrom || 'systemd/environment',
+        allowedOrigins: process.env.ALLOWED_ORIGINS || '(default domain list)',
       }));
       return;
     }
