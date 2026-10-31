@@ -432,7 +432,6 @@ export class PanelLayoutManager implements AppModule {
         this.ctx.panels['social-intel'] = new SocialMediaIntelPanel();
       }, panelTasks);
 
-<<<<<<< Updated upstream
       /*
       const ciiPanel = new CIIPanel();
       ciiPanel.setShareStoryHandler((code, name) => {
@@ -440,21 +439,11 @@ export class PanelLayoutManager implements AppModule {
       });
       this.ctx.panels['cii'] = ciiPanel;
       */
-=======
-      this.registerPanelLoad('activity-spikes', async () => {
-        const { ActivitySpikesPanel } = await import('@/components/ActivitySpikesPanel');
-        const activitySpikesPanel = new ActivitySpikesPanel();
-        activitySpikesPanel.setLocationClickHandler((lat: number, lon: number) => {
-          this.ctx.map?.setCenter(lat, lon, 4);
-        });
-        this.ctx.panels['activity-spikes'] = activitySpikesPanel;
-      }, panelTasks);
 
       this.registerPanelLoad('cascade', async () => {
         const { CascadePanel } = await import('@/components/CascadePanel');
         this.ctx.panels['cascade'] = new CascadePanel();
       }, panelTasks);
->>>>>>> Stashed changes
 
       this.registerPanelLoad('satellite-fires', async () => {
         const { SatelliteFiresPanel } = await import('@/components/SatelliteFiresPanel');

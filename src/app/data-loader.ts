@@ -1329,14 +1329,8 @@ export class DataLoaderManager implements AppModule {
         status: finalEvents.length > 0 ? 'ok' : 'warning',
         itemCount: finalEvents.length,
       });
-<<<<<<< Updated upstream
       if (finalEvents.length > 0) {
         dataFreshness.recordUpdate('gdelt_conflict', finalEvents.length);
-=======
-      if (events.length > 0) {
-
-        dataFreshness.recordUpdate('gdelt_conflict', events.length);
->>>>>>> Stashed changes
       }
     } catch (error) {
       console.warn('[DataLoader] fetchHumanConflictEvents error, falling back to curated events:', error);
