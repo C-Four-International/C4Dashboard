@@ -81,6 +81,7 @@ export class CircuitBreaker<T> {
         const { getPersistentCache } = await import('../services/persistent-cache');
         const entry = await getPersistentCache<T>(this.persistKey);
         if (entry == null || entry.data === undefined || entry.data === null) return;
+        if (Array.isArray(entry.data) && entry.data.length === 0) return;
 
         const age = Date.now() - entry.updatedAt;
         if (age > PERSISTENT_STALE_CEILING_MS) return;
@@ -152,6 +153,9 @@ export class CircuitBreaker<T> {
 
   getCached(): T | null {
     if (this.cache && Date.now() - this.cache.timestamp < this.cacheTtlMs) {
+      if (Array.isArray(this.cache.data) && this.cache.data.length === 0) {
+        return null;
+      }
       return this.cache.data;
     }
     return null;
@@ -162,6 +166,7 @@ export class CircuitBreaker<T> {
   }
 
   recordSuccess(data: T): void {
+    if (Array.isArray(data) && data.length === 0) return;
     this.state = { failures: 0, cooldownUntil: 0 };
     this.cache = { data, timestamp: Date.now() };
     this.lastDataState = { mode: 'live', timestamp: Date.now(), offline: false };
