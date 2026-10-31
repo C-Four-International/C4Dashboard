@@ -1304,7 +1304,7 @@ export class DataLoaderManager implements AppModule {
   }
 
   async loadHumanConflict(forceRefresh = false): Promise<void> {
-    if (!forceRefresh && this.ctx.intelligenceCache.humanConflict) {
+    if (!forceRefresh && this.ctx.intelligenceCache.humanConflict && this.ctx.intelligenceCache.humanConflict.length > 0) {
       const events = this.ctx.intelligenceCache.humanConflict;
       this.ctx.map?.setHumanConflictEvents(events);
       this.ctx.map?.setLayerReady('humanConflict', events.length > 0);
