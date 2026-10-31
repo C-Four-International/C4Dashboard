@@ -54,7 +54,7 @@ try {
 const AISSTREAM_URL = 'wss://stream.aisstream.io/v0/stream';
 const API_KEY = process.env.AISSTREAM_API_KEY || process.env.VITE_AISSTREAM_API_KEY;
 const GDELT_API_KEY = process.env.GDELT_API_KEY || '';
-const PORT = process.env.PORT || 3004;
+const PORT = process.env.RELAY_PORT || (process.env.PORT && process.env.PORT !== '3000' ? process.env.PORT : 3004);
 
 const DISABLE_AISSTREAM = process.env.DISABLE_AISSTREAM === 'true';
 
