@@ -490,6 +490,53 @@ export function renderStaticGraphsFromDb(db, outputDir = OUTPUT_DIR) {
   fs.writeFileSync(eventsTmp, JSON.stringify({ generatedAt: new Date().toISOString(), events: formattedEvents }, null, 2));
   fs.renameSync(eventsTmp, eventsDest);
 
+  // Write dynamic timeseries spikes-data.json atomically for client-side D3 rendering
+  const formattedBuckets = Array.from({ length: N }, (_, i) => {
+    const bucketTs = startSec + i * bucketSpan;
+    const dateObj = new Date(bucketTs * 1000);
+    const dateLabel = dateObj.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'UTC',
+    }) + 'Z';
+    const theaterData = {};
+    const composite = {};
+    for (const tid of Object.keys(THEATERS)) {
+      const b = bucketsByTheater[tid][i];
+      theaterData[tid] = {
+        tanker_awacs: Number(b.z_tanker_awacs.toFixed(2)),
+        isr_recon: Number(b.z_isr_recon.toFixed(2)),
+        gnss_jamming: Number(b.z_gnss_jamming.toFixed(2)),
+        thermal: Number(b.z_thermal.toFixed(2)),
+        composite_z: Number(b.composite_z.toFixed(2)),
+      };
+      composite[tid] = Number(b.composite_z.toFixed(2));
+    }
+    return {
+      index: i,
+      ts: bucketTs * 1000,
+      dateLabel,
+      composite,
+      theaters: theaterData,
+    };
+  });
+
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    startSec,
+    endSec: nowSec,
+    buckets: formattedBuckets,
+    events: formattedEvents,
+  };
+
+  const dataTmp = path.join(outputDir, 'spikes-data.json.tmp');
+  const dataDest = path.join(outputDir, 'spikes-data.json');
+  fs.writeFileSync(dataTmp, JSON.stringify(payload, null, 2));
+  fs.renameSync(dataTmp, dataDest);
+
   // Render all 5 static SVG views
   const views = ['all', ...Object.keys(THEATERS)];
   for (const view of views) {
