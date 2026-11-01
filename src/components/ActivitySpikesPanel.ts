@@ -714,14 +714,14 @@ export class ActivitySpikesPanel extends Panel {
     const lineGen = d3
       .line<SpikeDataPoint>()
       .x((d) => xScale(d.ts))
-      .y((d) => yScale(0))
+      .y(() => yScale(0))
       .curve(d3.curveMonotoneX);
 
     const areaGen = d3
       .area<SpikeDataPoint>()
       .x((d) => xScale(d.ts))
       .y0(yScale(0))
-      .y1((d) => yScale(0))
+      .y1(() => yScale(0))
       .curve(d3.curveMonotoneX);
 
     const renderCurves = (currentX: d3.ScaleTime<number, number>) => {
