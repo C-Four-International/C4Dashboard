@@ -230,6 +230,8 @@ export class ActivitySpikesPanel extends Panel {
         'Interactive 30-day anomaly correlation engine. Mousewheel / pinch to zoom, drag to pan timeline, and click legend items to isolate or compare specific signal streams (Tankers/AWACS, ISR, GNSS Jamming, FIRMS Thermal).',
     });
 
+    this.element.classList.add('panel-wide');
+
     this.themeHandler = () => {
       this.render();
       if (this.fullscreenModalEl) {
