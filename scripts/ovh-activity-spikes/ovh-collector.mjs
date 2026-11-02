@@ -5,7 +5,7 @@
  * Zero-dependency Node.js (v22.5+ / v24+) backend using built-in `node:sqlite`.
  *
  * Usage:
- *   1. Seed 30d baseline & render initial graphs:
+ *   1. Seed 6-month baseline & render initial graphs:
  *      node scripts/ovh-activity-spikes/ovh-collector.mjs --seed-sample
  *
  *   2. Single poll + SQLite write + static SVG generation (for 15m cron):
@@ -34,7 +34,7 @@ const DB_PATH = process.env.OVH_DB_PATH || path.join(__dirname, 'data', 'activit
 const OUTPUT_DIR = process.env.OVH_OUTPUT_DIR || path.join(__dirname, 'output');
 const PORT = Number(process.env.OVH_PORT || 8090);
 const POLL_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
-const RETENTION_SECONDS = 30 * 24 * 60 * 60; // 30 days
+const RETENTION_SECONDS = 180 * 24 * 60 * 60; // 180 days (6 months)
 
 export const THEATERS = {
   'east-med': {
@@ -300,7 +300,7 @@ export async function fetchLiveTelemetry() {
 
 /**
  * Inserts a poll snapshot into SQLite, records any >2.5σ convergence events,
- * and prunes rows older than 30 days.
+ * and prunes rows older than 180 days (6 months).
  */
 export function recordTelemetrySnapshot(db, telemetryByTheater, ts = Math.floor(Date.now() / 1000)) {
   const dateObj = new Date(ts * 1000);
@@ -391,7 +391,7 @@ export function recordTelemetrySnapshot(db, telemetryByTheater, ts = Math.floor(
     }
   }
 
-  // Prune data older than 30 days
+  // Prune data older than 180 days (6 months)
   const cutoff = ts - RETENTION_SECONDS;
   db.prepare('DELETE FROM theater_samples WHERE ts < ?').run(cutoff);
   db.prepare('DELETE FROM convergence_events WHERE ts < ?').run(cutoff);
@@ -406,7 +406,7 @@ function escapeXml(str) {
 }
 
 /**
- * Downsamples 30 days of SQLite rows into 120 6-hour buckets and renders
+ * Downsamples 180 days (6 months) of SQLite rows into 720 6-hour buckets and renders
  * the static SVG graph files + events.json atomically to OUTPUT_DIR.
  */
 export function renderStaticGraphsFromDb(db, outputDir = OUTPUT_DIR) {
@@ -414,7 +414,7 @@ export function renderStaticGraphsFromDb(db, outputDir = OUTPUT_DIR) {
 
   const nowSec = Math.floor(Date.now() / 1000);
   const startSec = nowSec - RETENTION_SECONDS;
-  const N = 120; // 120 6-hour buckets across 30 days
+  const N = 720; // 720 6-hour buckets across 180 days (6 months)
   const bucketSpan = RETENTION_SECONDS / N;
 
   const rawRows = db
@@ -551,7 +551,7 @@ export function renderStaticGraphsFromDb(db, outputDir = OUTPUT_DIR) {
 function buildStaticSvg(theater, bucketsByTheater, events) {
   const W = 760;
   const H = 390;
-  const N = 120;
+  const N = 720;
   const padL = 44;
   const padR = 18;
   const topPlotY = 48;
@@ -735,13 +735,13 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
   }).join('');
 
   const xTicks = [
-    { idx: 0, label: '-30d' },
-    { idx: 20, label: '-25d' },
-    { idx: 40, label: '-20d' },
-    { idx: 60, label: '-15d' },
-    { idx: 80, label: '-10d' },
-    { idx: 100, label: '-5d' },
-    { idx: 119, label: 'NOW' },
+    { idx: 0, label: '-180d' },
+    { idx: 120, label: '-150d' },
+    { idx: 240, label: '-120d' },
+    { idx: 360, label: '-90d' },
+    { idx: 480, label: '-60d' },
+    { idx: 600, label: '-30d' },
+    { idx: 719, label: 'NOW' },
   ];
   const xAxisLabelsSvg = xTicks
     .map((tk) => {
@@ -755,7 +755,7 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
 
   const titleText =
     theater === 'all'
-      ? '30-DAY MULTI-THEATER COMPOSITE Z-SCORE (OVH SQLITE FEED)'
+      ? '6-MONTH MULTI-THEATER COMPOSITE Z-SCORE (OVH SQLITE FEED)'
       : `${THEATERS[theater].shortLabel} (${THEATERS[theater].bboxLabel}) — LAYER CORRELATION`;
 
   const timestampStr = new Date().toISOString().slice(0, 16).replace('T', ' ') + 'Z';
@@ -764,7 +764,7 @@ function buildStaticSvg(theater, bucketsByTheater, events) {
   <rect width="${W}" height="${H}" fill="#ffffff" rx="4" />
   <rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" fill="none" stroke="#e2e8f0" rx="4" />
   <text x="${padL}" y="16" fill="#0f172a" font-size="10.5" font-weight="700" font-family="monospace" letter-spacing="0.4">${escapeXml(titleText)}</text>
-  <text x="${W - padR}" y="16" text-anchor="end" fill="#64748b" font-size="9" font-family="monospace">OVH SQLITE 30D • ${timestampStr}</text>
+  <text x="${W - padR}" y="16" text-anchor="end" fill="#64748b" font-size="9" font-family="monospace">OVH SQLITE 6M • ${timestampStr}</text>
   ${legendItemsSvg}
   <g transform="translate(${W - padR - 145}, 30)">
     <line x1="0" y1="-3" x2="10" y2="-3" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="3,2" />
@@ -792,13 +792,13 @@ function gaussianPulse(idx, center, width, height) {
 }
 
 /**
- * Seeds 30 days of realistic 6-hour historical rows into SQLite so Z-scores
+ * Seeds 180 days (6 months) of realistic 6-hour historical rows into SQLite so Z-scores
  * and static graphs are immediately populated on fresh deployments.
  */
 export function seedSampleHistory(db) {
   const nowSec = Math.floor(Date.now() / 1000);
   const startSec = nowSec - RETENTION_SECONDS;
-  const N = 120;
+  const N = 720;
   const stepSec = Math.floor(RETENTION_SECONDS / N);
 
   db.exec('BEGIN');
@@ -807,10 +807,21 @@ export function seedSampleHistory(db) {
       const ts = startSec + i * stepSec;
       const snapshot = {};
 
-      const blackSeaPulse = gaussianPulse(i, 26, 2.0, 12) + gaussianPulse(i, 68, 2.2, 6);
-      const eastMedPulse = gaussianPulse(i, 54, 2.2, 14) + gaussianPulse(i, 114, 1.8, 10);
-      const taiwanPulse = gaussianPulse(i, 78, 2.0, 10);
-      const iranPulse = gaussianPulse(i, 96, 3.2, 7) + gaussianPulse(i, 102, 1.9, 16);
+      const blackSeaPulse =
+        gaussianPulse(i, 156, 4.0, 12) +
+        gaussianPulse(i, 408, 4.2, 6) +
+        gaussianPulse(i, 668, 3.5, 8);
+      const eastMedPulse =
+        gaussianPulse(i, 324, 4.0, 14) +
+        gaussianPulse(i, 514, 3.8, 10) +
+        gaussianPulse(i, 712, 3.0, 12);
+      const taiwanPulse =
+        gaussianPulse(i, 238, 3.5, 10) +
+        gaussianPulse(i, 478, 4.0, 11);
+      const iranPulse =
+        gaussianPulse(i, 196, 4.2, 9) +
+        gaussianPulse(i, 596, 5.0, 12) +
+        gaussianPulse(i, 682, 3.8, 16);
 
       const pulses = {
         'black-sea': blackSeaPulse,
@@ -902,7 +913,7 @@ async function main() {
   const db = initDatabase(DB_PATH);
 
   if (args.has('--seed-sample')) {
-    console.log('[OVH Activity Spikes] Seeding 30-day sample baseline into SQLite...');
+    console.log('[OVH Activity Spikes] Seeding 6-month sample baseline into SQLite...');
     seedSampleHistory(db);
     renderStaticGraphsFromDb(db, OUTPUT_DIR);
     console.log(`[OVH Activity Spikes] Seeded SQLite (${DB_PATH}) & rendered static graphs to ${OUTPUT_DIR}`);

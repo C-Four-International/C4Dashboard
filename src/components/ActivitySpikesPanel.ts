@@ -8,7 +8,7 @@ export type SpikeTheaterId = 'all' | 'east-med' | 'iran-centcom' | 'black-sea' |
 
 export interface SpikeEventAnnotation {
   id: string;
-  dayIndex: number; // 0..119 (6-hour buckets across 30 days)
+  dayIndex: number; // 0..719 (6-hour buckets across 180 days / 6 months)
   ts: number;
   dateLabel: string;
   theaterId: Exclude<SpikeTheaterId, 'all'>;
@@ -61,7 +61,7 @@ interface SeriesItem {
 }
 
 const REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15-minute bucket
-const TOTAL_BUCKETS = 120; // 30 days @ 6-hour buckets
+const TOTAL_BUCKETS = 720; // 180 days (6 months) @ 6-hour buckets
 
 const THEATERS: Record<Exclude<SpikeTheaterId, 'all'>, TheaterSampleConfig> = {
   'east-med': {
@@ -122,11 +122,10 @@ const THEATERS: Record<Exclude<SpikeTheaterId, 'all'>, TheaterSampleConfig> = {
   },
 };
 
-const BASE_EVENTS: Omit<SpikeEventAnnotation, 'ts'>[] = [
+const BASE_EVENTS: Omit<SpikeEventAnnotation, 'ts' | 'dateLabel'>[] = [
   {
-    id: 'evt-oct-06',
-    dayIndex: 26,
-    dateLabel: 'D-23 (04:00Z)',
+    id: 'evt-hist-01',
+    dayIndex: 156,
     theaterId: 'black-sea',
     theaterLabel: 'Black Sea / Crimea',
     zScore: 3.4,
@@ -137,9 +136,20 @@ const BASE_EVENTS: Omit<SpikeEventAnnotation, 'ts'>[] = [
     severity: 'critical',
   },
   {
-    id: 'evt-oct-13',
-    dayIndex: 54,
-    dateLabel: 'D-16 (22:00Z)',
+    id: 'evt-hist-02',
+    dayIndex: 238,
+    theaterId: 'taiwan-scs',
+    theaterLabel: 'Taiwan Strait / Pratas',
+    zScore: 3.1,
+    headline: 'Multi-axis PLA combat air patrol + RC-135 SIGINT monitoring surge over Bashi Channel',
+    layersTriggered: ['Tanker/AWACS', 'ISR/Recon', 'Naval AIS'],
+    lat: 21.8,
+    lon: 118.5,
+    severity: 'critical',
+  },
+  {
+    id: 'evt-hist-03',
+    dayIndex: 324,
     theaterId: 'east-med',
     theaterLabel: 'East Med / Levant',
     zScore: 4.1,
@@ -150,22 +160,20 @@ const BASE_EVENTS: Omit<SpikeEventAnnotation, 'ts'>[] = [
     severity: 'critical',
   },
   {
-    id: 'evt-oct-19',
-    dayIndex: 78,
-    dateLabel: 'D-10 (14:00Z)',
+    id: 'evt-hist-04',
+    dayIndex: 478,
     theaterId: 'taiwan-scs',
     theaterLabel: 'Taiwan Strait / Bashi',
     zScore: 2.9,
     headline: 'Kadena KC-135 + P-8 Poseidon patrol surge in Bashi Channel & ADIZ periphery',
-    layersTriggered: ['Tanker/AWACS', 'ISR/Recon', 'Naval AIS'],
+    layersTriggered: ['Tanker/AWACS', 'ISR/Recon'],
     lat: 22.3,
     lon: 120.2,
     severity: 'elevated',
   },
   {
-    id: 'evt-oct-25',
-    dayIndex: 102,
-    dateLabel: 'D-4 (01:30Z)',
+    id: 'evt-hist-05',
+    dayIndex: 596,
     theaterId: 'iran-centcom',
     theaterLabel: 'CENTCOM / Hormuz',
     zScore: 4.4,
@@ -176,9 +184,8 @@ const BASE_EVENTS: Omit<SpikeEventAnnotation, 'ts'>[] = [
     severity: 'critical',
   },
   {
-    id: 'evt-oct-28',
-    dayIndex: 114,
-    dateLabel: 'D-1 (18:00Z)',
+    id: 'evt-hist-06',
+    dayIndex: 708,
     theaterId: 'east-med',
     theaterLabel: 'East Med / Levant',
     zScore: 3.3,
@@ -224,11 +231,11 @@ export class ActivitySpikesPanel extends Panel {
   constructor() {
     super({
       id: 'activity-spikes',
-      title: t('panels.activitySpikes') || 'Signal Activity Spikes (30d)',
+      title: t('panels.activitySpikes') || 'Signal Activity Spikes (6mo)',
       showCount: false,
       trackActivity: true,
       infoTooltip:
-        'Interactive 30-day anomaly correlation engine. Mousewheel / pinch to zoom, drag to pan timeline, and click legend items to isolate or compare specific signal streams (Tankers/AWACS, ISR, GNSS Jamming, FIRMS Thermal).',
+        'Interactive 6-month anomaly correlation engine. Mousewheel / pinch to zoom, drag to pan timeline, and click legend items to isolate or compare specific signal streams (Tankers/AWACS, ISR, GNSS Jamming, FIRMS Thermal).',
     });
 
     this.element.classList.add('panel-wide');
@@ -254,20 +261,27 @@ export class ActivitySpikesPanel extends Panel {
 
   private initFallbackData(): void {
     const now = Date.now();
-    const thirtyDaysAgo = now - 30 * 24 * 3600 * 1000;
-    const bucketDurationMs = (30 * 24 * 3600 * 1000) / TOTAL_BUCKETS;
+    const timeframeMs = 180 * 24 * 3600 * 1000;
+    const sixMonthsAgo = now - timeframeMs;
+    const bucketDurationMs = timeframeMs / TOTAL_BUCKETS;
 
-    // Attach calculated epoch timestamps to sample events
-    this.events = BASE_EVENTS.map((ev) => ({
-      ...ev,
-      ts: thirtyDaysAgo + ev.dayIndex * bucketDurationMs,
-    }));
+    // Attach calculated epoch timestamps and relative dates to sample events
+    this.events = BASE_EVENTS.map((ev) => {
+      const ts = sixMonthsAgo + ev.dayIndex * bucketDurationMs;
+      const daysAgo = Math.max(0, Math.round((now - ts) / 86400000));
+      const utcTime = new Date(ts).toISOString().slice(11, 16) + 'Z';
+      return {
+        ...ev,
+        ts,
+        dateLabel: `D-${daysAgo} (${utcTime})`,
+      };
+    });
 
     const generatedBuckets: SpikeDataPoint[] = [];
     const bucketJitter = (this.lastBucket % 7) * 0.015;
 
     for (let i = 0; i < TOTAL_BUCKETS; i++) {
-      const ts = thirtyDaysAgo + i * bucketDurationMs;
+      const ts = sixMonthsAgo + i * bucketDurationMs;
       const dateObj = new Date(ts);
       const dateLabel =
         dateObj.toLocaleDateString('en-US', {
@@ -288,9 +302,9 @@ export class ActivitySpikesPanel extends Panel {
         -0.6,
         0.35 +
           n1 +
-          gaussianPulse(i, 26, 2.2, 3.1) +
-          gaussianPulse(i, 68, 2.5, 1.9) +
-          gaussianPulse(i, 108, 2.0, 1.6) +
+          gaussianPulse(i, 156, 12, 3.1) +
+          gaussianPulse(i, 408, 14, 2.2) +
+          gaussianPulse(i, 668, 10, 1.8) +
           bucketJitter
       );
 
@@ -298,9 +312,9 @@ export class ActivitySpikesPanel extends Panel {
         -0.6,
         0.45 +
           n2 +
-          gaussianPulse(i, 54, 2.4, 3.7) +
-          gaussianPulse(i, 101, 2.8, 2.4) +
-          gaussianPulse(i, 114, 2.1, 2.9) +
+          gaussianPulse(i, 324, 15, 3.7) +
+          gaussianPulse(i, 514, 12, 2.5) +
+          gaussianPulse(i, 708, 10, 2.9) +
           bucketJitter
       );
 
@@ -308,8 +322,8 @@ export class ActivitySpikesPanel extends Panel {
         -0.6,
         0.2 +
           n3 +
-          gaussianPulse(i, 40, 2.0, 1.6) +
-          gaussianPulse(i, 78, 2.3, 2.75) +
+          gaussianPulse(i, 238, 12, 2.8) +
+          gaussianPulse(i, 478, 14, 2.7) +
           bucketJitter
       );
 
@@ -317,9 +331,9 @@ export class ActivitySpikesPanel extends Panel {
         -0.6,
         0.4 +
           n4 +
-          gaussianPulse(i, 53, 2.6, 2.3) +
-          gaussianPulse(i, 96, 3.8, 1.9) +
-          gaussianPulse(i, 102, 2.0, 4.0) +
+          gaussianPulse(i, 196, 12, 2.6) +
+          gaussianPulse(i, 596, 16, 4.0) +
+          gaussianPulse(i, 682, 10, 2.5) +
           bucketJitter
       );
 
@@ -1046,7 +1060,7 @@ export class ActivitySpikesPanel extends Panel {
               type="button"
               class="social-chip activity-spikes-reset-zoom"
               style="font-size: 11px; padding: 4px 9px; cursor: pointer; opacity: 0.45;"
-              title="Reset zoom to 30 days"
+              title="Reset zoom to 6 months"
             >↺ Reset Zoom</button>
 
             <button
@@ -1335,7 +1349,7 @@ export class ActivitySpikesPanel extends Panel {
               type="button"
               class="social-chip activity-spikes-reset-zoom"
               style="font-size: 10px; padding: 3px 8px; cursor: pointer; opacity: 0.45;"
-              title="Reset zoom to 30 days"
+              title="Reset zoom to 6 months"
             >↺ Reset</button>
             <button
               type="button"
@@ -1373,7 +1387,7 @@ export class ActivitySpikesPanel extends Panel {
         <div class="activity-spikes-events-section" style="display: flex; flex-direction: column; gap: 6px;">
           <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--text-dim, #64748b); font-family: monospace; text-transform: uppercase; letter-spacing: 0.4px;">
             <span>Correlated Multi-Layer Spike Anomalies (> +2.5σ)</span>
-            <span>${this.isOvhLiveFeed ? 'Source: OVH Dynamic Timeseries' : 'Source: Synthetic 30d SQLite Telemetry'}</span>
+            <span>${this.isOvhLiveFeed ? 'Source: OVH Dynamic Timeseries' : 'Source: Synthetic 6mo SQLite Telemetry'}</span>
           </div>
           <div style="display: flex; flex-direction: column; gap: 5px;">
             ${filteredEvents

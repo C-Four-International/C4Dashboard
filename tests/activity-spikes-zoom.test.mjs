@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const panelTs = readFileSync(resolve(__dirname, '../src/components/ActivitySpikesPanel.ts'), 'utf-8');
+const collectorMjs = readFileSync(resolve(__dirname, '../scripts/ovh-activity-spikes/ovh-collector.mjs'), 'utf-8');
 
 describe('Signal Activity Spikes Panel Reset Zoom Wiring', () => {
   it('correctly targets the reset zoom button from modal or panel root instead of immediate container parent', () => {
@@ -63,5 +64,23 @@ describe('Signal Activity Spikes Panel Reset Zoom Wiring', () => {
       'updateZoomControlsState must set appropriate cursor'
     );
   });
-});
 
+  it('configures 6-month (180-day) historical window across panel and collector', () => {
+    assert.ok(
+      panelTs.includes('TOTAL_BUCKETS = 720'),
+      'Panel must configure 720 6-hour buckets across 180 days'
+    );
+    assert.ok(
+      panelTs.includes('title="Reset zoom to 6 months"'),
+      'Reset button tooltip must indicate 6 months'
+    );
+    assert.ok(
+      collectorMjs.includes('RETENTION_SECONDS = 180 * 24 * 60 * 60'),
+      'Collector must retain 180 days of historical telemetry'
+    );
+    assert.ok(
+      collectorMjs.includes('N = 720'),
+      'Collector must render 720 buckets'
+    );
+  });
+});
