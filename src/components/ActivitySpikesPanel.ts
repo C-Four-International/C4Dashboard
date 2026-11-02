@@ -212,6 +212,7 @@ export class ActivitySpikesPanel extends Panel {
   private hiddenSeries: Set<string> = new Set();
   private hoveredSeries: string | null = null;
   private currentZoomTransform: d3.ZoomTransform = d3.zoomIdentity;
+  private modalZoomTransform: d3.ZoomTransform = d3.zoomIdentity;
   private isOvhLiveFeed = false;
 
   // DOM & Modal References
@@ -763,7 +764,8 @@ export class ActivitySpikesPanel extends Panel {
     };
 
     // Initial render
-    const initialX = this.currentZoomTransform.rescaleX(xScale);
+    const currentTransform = isFullscreen ? this.modalZoomTransform : this.currentZoomTransform;
+    const initialX = currentTransform.rescaleX(xScale);
     renderCurves(initialX);
     updateSpikeAnnotations(initialX);
 
@@ -813,7 +815,11 @@ export class ActivitySpikesPanel extends Panel {
       ])
       .on('zoom', (event) => {
         const transform = event.transform as d3.ZoomTransform;
-        this.currentZoomTransform = transform;
+        if (isFullscreen) {
+          this.modalZoomTransform = transform;
+        } else {
+          this.currentZoomTransform = transform;
+        }
         const rescaledX = transform.rescaleX(xScale);
 
         xAxisG.call(xAxis.scale(rescaledX));
@@ -827,13 +833,14 @@ export class ActivitySpikesPanel extends Panel {
 
         renderCurves(rescaledX);
         updateSpikeAnnotations(rescaledX);
-        this.updateZoomControlsState(container, transform.k > 1.05 || Math.abs(transform.x) > 4);
+        const isZoomed = Math.abs(transform.k - 1) > 0.01 || Math.abs(transform.x) > 2;
+        this.updateZoomControlsState(container, isZoomed);
       });
 
     // Apply existing zoom transform
     svg.call(zoomBehavior);
-    if (this.currentZoomTransform.k !== 1 || this.currentZoomTransform.x !== 0) {
-      svg.call(zoomBehavior.transform, this.currentZoomTransform);
+    if (currentTransform.k !== 1 || currentTransform.x !== 0) {
+      svg.call(zoomBehavior.transform, currentTransform);
     }
 
     // Interactive Hover Overlay (Pointer Events)
@@ -856,7 +863,8 @@ export class ActivitySpikesPanel extends Panel {
           return;
         }
 
-        const rescaledX = this.currentZoomTransform.rescaleX(xScale);
+        const activeTransform = isFullscreen ? this.modalZoomTransform : this.currentZoomTransform;
+        const rescaledX = activeTransform.rescaleX(xScale);
         const hoveredTime = rescaledX.invert(mx).getTime();
         const index = bisectTime(this.buckets, hoveredTime);
         const point = this.buckets[index];
@@ -921,22 +929,37 @@ export class ActivitySpikesPanel extends Panel {
       });
 
     // Wire up Reset Zoom handler
-    const resetBtn = container.parentElement?.querySelector<HTMLButtonElement>('.activity-spikes-reset-zoom');
+    const resetBtn = this.getResetButton(container);
     if (resetBtn) {
+      const isZoomed = Math.abs(currentTransform.k - 1) > 0.01 || Math.abs(currentTransform.x) > 2;
+      this.updateZoomControlsState(container, isZoomed);
       resetBtn.onclick = (e) => {
         e.stopPropagation();
+        const activeTransform = isFullscreen ? this.modalZoomTransform : this.currentZoomTransform;
+        if (activeTransform.k === 1 && activeTransform.x === 0) return;
         svg.transition().duration(400).call(zoomBehavior.transform, d3.zoomIdentity);
-        this.currentZoomTransform = d3.zoomIdentity;
+        if (isFullscreen) {
+          this.modalZoomTransform = d3.zoomIdentity;
+        } else {
+          this.currentZoomTransform = d3.zoomIdentity;
+        }
+        this.updateZoomControlsState(container, false);
       };
     }
   }
 
+  private getResetButton(container: HTMLElement): HTMLButtonElement | null {
+    const root =
+      container.closest<HTMLElement>('#activity-spikes-modal-overlay, .activity-spikes-panel') ??
+      this.content;
+    return root?.querySelector<HTMLButtonElement>('.activity-spikes-reset-zoom') ?? null;
+  }
+
   private updateZoomControlsState(container: HTMLElement, isZoomed: boolean): void {
-    const parent = container.parentElement;
-    const resetBtn = parent?.querySelector<HTMLButtonElement>('.activity-spikes-reset-zoom');
+    const resetBtn = this.getResetButton(container);
     if (resetBtn) {
       resetBtn.style.opacity = isZoomed ? '1' : '0.45';
-      resetBtn.style.pointerEvents = isZoomed ? 'auto' : 'none';
+      resetBtn.style.cursor = isZoomed ? 'pointer' : 'default';
     }
   }
 
@@ -1103,6 +1126,8 @@ export class ActivitySpikesPanel extends Panel {
         if (next && next !== this.selectedTheater) {
           this.selectedTheater = next;
           this.hiddenSeries.clear();
+          this.modalZoomTransform = d3.zoomIdentity;
+          this.currentZoomTransform = d3.zoomIdentity;
           this.render();
           this.renderFullscreenModalChart();
         }
@@ -1118,6 +1143,7 @@ export class ActivitySpikesPanel extends Panel {
 
     document.body.appendChild(overlay);
     this.fullscreenModalEl = overlay;
+    this.modalZoomTransform = d3.zoomIdentity;
 
     this.renderFullscreenModalChart();
   }
@@ -1155,6 +1181,7 @@ export class ActivitySpikesPanel extends Panel {
       this.fullscreenModalEl.remove();
       this.fullscreenModalEl = null;
     }
+    this.modalZoomTransform = d3.zoomIdentity;
   }
 
   private generateLegendHtml(): string {
@@ -1423,6 +1450,7 @@ export class ActivitySpikesPanel extends Panel {
         if (next && next !== this.selectedTheater) {
           this.selectedTheater = next;
           this.hiddenSeries.clear();
+          this.currentZoomTransform = d3.zoomIdentity;
           this.render();
         }
       });
