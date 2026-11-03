@@ -11,6 +11,8 @@
     "sync:conflict-zones": "node scripts/sync-conflict-zones.mjs",
     "sync:conflict-zones:dry": "node scripts/sync-conflict-zones.mjs --dry-run",
     "sync:conflict-zones:check": "node scripts/sync-conflict-zones.mjs --check",
+    "check:streams": "node scripts/check-news-streams.mjs",
+    "update:streams": "node scripts/check-news-streams.mjs --update",
     "dev": "vite",
     "dev:tech": "VITE_VARIANT=tech vite",
     "dev:finance": "VITE_VARIANT=finance vite",

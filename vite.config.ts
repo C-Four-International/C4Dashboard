@@ -568,6 +568,7 @@ function youtubeLivePlugin(): Plugin {
 
         const url = new URL(req.url, 'http://localhost');
         const channel = url.searchParams.get('channel');
+        const force = url.searchParams.get('force') === 'true' || url.searchParams.get('refresh') === 'true';
 
         if (!channel) {
           res.statusCode = 400;
@@ -606,6 +607,12 @@ function youtubeLivePlugin(): Plugin {
             const liveMatch = block.match(/"isLive"\s*:\s*true/);
             if (vidMatch && liveMatch) {
               videoId = vidMatch[1];
+            }
+          }
+          if (!videoId) {
+            const canonicalMatch = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"/);
+            if (canonicalMatch && (html.includes('"isLive":true') || html.includes('"isLiveContent":true'))) {
+              videoId = canonicalMatch[1];
             }
           }
 

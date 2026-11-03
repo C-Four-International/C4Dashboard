@@ -72,10 +72,11 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Rome',
     country: 'Italy',
     region: 'europe',
-    fallbackVideoId: 'VfH8gQJQnBE', // Piazza Venezia
+    fallbackVideoId: '03pYP2Nmreo', // Vatican Media Live - St. Peter's Square
     fallbackVideoIds: [
-      'jtdyLykT_XY', // EarthCam - Mallorca
-      'wiVzU1mcCTA', // EarthCam - Tamariu
+      '89d3tEaqImM', // REALVIEWCAM360 - Rome & Vatican Panorama
+      'EEM7a3mHMR4', // Vatican Media Live English - St. Peter's Square
+      'gW-upYJcuSE', // Vatican Media Live Italiano - St. Peter's Square
     ],
   },
   {

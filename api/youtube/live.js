@@ -50,8 +50,9 @@ export default async function handler(request) {
   }
 
   const channelKey = channel.toLowerCase();
+  const force = url.searchParams.get('force') === 'true' || url.searchParams.get('refresh') === 'true';
   const cached = liveChannelCache.get(channelKey);
-  if (cached && Date.now() < cached.expiresAt) {
+  if (!force && cached && Date.now() < cached.expiresAt) {
     return new Response(cached.body, {
       status: 200,
       headers: {
@@ -108,6 +109,12 @@ export default async function handler(request) {
       const liveMatch = block.match(/"isLive"\s*:\s*true/);
       if (vidMatch && liveMatch) {
         videoId = vidMatch[1];
+      }
+    }
+    if (!videoId) {
+      const canonicalMatch = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"/);
+      if (canonicalMatch && (html.includes('"isLive":true') || html.includes('"isLiveContent":true'))) {
+        videoId = canonicalMatch[1];
       }
     }
 

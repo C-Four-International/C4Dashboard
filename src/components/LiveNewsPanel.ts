@@ -1,5 +1,5 @@
 import { Panel } from './Panel';
-import { fetchLiveVideoId } from '@/services/live-news';
+import { fetchLiveVideoId, clearLiveVideoCache } from '@/services/live-news';
 import { isDesktopRuntime, getRemoteApiBaseUrl, getApiBaseUrl } from '@/services/runtime';
 import { t } from '../services/i18n';
 import { loadFromStorage, saveToStorage } from '@/utils';
@@ -29,6 +29,7 @@ type YouTubePlayerConstructor = new (
     events: {
       onReady: () => void;
       onError?: (event: { data: number }) => void;
+      onStateChange?: (event: { data: number }) => void;
     };
   },
 ) => YouTubePlayer;
@@ -49,6 +50,7 @@ export interface LiveChannel {
   name: string;
   handle: string; // YouTube channel handle (e.g., @bloomberg)
   fallbackVideoId?: string; // Fallback if no live stream detected
+  fallbackVideoIds?: string[]; // Multiple fallback streams if primary is unavailable
   videoId?: string; // Dynamically fetched live video ID
   isLive?: boolean;
   useFallbackOnly?: boolean; // Skip auto-detection, always use fallback
@@ -58,8 +60,8 @@ export interface LiveChannel {
 // Full variant: World news channels (24/7 live streams)
 const FULL_LIVE_CHANNELS: LiveChannel[] = [
   { id: 'bloomberg', name: 'Bloomberg', handle: '@markets', fallbackVideoId: 'QB5BNdBFujE' },
-  { id: 'sky', name: 'SkyNews', handle: '@SkyNews', fallbackVideoId: 'YDvsBbKfLPA' },
-  { id: 'euronews', name: 'Euronews', handle: '@euabortnews', fallbackVideoId: 'pykpO5kQJ98' },
+  { id: 'sky', name: 'SkyNews', handle: '@SkyNews', fallbackVideoId: 'umLWFz4izTM' },
+  { id: 'euronews', name: 'Euronews', handle: '@euronews', fallbackVideoId: 'pykpO5kQJ98' },
   { id: 'dw', name: 'DW', handle: '@DWNews', fallbackVideoId: 'LuKwFajn37U' },
   { id: 'cnbc', name: 'CNBC', handle: '@CNBC', fallbackVideoId: '9NyxcX3rhQs' },
   { id: 'france24', name: 'France24', handle: '@France24_en', fallbackVideoId: 'HvZt-nh9sGg' },
@@ -109,7 +111,7 @@ export const OPTIONAL_LIVE_CHANNELS: LiveChannel[] = [
   // Middle East
   { id: 'al-hadath', name: 'Al Hadath', handle: '@AlHadath', fallbackVideoId: 'xWXpl7azI8k', useFallbackOnly: true },
   { id: 'sky-news-arabia', name: 'Sky News Arabia', handle: '@skynewsarabia' },
-  { id: 'trt-world', name: 'TRT World', handle: '@taborrtworld' },
+  { id: 'trt-world', name: 'TRT World', handle: '@trtworld' },
   { id: 'iran-intl', name: 'Iran International', handle: '@IranIntl' },
   { id: 'cgtn-arabic', name: 'CGTN Arabic', handle: '@CGTNArabic' },
   // Africa
@@ -206,6 +208,8 @@ export function saveChannelsToStorage(channels: LiveChannel[]): void {
 }
 
 export class LiveNewsPanel extends Panel {
+  private failedVideoIdsByChannel = new Map<string, Set<string>>();
+  private isRecoveringStream = false;
   private static apiPromise: Promise<void> | null = null;
   private channels: LiveChannel[] = [];
   private activeChannel!: LiveChannel;
@@ -346,13 +350,7 @@ export class LiveNewsPanel extends Panel {
       } else if (msg.type === 'yt-error') {
         this.clearBotCheckTimeout();
         const code = Number(msg.code ?? 0);
-        if (code === 153 && this.activeChannel.fallbackVideoId &&
-          this.activeChannel.videoId !== this.activeChannel.fallbackVideoId) {
-          this.activeChannel.videoId = this.activeChannel.fallbackVideoId;
-          this.renderDesktopEmbed(true);
-        } else {
-          this.showEmbedError(this.activeChannel, code);
-        }
+        void this.handleStreamPlaybackFailure(this.activeChannel, code);
       } else if (msg.type === 'yt-mute-state') {
         const muted = msg.muted === true;
         if (this.isMuted !== muted) {
@@ -752,15 +750,105 @@ export class LiveNewsPanel extends Panel {
     this.syncPlayerState();
   }
 
+  /** Automatically checks for a new active stream link when current stream fails to display. */
+  private async handleStreamPlaybackFailure(channel: LiveChannel, errorCode: number): Promise<void> {
+    if (this.isRecoveringStream) return;
+    this.isRecoveringStream = true;
+
+    const failedId = channel.videoId || channel.fallbackVideoId;
+    if (failedId) {
+      if (!this.failedVideoIdsByChannel.has(channel.id)) {
+        this.failedVideoIdsByChannel.set(channel.id, new Set());
+      }
+      this.failedVideoIdsByChannel.get(channel.id)!.add(failedId);
+    }
+
+    console.warn(`[LiveNews] Stream failure on ${channel.name} (${failedId}, error ${errorCode}). Checking for new stream link...`);
+
+    // 1. Desktop embed proxy fallback on error 153
+    if (errorCode === 153 && isDesktopRuntime() && !this.useDesktopEmbedProxy) {
+      this.useDesktopEmbedProxy = true;
+      this.destroyPlayer();
+      this.ensurePlayerContainer();
+      this.renderDesktopEmbed(true);
+      this.isRecoveringStream = false;
+      return;
+    }
+
+    // 2. Query YouTube directly for a new/active live stream link
+    clearLiveVideoCache(channel.handle);
+    const freshLiveId = await fetchLiveVideoId(channel.handle, true);
+    const failedSet = this.failedVideoIdsByChannel.get(channel.id) ?? new Set();
+
+    if (freshLiveId && !failedSet.has(freshLiveId)) {
+      console.log(`[LiveNews] Successfully discovered new live stream for ${channel.name}: ${freshLiveId}`);
+      channel.videoId = freshLiveId;
+      channel.isLive = true;
+      this.destroyPlayer();
+      this.ensurePlayerContainer();
+      if (this.useDesktopEmbedProxy) {
+        this.renderDesktopEmbed(true);
+      } else {
+        void this.initializePlayer();
+      }
+      this.isRecoveringStream = false;
+      return;
+    }
+
+    // 3. Try primary fallback if not yet failed
+    if (channel.fallbackVideoId && !failedSet.has(channel.fallbackVideoId)) {
+      console.log(`[LiveNews] Falling back to known fallback stream for ${channel.name}: ${channel.fallbackVideoId}`);
+      channel.videoId = channel.fallbackVideoId;
+      channel.isLive = false;
+      this.destroyPlayer();
+      this.ensurePlayerContainer();
+      if (this.useDesktopEmbedProxy) {
+        this.renderDesktopEmbed(true);
+      } else {
+        void this.initializePlayer();
+      }
+      this.isRecoveringStream = false;
+      return;
+    }
+
+    // 4. Try any alternative fallback stream IDs
+    if (channel.fallbackVideoIds && channel.fallbackVideoIds.length > 0) {
+      const nextFallback = channel.fallbackVideoIds.find((id) => !failedSet.has(id));
+      if (nextFallback) {
+        console.log(`[LiveNews] Falling back to alternative stream for ${channel.name}: ${nextFallback}`);
+        channel.videoId = nextFallback;
+        channel.isLive = false;
+        this.destroyPlayer();
+        this.ensurePlayerContainer();
+        if (this.useDesktopEmbedProxy) {
+          this.renderDesktopEmbed(true);
+        } else {
+          void this.initializePlayer();
+        }
+        this.isRecoveringStream = false;
+        return;
+      }
+    }
+
+    // 5. All stream links exhausted for now; display error with auto-recheck button
+    this.isRecoveringStream = false;
+    this.destroyPlayer();
+    this.showEmbedError(channel, errorCode);
+  }
+
   private showOfflineMessage(channel: LiveChannel): void {
     this.destroyPlayer();
     this.content.innerHTML = `
       <div class="live-offline">
         <div class="offline-icon">📺</div>
         <div class="offline-text">${t('components.liveNews.notLive', { name: channel.name })}</div>
-        <button class="offline-retry" onclick="this.closest('.panel').querySelector('.live-channel-btn.active')?.click()">${t('common.retry')}</button>
+        <button class="offline-retry btn-check-stream">${t('common.retry')}</button>
       </div>
     `;
+    this.content.querySelector('.btn-check-stream')?.addEventListener('click', () => {
+      this.failedVideoIdsByChannel.delete(channel.id);
+      void this.handleStreamPlaybackFailure(channel, 0);
+    });
   }
 
   private showEmbedError(channel: LiveChannel, errorCode: number): void {
@@ -773,9 +861,19 @@ export class LiveNewsPanel extends Panel {
       <div class="live-offline">
         <div class="offline-icon">!</div>
         <div class="offline-text">${t('components.liveNews.cannotEmbed', { name: channel.name, code: String(errorCode) })}</div>
-        <a class="offline-retry" href="${watchUrl}" target="_blank" rel="noopener noreferrer">${t('components.liveNews.openOnYouTube')}</a>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+          <button class="offline-retry btn-check-stream">Check for New Stream</button>
+          <a class="offline-retry" href="${watchUrl}" target="_blank" rel="noopener noreferrer">${t('components.liveNews.openOnYouTube')}</a>
+        </div>
       </div>
     `;
+    this.content.querySelector('.btn-check-stream')?.addEventListener('click', (e) => {
+      const target = e.currentTarget as HTMLButtonElement;
+      target.textContent = 'Searching...';
+      target.disabled = true;
+      this.failedVideoIdsByChannel.delete(channel.id);
+      void this.handleStreamPlaybackFailure(channel, 0);
+    });
   }
 
   private renderPlayer(): void {
@@ -996,31 +1094,13 @@ export class LiveNewsPanel extends Panel {
         onError: (event) => {
           this.clearBotCheckTimeout();
           const errorCode = Number(event?.data ?? 0);
-
-          // Retry once with known fallback stream.
-          if (
-            errorCode === 153 &&
-            this.activeChannel.fallbackVideoId &&
-            this.activeChannel.videoId !== this.activeChannel.fallbackVideoId
-          ) {
-            this.destroyPlayer();
-            this.forceFallbackVideoForNextInit = true;
-            this.ensurePlayerContainer();
-            void this.initializePlayer();
-            return;
+          void this.handleStreamPlaybackFailure(this.activeChannel, errorCode);
+        },
+        onStateChange: (event: { data: number }) => {
+          // 0 = YT.PlayerState.ENDED (stream ended, check for new stream)
+          if (event?.data === 0) {
+            void this.handleStreamPlaybackFailure(this.activeChannel, 0);
           }
-
-          // Desktop-specific last resort: switch to cloud bridge embed.
-          if (errorCode === 153 && isDesktopRuntime()) {
-            this.useDesktopEmbedProxy = true;
-            this.destroyPlayer();
-            this.ensurePlayerContainer();
-            this.renderDesktopEmbed(true);
-            return;
-          }
-
-          this.destroyPlayer();
-          this.showEmbedError(this.activeChannel, errorCode);
         },
       },
     });
