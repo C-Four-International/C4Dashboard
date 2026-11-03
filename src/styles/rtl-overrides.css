@@ -35,11 +35,6 @@
 }
 
 /* Border-left accent bars → border-right */
-[dir="rtl"] .panel-summary {
-  border-left: none;
-  border-right: 3px solid var(--accent);
-}
-
 [dir="rtl"] .signal-item {
   border-left: none;
   border-right: 3px solid var(--accent);

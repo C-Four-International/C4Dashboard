@@ -4,7 +4,7 @@ declare const process: { env: Record<string, string | undefined> };
 // Constants
 // ========================================================================
 
-export const CACHE_TTL_SECONDS = 86400; // 24 hours
+export const CACHE_TTL_SECONDS = 3 * 3600; // 3 hours
 export const CACHE_VERSION = 'v5';
 
 // ========================================================================
