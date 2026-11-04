@@ -345,7 +345,7 @@ export class DeckGLMap {
   private militaryVessels: MilitaryVessel[] = [];
   private militaryVesselClusters: MilitaryVesselCluster[] = [];
   private naturalEvents: NaturalEvent[] = [];
-  private firmsFireData: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }> = [];
+  private firmsFireData: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string; detectedAt?: number }> = [];
   private radiationData: RadiationStation[] = [];
   private techEvents: TechEventMarker[] = [];
   private flightDelays: AirportDelayAlert[] = [];
@@ -1445,7 +1445,7 @@ export class DeckGLMap {
     const filteredUcdpEvents = this.filterByTime(this.ucdpEvents, (event) => event.date_start);
     const filteredHumanConflict = this.filterByTime(this.humanConflictEvents, (event) => event.date);
     const filteredCyberThreats = this.filterByTime(this.cyberThreats, (threat) => threat.lastSeen || threat.firstSeen);
-    const filteredFires = this.filterByTime(this.firmsFireData, (fire) => fire.acq_date);
+    const filteredFires = this.filterByTime(this.firmsFireData, (fire) => fire.detectedAt ?? fire.acq_date);
     const filteredAqi = this.filterByTime(this.aqiData, (aqi) => aqi.station.time);
     const filteredSpeciesRecovery = this.filterByTime(this.speciesRecoveryZones, (zone) => zone.lastUpdated);
     const filteredNewsLocations = this.filterByTime(this.newsLocations, (loc) => loc.timestamp);
@@ -6359,7 +6359,7 @@ export class DeckGLMap {
     this.render();
   }
 
-  public setFires(fires: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }>): void {
+  public setFires(fires: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string; detectedAt?: number }>): void {
     this.firmsFireData = fires;
     this.render();
   }

@@ -336,7 +336,7 @@ export class MapContainer {
     }
   }
 
-  public setFires(fires: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }>): void {
+  public setFires(fires: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string; detectedAt?: number }>): void {
     if (this.useDeckGL) {
       this.deckGLMap?.setFires(fires);
     } else {

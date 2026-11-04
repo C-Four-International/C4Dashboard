@@ -134,7 +134,7 @@ export class MapComponent {
   private militaryVessels: MilitaryVessel[] = [];
   private militaryVesselClusters: MilitaryVesselCluster[] = [];
   private naturalEvents: NaturalEvent[] = [];
-  private firmsFireData: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }> = [];
+  private firmsFireData: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string; detectedAt?: number }> = [];
   private radiationData: RadiationStation[] = [];
   private techEvents: TechEventMarker[] = [];
   private techActivities: TechHubActivity[] = [];
@@ -2852,7 +2852,12 @@ export class MapComponent {
 
     // Satellite Fires (NASA FIRMS) - separate fires layer
     if (this.state.layers.fires) {
+      const cutoff = this.state.timeRange === 'all' ? 0 : Date.now() - this.getTimeRangeMs();
       this.firmsFireData.forEach((fire) => {
+        if (cutoff > 0) {
+          const ts = fire.detectedAt ?? (fire.acq_date ? new Date(fire.acq_date).getTime() : 0);
+          if (ts > 0 && ts < cutoff) return;
+        }
         const pos = projection([fire.lon, fire.lat]);
         if (!pos) return;
 
@@ -3784,7 +3789,7 @@ export class MapComponent {
     this.render();
   }
 
-  public setFires(fires: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string }>): void {
+  public setFires(fires: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string; detectedAt?: number }>): void {
     this.firmsFireData = fires;
     this.render();
   }

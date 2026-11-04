@@ -5,6 +5,7 @@ import {
   type ListFireDetectionsResponse,
 } from '@/generated/client/worldmonitor/wildfire/v1/service_client';
 import { createCircuitBreaker } from '@/utils';
+import { getPersistentCache, setPersistentCache } from '@/services/persistent-cache';
 
 export type { FireDetection };
 
@@ -34,22 +35,41 @@ export interface MapFire {
   region: string;
   acq_date: string;
   daynight: string;
+  detectedAt?: number;
 }
 
 import { BASELINE_FIRES } from './baseline';
 
-// -- Client --
+// -- Client & Cache Constants --
+
+const PERSISTENT_CACHE_KEY = 'wildfires:10d:v1';
+const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
 
 const client = new WildfireServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
-const breaker = createCircuitBreaker<ListFireDetectionsResponse>({ name: 'Wildfires:v5', cacheTtlMs: 5 * 60 * 1000, persistCache: true });
+const breaker = createCircuitBreaker<ListFireDetectionsResponse>({ name: 'Wildfires:10d', cacheTtlMs: 15 * 60 * 1000, persistCache: true });
+
+let memoryDetections: FireDetection[] | null = null;
+
+// Pre-load from persistent cache when available in browser/desktop environment
+if (typeof window !== 'undefined') {
+  getPersistentCache<FireDetection[]>(PERSISTENT_CACHE_KEY).then((cached) => {
+    if (cached?.data && Array.isArray(cached.data) && cached.data.length > 0) {
+      if (!memoryDetections) {
+        memoryDetections = cached.data;
+      }
+    }
+  }).catch(() => {});
+}
 
 // -- Public API --
 
 export function getInstantFires(): FetchResult {
   const cached = breaker.getCached();
-  const detections = (cached && cached.fireDetections && cached.fireDetections.length > 0)
-    ? cached.fireDetections
-    : BASELINE_FIRES;
+  const detections = (memoryDetections && memoryDetections.length > 0)
+    ? memoryDetections
+    : (cached && cached.fireDetections && cached.fireDetections.length > 0)
+      ? cached.fireDetections
+      : BASELINE_FIRES;
 
   const regions: Record<string, FireDetection[]> = {};
   for (const d of detections) {
@@ -61,20 +81,59 @@ export function getInstantFires(): FetchResult {
 }
 
 export async function fetchAllFires(_days?: number): Promise<FetchResult> {
+  // If memory cache is not loaded yet, attempt persistent cache read
+  if (!memoryDetections) {
+    try {
+      const persisted = await getPersistentCache<FireDetection[]>(PERSISTENT_CACHE_KEY);
+      if (persisted?.data && Array.isArray(persisted.data) && persisted.data.length > 0) {
+        memoryDetections = persisted.data;
+      }
+    } catch { /* best effort */ }
+  }
+
   const response = await breaker.execute(async () => {
     return client.listFireDetections({});
-  }, { fireDetections: BASELINE_FIRES });
-  const detections = (response && response.fireDetections && response.fireDetections.length > 0)
-    ? response.fireDetections
-    : BASELINE_FIRES;
+  }, { fireDetections: memoryDetections || BASELINE_FIRES });
+
+  const freshDetections = response?.fireDetections || [];
+
+  // Merge fresh detections with accumulated 10-day dataset
+  const cutoff = Date.now() - TEN_DAYS_MS;
+  const fireMap = new Map<string, FireDetection>();
+
+  if (memoryDetections) {
+    for (const f of memoryDetections) {
+      if ((f.detectedAt || 0) >= cutoff) {
+        fireMap.set(f.id, f);
+      }
+    }
+  }
+
+  for (const f of freshDetections) {
+    if ((f.detectedAt || 0) >= cutoff) {
+      fireMap.set(f.id, f);
+    }
+  }
+
+  const merged = Array.from(fireMap.values());
+  const finalDetections = merged.length > 0
+    ? merged
+    : (memoryDetections && memoryDetections.length > 0 ? memoryDetections : BASELINE_FIRES);
+
+  memoryDetections = finalDetections;
+
+  // Persist the 10-day accumulated dataset
+  if (merged.length > 0) {
+    setPersistentCache(PERSISTENT_CACHE_KEY, finalDetections).catch(() => {});
+  }
 
   const regions: Record<string, FireDetection[]> = {};
-  for (const d of detections) {
+  for (const d of finalDetections) {
     const r = d.region || 'Unknown';
     (regions[r] ??= []).push(d);
   }
 
-  return { regions, totalCount: detections.length };
+  return { regions, totalCount: finalDetections.length };
 }
 
 export function isHighConfidence(c: FireConfidence | string | number | undefined): boolean {
@@ -128,6 +187,7 @@ export function toMapFires(fires: FireDetection[]): MapFire[] {
     region: f.region,
     acq_date: new Date(f.detectedAt).toISOString().slice(0, 10),
     daynight: f.dayNight,
+    detectedAt: f.detectedAt,
   }));
 }
 

@@ -2,10 +2,9 @@
 /**
  * ListFireDetections RPC -- proxies the NASA FIRMS CSV API.
  *
- * Fetches active fire detections from a global 24h CSV, parses it,
- * and transforms the rows into proto-shaped FireDetection objects.
- *
- * Gracefully degrades to empty results when NASA_FIRMS_API_KEY is not set.
+ * Fetches active fire detections from NASA FIRMS global 24h CSVs, parses them,
+ * and maintains a rolling 10-day deduplicated cache to support time selection filtering.
+ * Operational feeds include NOAA-20 (J1 VIIRS), NOAA-21 (J2 VIIRS), and MODIS.
  */
 
 declare const process: { env: Record<string, string | undefined> };
@@ -19,12 +18,39 @@ import type {
 } from '../../../../src/generated/server/worldmonitor/wildfire/v1/service_server';
 
 import { CHROME_UA } from '../../../_shared/constants';
-import { cachedFetchJson } from '../../../_shared/redis';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
 
-const REDIS_CACHE_KEY = 'wildfire:fires:v5';
-const REDIS_CACHE_TTL = 3600; // 1h — NASA FIRMS VIIRS NRT updates every ~3 hours
+const REDIS_CACHE_KEY = 'wildfire:fires:10d:v6';
+const REDIS_CACHE_TTL = 3600; // 1h — FIRMS NRT updates every ~3h
+const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
+const TEN_DAYS_SECONDS = 10 * 24 * 60 * 60; // 864,000s
+const REFRESH_INTERVAL_MS = REDIS_CACHE_TTL * 1000; // Refresh upstream every 1 hour
 
-const FIRMS_SOURCE = 'VIIRS_SNPP_NRT';
+/**
+ * Operational NASA FIRMS global 24h active fire CSV feeds in order of preference.
+ * Primary: NOAA-20 VIIRS C2 (J1)
+ * Fallback 1: NOAA-21 VIIRS C2 (J2)
+ * Fallback 2: MODIS C6.1
+ * Fallback 3: Suomi-NPP VIIRS C2
+ */
+const FIRMS_SOURCES = [
+  {
+    name: 'NOAA-20 VIIRS C2 (J1)',
+    url: 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_24h.csv',
+  },
+  {
+    name: 'NOAA-21 VIIRS C2 (J2)',
+    url: 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-21-viirs-c2/csv/J2_VIIRS_C2_Global_24h.csv',
+  },
+  {
+    name: 'MODIS C6.1',
+    url: 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_24h.csv',
+  },
+  {
+    name: 'Suomi-NPP VIIRS C2',
+    url: 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv',
+  },
+];
 
 /** Bounding boxes as west,south,east,north */
 const MONITORED_REGIONS: Record<string, string> = {
@@ -119,6 +145,18 @@ function mapConfidence(c: string): FireConfidence {
   return 'FIRE_CONFIDENCE_UNSPECIFIED';
 }
 
+/**
+ * Parse FIRMS acq_date (YYYY-MM-DD) + acq_time (HHMM) into Unix epoch milliseconds.
+ */
+function parseDetectedAt(acqDate: string, acqTime: string): number {
+  if (!acqDate) return Date.now();
+  const padded = acqTime.padStart(4, '0');
+  const hours = padded.slice(0, 2);
+  const minutes = padded.slice(2);
+  const ts = new Date(`${acqDate}T${hours}:${minutes}:00Z`).getTime();
+  return Number.isFinite(ts) ? ts : Date.now();
+}
+
 function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): ListFireDetectionsResponse['fireDetections'] {
   const lines = csv.trim().split('\n');
   if (lines.length < 2) return [];
@@ -162,9 +200,6 @@ function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): List
     const frp = frpIdx !== -1 && vals[frpIdx] ? parseFloat(vals[frpIdx]) : 0;
     const brightness = brightIdx !== -1 && vals[brightIdx] ? parseFloat(vals[brightIdx]) : 0;
 
-    // Filter out minor thermal noise to accelerate client render and reduce payload
-    if (frp < 2.0 && brightness < 315) continue;
-
     let matchedRegion = '';
     for (let r = 0; r < regionEntries.length; r++) {
       const reg = regionEntries[r]!;
@@ -186,69 +221,173 @@ function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): List
       frp: Number.isFinite(frp) ? frp : 0,
       confidence: mapConfidence(confIdx !== -1 && vals[confIdx] ? vals[confIdx].trim() : ''),
       satellite: satIdx !== -1 && vals[satIdx] ? vals[satIdx].trim() : 'VIIRS',
-      detectedAt: Number.isFinite(detectedAt) ? detectedAt : 0,
+      detectedAt,
       region: regionName,
       dayNight: daynightIdx !== -1 && vals[daynightIdx] ? vals[daynightIdx].trim() : 'D',
     });
   }
 
-  // Sort by Fire Radiative Power (intensity) and cap to top 3,500 most significant global fires
-  fireDetections.sort((a, b) => (b.frp || 0) - (a.frp || 0));
-  return fireDetections.slice(0, 3500);
+  return fireDetections;
 }
 
-/**
- * Parse FIRMS acq_date (YYYY-MM-DD) + acq_time (HHMM) into Unix epoch
- * milliseconds.
- */
-function parseDetectedAt(acqDate: string, acqTime: string): number {
-  if (!acqDate) return Date.now();
-  const padded = acqTime.padStart(4, '0');
-  const hours = padded.slice(0, 2);
-  const minutes = padded.slice(2);
-  return new Date(`${acqDate}T${hours}:${minutes}:00Z`).getTime();
+interface FiresCacheState {
+  fireDetections: ListFireDetectionsResponse['fireDetections'];
+  lastFetchedAt: number;
 }
 
-export const listFireDetections: WildfireServiceHandler['listFireDetections'] = async (
-  _ctx: ServerContext,
-  _req: ListFireDetectionsRequest,
-): Promise<ListFireDetectionsResponse> => {
-  console.log('[FIRMS] listFireDetections called. Checking cache for key:', REDIS_CACHE_KEY);
+let inMemoryCache: FiresCacheState | null = null;
+let inflightFetch: Promise<ListFireDetectionsResponse['fireDetections']> | null = null;
 
-  const result = await cachedFetchJson<ListFireDetectionsResponse>(
-    REDIS_CACHE_KEY,
-    REDIS_CACHE_TTL,
-    async () => {
+async function fetchFromSources(parsedRegions: Record<string, number[]>): Promise<ListFireDetectionsResponse['fireDetections']> {
+  for (const src of FIRMS_SOURCES) {
+    try {
+      console.log(`[FIRMS] Attempting fetch from ${src.name}: ${src.url}`);
+      const res = await fetch(src.url, {
+        headers: { Accept: 'text/csv', 'User-Agent': CHROME_UA },
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (!res.ok) {
+        console.warn(`[FIRMS] ${src.name} returned status ${res.status}`);
+        continue;
+      }
+
+      const csv = await res.text();
+      const detections = parseAndFilterCSV(csv, parsedRegions);
+      if (detections.length >= 10) {
+        console.log(`[FIRMS] Successfully retrieved ${detections.length} detections from ${src.name}`);
+        return detections;
+      }
+      console.warn(`[FIRMS] ${src.name} returned too few records (${detections.length}); trying fallback`);
+    } catch (err: any) {
+      console.warn(`[FIRMS] Failed to fetch from ${src.name}: ${err?.message || err}`);
+    }
+  }
+
+  return [];
+}
+
+async function getOrUpdate10DayFires(): Promise<ListFireDetectionsResponse['fireDetections']> {
+  const now = Date.now();
+
+  // 1. Check in-memory freshness
+  if (inMemoryCache && now - inMemoryCache.lastFetchedAt < REFRESH_INTERVAL_MS && inMemoryCache.fireDetections.length > 0) {
+    return inMemoryCache.fireDetections;
+  }
+
+  // 2. Coalesce concurrent requests during fetch
+  if (inflightFetch) {
+    return inflightFetch;
+  }
+
+  inflightFetch = (async () => {
+    try {
       const parsedRegions: Record<string, number[]> = {};
       for (const [name, bbox] of Object.entries(MONITORED_REGIONS)) {
         parsedRegions[name] = bbox.split(',').map(Number);
       }
 
-      const globalUrl = 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv';
-      
-      console.log('[FIRMS] Fetching global 24h CSV from:', globalUrl);
-      
-      try {
-        const res = await fetch(globalUrl, {
-          headers: { Accept: 'text/csv', 'User-Agent': CHROME_UA },
-          signal: AbortSignal.timeout(10_000),
-        });
-        
-        if (!res.ok) {
-          const errText = await res.text().catch(() => '');
-          throw new Error(`FIRMS API returned ${res.status}: ${errText}`);
+      // Check Redis for previous 10-day dataset if memory is empty
+      let existingDetections: ListFireDetectionsResponse['fireDetections'] = inMemoryCache?.fireDetections || [];
+      if (existingDetections.length === 0) {
+        const fromRedis = (await getCachedJson(REDIS_CACHE_KEY)) as FiresCacheState | null;
+        if (fromRedis?.fireDetections && Array.isArray(fromRedis.fireDetections)) {
+          existingDetections = fromRedis.fireDetections;
+          if (now - (fromRedis.lastFetchedAt || 0) < REFRESH_INTERVAL_MS) {
+            inMemoryCache = fromRedis;
+            return fromRedis.fireDetections;
+          }
         }
-        
-        const csv = await res.text();
-        const fireDetections = parseAndFilterCSV(csv, parsedRegions);
-        console.log(`[FIRMS] Successfully parsed global CSV. Found ${fireDetections.length} significant fires.`);
-        return fireDetections.length > 0 ? { fireDetections, pagination: undefined } : null;
-      } catch (err: any) {
-        console.error(`[FIRMS] Failed to fetch or parse global fire data: ${err.message}`);
-        return null;
       }
-    },
-  );
 
-  return result || { fireDetections: [], pagination: undefined };
+      // Fetch fresh detections from upstream FIRMS
+      const freshDetections = await fetchFromSources(parsedRegions);
+
+      // Merge fresh detections with existing cached detections
+      const cutoff = now - TEN_DAYS_MS;
+      const fireMap = new Map<string, any>();
+
+      // Keep valid cached detections within the 10-day window
+      for (const f of existingDetections) {
+        if (f.detectedAt >= cutoff) {
+          fireMap.set(f.id, f);
+        }
+      }
+
+      // Add newly fetched detections (overwrites duplicates if re-detected)
+      for (const f of freshDetections) {
+        if (f.detectedAt >= cutoff) {
+          fireMap.set(f.id, f);
+        }
+      }
+
+      let allDetections = Array.from(fireMap.values());
+
+      // If fresh fetch failed and we have no cached data, fallback to freshDetections or empty
+      if (allDetections.length === 0 && freshDetections.length > 0) {
+        allDetections = freshDetections;
+      }
+
+      // Sort by detectedAt desc, then FRP desc
+      allDetections.sort((a, b) => (b.detectedAt || 0) - (a.detectedAt || 0) || (b.frp || 0) - (a.frp || 0));
+
+      const updatedState: FiresCacheState = {
+        fireDetections: allDetections,
+        lastFetchedAt: freshDetections.length > 0 ? now : (inMemoryCache?.lastFetchedAt || now),
+      };
+
+      inMemoryCache = updatedState;
+
+      // Persist to Redis with 10-day TTL (best-effort)
+      await setCachedJson(REDIS_CACHE_KEY, updatedState, TEN_DAYS_SECONDS).catch(() => {});
+
+      return allDetections;
+    } finally {
+      inflightFetch = null;
+    }
+  })();
+
+  return inflightFetch;
+}
+
+export const listFireDetections: WildfireServiceHandler['listFireDetections'] = async (
+  _ctx: ServerContext,
+  req: ListFireDetectionsRequest,
+): Promise<ListFireDetectionsResponse> => {
+  try {
+    let fireDetections = await getOrUpdate10DayFires();
+
+    // Support optional timeRange filtering if specified in the RPC request
+    if (req?.timeRange) {
+      const { start, end } = req.timeRange;
+      if (start) {
+        fireDetections = fireDetections.filter((f) => f.detectedAt >= start);
+      }
+      if (end) {
+        fireDetections = fireDetections.filter((f) => f.detectedAt <= end);
+      }
+    }
+
+    // Support optional bounding box filtering
+    if (req?.boundingBox?.southWest && req?.boundingBox?.northEast) {
+      const sw = req.boundingBox.southWest;
+      const ne = req.boundingBox.northEast;
+      fireDetections = fireDetections.filter(
+        (f) =>
+          f.location &&
+          f.location.latitude >= sw.latitude &&
+          f.location.latitude <= ne.latitude &&
+          f.location.longitude >= sw.longitude &&
+          f.location.longitude <= ne.longitude,
+      );
+    }
+
+    return { fireDetections, pagination: undefined };
+  } catch (err: any) {
+    console.error(`[FIRMS] Error in listFireDetections handler: ${err?.message || err}`);
+    return {
+      fireDetections: inMemoryCache?.fireDetections || [],
+      pagination: undefined,
+    };
+  }
 };

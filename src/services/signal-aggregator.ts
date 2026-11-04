@@ -242,7 +242,9 @@ class SignalAggregator {
   }>): void {
     this.clearSignalType('satellite_fire');
     
-    for (const fire of fires) {
+    // Focus on significant thermal anomalies to prevent overwhelming signal buffers
+    const targets = fires.length > 3000 ? fires.filter(f => f.brightness > 330 || f.frp >= 10).slice(0, 2500) : fires;
+    for (const fire of targets) {
       const code = this.coordsToCountry(fire.lat, fire.lon) || normalizeCountryCode(fire.region);
       const severity = fire.brightness > 360 ? 'high' : fire.brightness > 320 ? 'medium' : 'low';
       
