@@ -107,3 +107,49 @@ describe('News Stream Checker Script', () => {
   });
 });
 
+
+describe('Optional Channels in Manage Channels Modal', () => {
+  it('corrects all official handles and removes dead 404 handles', () => {
+    // Verified official handles
+    assert.ok(panelTs.includes("handle: '@WELTVideoTV'"), 'WELT must use official @WELTVideoTV handle');
+    assert.ok(panelTs.includes("handle: '@recordnews'"), 'Record News must use @recordnews handle');
+    assert.ok(panelTs.includes("handle: '@T13_cl'"), 'T13 must use official @T13_cl handle');
+    assert.ok(panelTs.includes("handle: '@ChannelsTelevision'"), 'Channels TV must use @ChannelsTelevision');
+    assert.ok(panelTs.includes("handle: '@ktnnews_kenya'"), 'KTN News must use @ktnnews_kenya');
+    assert.ok(panelTs.includes("handle: '@sabcdigitalnews'"), 'SABC News must use @sabcdigitalnews');
+    assert.ok(panelTs.includes("handle: '@WION'"), 'WION must use @WION');
+
+    // Confirm dead/mangled handles are gone
+    assert.ok(!panelTs.includes('@WELTNachrichtensender'), 'Defunct @WELTNachrichtensender must be removed');
+    assert.ok(!panelTs.includes('@recordnewsoficial'), '404 @recordnewsoficial must be removed');
+    assert.ok(!panelTs.includes("@channelstv'"), '404 @channelstv must be removed');
+    assert.ok(!panelTs.includes('@KTNNewsKE'), '404 @KTNNewsKE must be removed');
+    assert.ok(!panelTs.includes("@SABCNews'"), '404 @SABCNews must be removed');
+  });
+
+  it('provides a valid fallbackVideoId for every channel in OPTIONAL_LIVE_CHANNELS', () => {
+    const optMatch = panelTs.match(/export const OPTIONAL_LIVE_CHANNELS: LiveChannel\[\] = (\[[\s\S]*?\]);/);
+    assert.ok(optMatch, 'OPTIONAL_LIVE_CHANNELS array must exist');
+    const channels = eval(optMatch[1]);
+    for (const ch of channels) {
+      assert.ok(
+        ch.fallbackVideoId && /^[a-zA-Z0-9_-]{11}$/.test(ch.fallbackVideoId),
+        `Channel ${ch.id} (${ch.name}) must have a valid 11-char fallbackVideoId`
+      );
+    }
+  });
+
+  it('ensures all channel IDs in OPTIONAL_CHANNEL_REGIONS exist in OPTIONAL_LIVE_CHANNELS', () => {
+    const optMatch = panelTs.match(/export const OPTIONAL_LIVE_CHANNELS: LiveChannel\[\] = (\[[\s\S]*?\]);/);
+    const regMatch = panelTs.match(/export const OPTIONAL_CHANNEL_REGIONS:[^=]*= (\[[\s\S]*?\]);/);
+    const channels = eval(optMatch[1]);
+    const regions = eval(regMatch[1]);
+
+    const channelIdSet = new Set(channels.map((c) => c.id));
+    for (const reg of regions) {
+      for (const id of reg.channelIds) {
+        assert.ok(channelIdSet.has(id), `Region ${reg.key} contains unknown channel ID "${id}"`);
+      }
+    }
+  });
+});
