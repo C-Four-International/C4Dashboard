@@ -55,14 +55,13 @@ export const AIRLINE_CODES = new Set([
 export function isMilitaryCallsign(callsign: string | null | undefined): boolean {
   if (!callsign) return false;
   const cs = callsign.toUpperCase().trim();
+  if (!cs || cs.startsWith('UNKN-')) return false;
+  const prefix3 = cs.slice(0, 3);
+  if (AIRLINE_CODES.has(prefix3)) return false;
   for (const prefix of MILITARY_PREFIXES) {
     if (cs.startsWith(prefix)) return true;
   }
   if (/^[A-Z]{4,}\d{1,3}$/.test(cs)) return true;
-  if (/^[A-Z]{3}\d{1,2}$/.test(cs)) {
-    const prefix = cs.slice(0, 3);
-    if (!AIRLINE_CODES.has(prefix)) return true;
-  }
   return false;
 }
 

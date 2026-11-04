@@ -93,7 +93,7 @@ import type { GulfInvestment } from '@/types';
 import * as topojson from 'topojson-client';
 import { AlertStatusService } from '@/services/alert-status';
 import { resolveTradeRouteSegments, TRADE_ROUTES as TRADE_ROUTES_LIST, type TradeRouteSegment } from '@/config/trade-routes';
-import { getMilitaryCountryColor } from '@/config/military';
+import { getMilitaryCountryColor, shouldFilterOutAircraft, shouldFilterOutShip } from '@/config/military';
 import { MapPopup, type PopupType } from './MapPopup';
 import {
   updateHotspotEscalation,
@@ -1440,8 +1440,8 @@ export class DeckGLMap {
         });
     const filteredCableAdvisories = this.filterByTime(this.cableAdvisories, (advisory) => advisory.reported);
     const filteredFlightDelays = this.filterByTime(this.flightDelays, (delay) => delay.updatedAt);
-    const filteredMilitaryFlights = this.filterByTime(this.militaryFlights, (flight) => flight.lastSeen);
-    const filteredMilitaryVessels = this.filterByTime(this.militaryVessels, (vessel) => vessel.lastAisUpdate);
+    const filteredMilitaryFlights = this.filterByTime(this.militaryFlights, (flight) => flight.lastSeen).filter((flight) => !shouldFilterOutAircraft(flight));
+    const filteredMilitaryVessels = this.filterByTime(this.militaryVessels, (vessel) => vessel.lastAisUpdate).filter((vessel) => !shouldFilterOutShip(vessel));
     const filteredUcdpEvents = this.filterByTime(this.ucdpEvents, (event) => event.date_start);
     const filteredHumanConflict = this.filterByTime(this.humanConflictEvents, (event) => event.date);
     const filteredCyberThreats = this.filterByTime(this.cyberThreats, (threat) => threat.lastSeen || threat.firstSeen);

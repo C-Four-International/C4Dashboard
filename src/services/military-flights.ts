@@ -5,6 +5,7 @@ import {
   identifyByAircraftType,
   isKnownMilitaryHex,
   getNearbyHotspot,
+  shouldFilterOutAircraft,
   MILITARY_HOTSPOTS,
   MILITARY_QUERY_REGIONS,
 } from '@/config/military';
@@ -210,6 +211,15 @@ function parseOpenSkyResponse(data: OpenSkyResponse): MilitaryFlight[] {
 
     const info = determineAircraftInfo(callsign, icao24, state[2]);
 
+    if (shouldFilterOutAircraft({
+      aircraftType: info.type,
+      callsign,
+      hexCode: icao24,
+      operator: info.operator,
+    })) {
+      continue;
+    }
+
     // Update flight history for trails
     const historyKey = icao24;
     let history = flightHistory.get(historyKey);
@@ -384,6 +394,15 @@ async function fetchFromTar1090(url: string, sourceName: string): Promise<Milita
     const icao24 = plane.hex.toLowerCase();
 
     const info = determineAircraftInfo(callsign, icao24);
+
+    if (shouldFilterOutAircraft({
+      aircraftType: info.type,
+      callsign,
+      hexCode: icao24,
+      operator: info.operator,
+    })) {
+      continue;
+    }
 
     // Update flight history for trails
     const historyKey = icao24;
@@ -680,6 +699,7 @@ export async function fetchMilitaryFlights(): Promise<{
 
     // Enrich with Wingbits aircraft details (owner, operator, type)
     flights = await enrichFlightsWithWingbits(flights);
+    flights = flights.filter((f) => !shouldFilterOutAircraft(f));
 
     // Cache for 3-5 minutes (base 3 min + up to 1 min jitter) to keep aircraft positions accurate
     const jitter = Math.floor(Math.random() * 60 * 1000);

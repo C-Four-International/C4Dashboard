@@ -5,6 +5,8 @@ import {
   MILITARY_VESSEL_PATTERNS,
   getNearbyHotspot,
   MILITARY_HOTSPOTS,
+  shouldFilterOutShip,
+  isMilitaryVesselNameFormat,
 } from '@/config/military';
 import {
   registerAisCallback,
@@ -39,7 +41,7 @@ function scheduleVesselsUpdateNotification(): void {
     notifyDebounceTimer = null;
     if (vesselUpdateListeners.size === 0) return;
     const vessels = Array.from(trackedVessels.values()).filter(
-      (v) => !isNonCombatantShipTypeName(v.aisShipType) && !isCommercialVesselName(v.name)
+      (v) => !isNonCombatantShipTypeName(v.aisShipType) && !isCommercialVesselName(v.name) && !shouldFilterOutShip(v)
     );
     const clusters = clusterVessels(vessels);
     for (const listener of vesselUpdateListeners) {
@@ -493,12 +495,13 @@ function processAisPosition(data: AisPositionData): void {
   const aisType = data.shipType ? getVesselTypeFromAis(data.shipType) : undefined;
 
   // Filter to only display military vessel positions on the map
-  // Must be a confirmed known naval vessel, or explicit military/law enforcement AIS code (35 or 55),
-  // or a verified military MMSI prefix (only if not an unknown civilian ship)
+  // Must be a confirmed known naval vessel, explicit military/law enforcement AIS code (35 or 55),
+  // a recognized naval name format, or verified military MMSI prefix
   const isMilitary = Boolean(
     knownVessel ||
     aisType ||
-    (mmsiAnalysis.isPotentialMilitary && (data.shipType === 35 || data.shipType === 55 || !data.shipType))
+    isMilitaryVesselNameFormat(name) ||
+    (mmsiAnalysis.isPotentialMilitary && (data.shipType === 35 || data.shipType === 55))
   );
 
   if (!isMilitary) {
@@ -513,6 +516,20 @@ function processAisPosition(data: AisPositionData): void {
   // If the AIS ship type string is a non-combatant, reject
   const aisShipTypeName = getAisShipTypeName(data.shipType);
   if (isNonCombatantShipTypeName(aisShipTypeName)) {
+    if (trackedVessels.has(mmsi)) {
+      trackedVessels.delete(mmsi);
+      vesselHistory.delete(mmsi);
+      scheduleVesselsUpdateNotification();
+    }
+    return;
+  }
+
+  // Filter out vessels with unknown type that do not match military formats and are not known military
+  if (shouldFilterOutShip({
+    name,
+    vesselType: knownVessel?.vesselType || aisType || 'unknown',
+    aisShipType: aisShipTypeName,
+  })) {
     if (trackedVessels.has(mmsi)) {
       trackedVessels.delete(mmsi);
       vesselHistory.delete(mmsi);
@@ -774,9 +791,9 @@ export async function fetchMilitaryVessels(): Promise<{
       // Clean up old data
       cleanup();
 
-      // Convert tracked vessels to array, strictly excluding non-combatants
+      // Convert tracked vessels to array, strictly excluding non-combatants and unknown non-military ships
       vessels = Array.from(trackedVessels.values()).filter(
-        (v) => !isNonCombatantShipTypeName(v.aisShipType) && !isCommercialVesselName(v.name)
+        (v) => !isNonCombatantShipTypeName(v.aisShipType) && !isCommercialVesselName(v.name) && !shouldFilterOutShip(v)
       );
       console.log(`[Military Vessels] After cleanup, returning ${vessels.length} combatant vessels (trackedVessels.size: ${trackedVessels.size})`);
 

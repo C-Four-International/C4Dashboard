@@ -44,6 +44,7 @@ import {
   COMMODITY_HUBS,
 } from '@/config';
 import { MapPopup } from './MapPopup';
+import { shouldFilterOutAircraft, shouldFilterOutShip } from '@/config/military';
 import {
   updateHotspotEscalation,
   getHotspotEscalation,
@@ -2601,7 +2602,7 @@ export class MapComponent {
     // Military Tracking (flights and vessels)
     if (this.state.layers.military) {
       // Render individual flights
-      this.militaryFlights.forEach((flight) => {
+      this.militaryFlights.filter((flight) => !shouldFilterOutAircraft(flight)).forEach((flight) => {
         const pos = projection([flight.lon, flight.lat]);
         if (!pos) return;
 
@@ -2704,7 +2705,7 @@ export class MapComponent {
 
       // Military Vessels (warships, carriers, submarines)
       // Render individual vessels
-      this.militaryVessels.forEach((vessel) => {
+      this.militaryVessels.filter((vessel) => !shouldFilterOutShip(vessel)).forEach((vessel) => {
         const pos = projection([vessel.lon, vessel.lat]);
         if (!pos) return;
 

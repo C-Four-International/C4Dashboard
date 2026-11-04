@@ -94,15 +94,14 @@ export const NATO_ALLIED_CALLSIGNS: CallsignPattern[] = [
 
   // Israeli Air Force
   { pattern: '^IAF', operator: 'iaf', description: 'Israeli Air Force' },
-  { pattern: '^ELAL', operator: 'iaf', description: 'IAF transport (covers)' },
 
   // Turkey
   { pattern: '^THK', operator: 'other', description: 'Turkish Air Force' },
   { pattern: '^TUR', operator: 'other', description: 'Turkish military' },
 
   // Saudi Arabia
-  { pattern: '^SVA', operator: 'other', description: 'Saudi Air Force' },
   { pattern: '^RSAF', operator: 'other', description: 'Royal Saudi Air Force' },
+  { pattern: '^RSF', operator: 'other', description: 'Royal Saudi Air Force' },
 
   // UAE
   { pattern: '^UAF', operator: 'other', description: 'UAE Air Force' },
@@ -155,8 +154,9 @@ export const ADVERSARY_CALLSIGNS: CallsignPattern[] = [
   { pattern: '^RUSSIAN', operator: 'vks', description: 'Russian military' },
 
   // Chinese PLA
-  { pattern: '^CCA', operator: 'plaaf', description: 'PLA Air Force' },
-  { pattern: '^CHH', operator: 'plan', description: 'PLA Navy Air' },
+  { pattern: '^PLAAF', operator: 'plaaf', description: 'PLA Air Force' },
+  { pattern: '^PLAN', operator: 'plan', description: 'PLA Navy Air' },
+  { pattern: '^CHN', operator: 'plaaf', description: 'Chinese military' },
   { pattern: '^CHINA', operator: 'plaaf', description: 'Chinese military' },
 ];
 
@@ -281,10 +281,9 @@ export const MILITARY_AIRCRAFT_TYPES: Record<string, { type: MilitaryAircraftTyp
  * Reference: https://www.ads-b.nl/icao.php
  */
 export const MILITARY_HEX_RANGES: { start: string; end: string; operator: MilitaryOperator; country: string }[] = [
-  // United States Military (largest block)
-  { start: 'ADF7C7', end: 'ADF7CF', operator: 'usaf', country: 'USA' }, // Known USAF tankers
-  { start: 'AE0000', end: 'AFFFFF', operator: 'usaf', country: 'USA' }, // Main USAF block
-  { start: 'A00000', end: 'A3FFFF', operator: 'usaf', country: 'USA' }, // Additional US military
+  // United States Military (strictly DoD blocks: AE0000-AEFFFF and VIP tankers ADF7C0-ADF7DF)
+  { start: 'ADF7C0', end: 'ADF7DF', operator: 'usaf', country: 'USA' }, // USAF VIP / special transport / tankers
+  { start: 'AE0000', end: 'AEFFFF', operator: 'usaf', country: 'USA' }, // Main US DoD military block
 
   // UK Military
   { start: '43C000', end: '43CFFF', operator: 'raf', country: 'UK' },
@@ -488,7 +487,7 @@ export const MILITARY_QUERY_REGIONS: QueryRegion[] = [
   { name: 'AMERICAS', lamin: 15, lamax: 65, lomin: -130, lomax: -65 },
 ];
 
-if (import.meta.env.DEV) {
+if (import.meta.env?.DEV) {
   for (const h of MILITARY_HOTSPOTS) {
     const hbox = { lamin: h.lat - h.radius, lamax: h.lat + h.radius, lomin: h.lon - h.radius, lomax: h.lon + h.radius };
     const covered = MILITARY_QUERY_REGIONS.some(r =>
@@ -741,3 +740,207 @@ export const MILITARY_COUNTRY_LEGEND = [
   { name: 'China', color: '#ff3b30' },
   { name: 'Other Allied / International', color: '#94a3b8' },
 ];
+
+/**
+ * Known commercial airline prefixes (3-letter ICAO and common 2-letter IATA).
+ * Used to positively identify commercial flights and reject them from the military activity layer.
+ */
+export const COMMERCIAL_AIRLINE_CODES = new Set([
+  'AAL', 'DAL', 'UAL', 'SWA', 'JBU', 'FFT', 'ASA', 'NKS', 'WJA', 'ACA',
+  'BAW', 'AFR', 'DLH', 'KLM', 'AUA', 'SAS', 'FIN', 'LOT', 'AZA', 'TAP', 'IBE',
+  'VLG', 'RYR', 'EZY', 'WZZ', 'NOZ', 'BEL', 'AEE', 'ROT', 'SWR', 'EIN', 'TAR',
+  'AIC', 'CPA', 'SIA', 'MAS', 'THA', 'VNM', 'JAL', 'ANA', 'KAL', 'AAR', 'EVA',
+  'CAL', 'CCA', 'CES', 'CSN', 'HDA', 'CHH', 'CXA', 'GIA', 'PAL', 'SLK', 'CGH',
+  'FDX', 'UPS', 'GTI', 'ABW', 'CLX', 'MPH', 'ATN', 'PAC',
+  'SVA', 'QTR', 'THY', 'UAE', 'ETD', 'GFA', 'MEA', 'RJA', 'KAC', 'ELY', 'ELAL',
+  'IAW', 'IRA', 'MSR', 'SYR', 'PGT', 'AXB', 'FDB', 'KNE', 'FAD', 'ADY', 'OMA',
+  'VOZ', 'QFA', 'JST', 'ANZ',
+  'TAM', 'GLO', 'AZU', 'LAN', 'LPE', 'ARE', 'AVA', 'CMP', 'AMX', 'VOI', 'VIV',
+  'RAM', 'ETH', 'SAA', 'KQY',
+  'AIR', 'SKY', 'JET',
+]);
+
+/**
+ * Check if a callsign matches military formats/tactical patterns
+ */
+export function isMilitaryCallsignFormat(callsign: string | null | undefined): boolean {
+  if (!callsign) return false;
+  const cs = callsign.toUpperCase().trim();
+  if (!cs || cs.startsWith('UNKN-')) return false;
+
+  // If it starts with a known commercial airline code followed by digits, it's commercial
+  if (/^[A-Z]{3}\d{1,4}[A-Z]?$/.test(cs)) {
+    const prefix = cs.slice(0, 3);
+    if (COMMERCIAL_AIRLINE_CODES.has(prefix)) return false;
+  }
+  if (/^[A-Z]{2}\d{1,4}[A-Z]?$/.test(cs)) {
+    return false; // Standard 2-letter IATA flight number (e.g. DL123, AA456)
+  }
+
+  // Check known military callsign patterns (from config)
+  if (identifyByCallsign(cs)) return true;
+
+  // Specific military tactical prefixes
+  const militaryPrefixes = [
+    'RCH', 'REACH', 'MOOSE', 'EVAC', 'DUSTOFF', 'PEDRO',
+    'DUKE', 'HAVOC', 'KNIFE', 'WARHAWK', 'VIPER', 'RAGE', 'FURY',
+    'SHELL', 'TEXACO', 'ARCO', 'ESSO', 'PETRO',
+    'SENTRY', 'AWACS', 'MAGIC', 'DISCO', 'DARKSTAR',
+    'COBRA', 'PYTHON', 'RAPTOR', 'EAGLE', 'HAWK', 'TALON',
+    'BOXER', 'OMNI', 'TOPCAT', 'SKULL', 'REAPER', 'HUNTER',
+    'ARMY', 'NAVY', 'USAF', 'USMC', 'USCG',
+    'AE', 'CNV', 'PAT', 'SAM', 'EXEC',
+    'NATO', 'GAF', 'RRF', 'RAF', 'FAF', 'IAF', 'RNLAF', 'BAF', 'DAF', 'HAF', 'PAF',
+    'RSAF', 'EMIRI', 'UAEAF', 'KAF', 'QAF', 'BAHAF', 'OMAAF',
+    'IRIAF', 'IRG', 'IRGC', 'TAF', 'TUAF', 'RSD', 'RF', 'RFF', 'VKS',
+    'CHN', 'PLAAF', 'PLAN', 'CANFORCE', 'CFC', 'ASCOT', 'TARTAN', 'FORTE', 'TRIDENT',
+    'BONE', 'DEATH', 'DOOM', 'HERKY', 'JASDF', 'ROKAF', 'RAAF', 'AUSSIE',
+  ];
+
+  for (const prefix of militaryPrefixes) {
+    if (cs.startsWith(prefix)) return true;
+  }
+
+  // Tactical military callsign format (e.g. 4+ letters followed by 1-3 digits: VIPER1, GHOST99)
+  if (/^[A-Z]{4,}\d{1,3}$/.test(cs)) return true;
+
+  return false;
+}
+
+/**
+ * Check if a vessel name matches military formats / naval conventions
+ */
+export function isMilitaryVesselNameFormat(name: string | null | undefined): boolean {
+  if (!name) return false;
+  const n = name.toUpperCase().trim();
+  if (!n || n.startsWith('VESSEL ')) return false;
+
+  const commercialKeywords = [
+    /\b(?:CARGO|CONTAINER|BULKER|BULK|TANKER|FEEDER|EXPRESS|FREIGHTER|BARGE|TUG|TUGBOAT|TRAWLER|FISHER|FISHING|FERRY|CRUISE|YACHT|PILOT|DREDGER|DREDGING)\b/,
+    /\b(?:MAERSK|MSC\b|CMA\s+CGM|COSCO|EVERGREEN|HAPAG|OOCL|WAN\s+HAI|YANG\s+MING|ZIM\b)/,
+    /\b(?:YU|HUO|HAI)\s*\d+/,
+    /\b(?:F\/V|M\/V|M\/T|S\/V)\b/,
+  ];
+  if (commercialKeywords.some(pattern => pattern.test(n))) return false;
+
+  // Recognized naval ship prefixes
+  const navalPrefixes = [
+    'USS ', 'USNS ', 'HMS ', 'HMCS ', 'HMAS ', 'FGS ', 'FS ', 'ROKS ',
+    'JS ', 'TCG ', 'INS ', 'RFS ', 'CNS ', 'PLAN ', 'PLANS ', 'BNS ',
+    'PNS ', 'KDM ', 'HNLMS ', 'NRP ', 'ITS ', 'SPS ', 'KD ', 'RSS ',
+  ];
+
+  for (const prefix of navalPrefixes) {
+    if (n.startsWith(prefix)) return true;
+  }
+
+  // Naval hull designations (e.g., CVN-78, DDG-51, FFG-62, LCS-2, SSN-774, LHD-1, LPD-17, CG-47, MCM-1)
+  if (/\b(?:CVN|CV|DDG|DD|FFG|FF|LHD|LHA|LPD|LSD|LCS|SSN|SSBN|SSGN|CG|MCM|PC|AOR|AOE|T-AO|T-AKE|T-EPF)[-\s]?\d+/i.test(n)) {
+    return true;
+  }
+
+  // Match known naval vessel names
+  for (const vessel of KNOWN_NAVAL_VESSELS) {
+    const vName = vessel.name.toUpperCase();
+    if (n === vName || n.startsWith(vName) || n.includes(vName)) {
+      return true;
+    }
+    if (vessel.hullNumber && n.includes(vessel.hullNumber.toUpperCase())) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Filter out aircraft with the type listed as Unknown that also have callsigns
+ * that don't match military formats, and are not known military.
+ */
+export function shouldFilterOutAircraft(flight: {
+  aircraftType?: string;
+  callsign?: string;
+  hexCode?: string;
+  enrichment?: { confirmedMilitary?: boolean };
+  operator?: string;
+}): boolean {
+  const type = (flight.aircraftType || '').toLowerCase().trim();
+  const isTypeUnknown = !type || type === 'unknown' || type === 'military_aircraft_type_unknown';
+
+  if (!isTypeUnknown) {
+    return false; // Known military type (fighter, bomber, transport, tanker, awacs, drone, etc.)
+  }
+
+  // If callsign matches commercial airline patterns, reject unless explicitly confirmed military
+  const cs = (flight.callsign || '').toUpperCase().trim();
+  if (cs) {
+    const prefix3 = cs.slice(0, 3);
+    const prefix4 = cs.slice(0, 4);
+    if (COMMERCIAL_AIRLINE_CODES.has(prefix3) || COMMERCIAL_AIRLINE_CODES.has(prefix4)) {
+      if (!flight.enrichment?.confirmedMilitary) {
+        return true;
+      }
+    }
+    // Reject standard IATA 2-letter airline flight numbers (e.g., AA123, DL456)
+    if (/^[A-Z]{2}\d{1,4}[A-Z]?$/.test(cs) && !flight.enrichment?.confirmedMilitary) {
+      return true;
+    }
+  }
+
+  const isConfirmedMil = Boolean(
+    flight.enrichment?.confirmedMilitary ||
+    (flight.hexCode && isKnownMilitaryHex(flight.hexCode)) ||
+    (flight.operator && flight.operator !== 'other' && flight.operator !== 'MILITARY_OPERATOR_OTHER')
+  );
+
+  if (isConfirmedMil) {
+    return false;
+  }
+
+  const matchesMilCallsign = isMilitaryCallsignFormat(flight.callsign);
+  if (matchesMilCallsign) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Filter out ships with the type listed as Unknown that also have names
+ * that don't match military formats, and are not known military.
+ */
+export function shouldFilterOutShip(vessel: {
+  name?: string;
+  vesselType?: string;
+  aisShipType?: string;
+  shipType?: number | string;
+  operator?: string;
+}): boolean {
+  const type = (vessel.vesselType || '').toLowerCase().trim();
+  const isTypeUnknown = !type || type === 'unknown' || type === 'military_vessel_type_unknown';
+
+  if (!isTypeUnknown) {
+    return false; // Known naval type (carrier, destroyer, submarine, patrol, frigate, cruiser, amphibious, auxiliary)
+  }
+
+  const isConfirmedMil = Boolean(
+    vessel.aisShipType === 'Military Ops' ||
+    vessel.aisShipType === 'Law Enforcement' ||
+    vessel.shipType === 35 ||
+    vessel.shipType === 55 ||
+    vessel.shipType === '35' ||
+    vessel.shipType === '55' ||
+    (vessel.operator && vessel.operator !== 'other' && vessel.operator !== 'MILITARY_OPERATOR_OTHER')
+  );
+
+  if (isConfirmedMil) {
+    return false;
+  }
+
+  const matchesMilName = isMilitaryVesselNameFormat(vessel.name);
+  if (matchesMilName) {
+    return false;
+  }
+
+  return true;
+}
