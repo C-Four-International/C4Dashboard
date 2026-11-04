@@ -23,13 +23,15 @@ const USNI_STALE_TTL = 604800; // 7 days
 const HULL_TYPE_MAP: Record<string, string> = {
   CVN: 'carrier', CV: 'carrier',
   DDG: 'destroyer', CG: 'destroyer',
-  LHD: 'amphibious', LHA: 'amphibious', LPD: 'amphibious', LSD: 'amphibious', LCC: 'amphibious',
+  LHD: 'amphibious', LHA: 'amphibious', LPD: 'amphibious', LSD: 'amphibious', LCC: 'amphibious', LST: 'amphibious',
   SSN: 'submarine', SSBN: 'submarine', SSGN: 'submarine',
-  FFG: 'frigate', LCS: 'frigate',
-  MCM: 'patrol', PC: 'patrol',
+  FFG: 'frigate', LCS: 'frigate', FFH: 'frigate', FFM: 'frigate',
+  WAGB: 'icebreaker', WLBB: 'icebreaker', AOPV: 'icebreaker',
+  WMSL: 'patrol', WPC: 'patrol', WMEC: 'patrol', WPB: 'patrol', MCM: 'patrol', PC: 'patrol',
   AS: 'auxiliary', ESB: 'auxiliary', ESD: 'auxiliary',
   'T-AO': 'auxiliary', 'T-AKE': 'auxiliary', 'T-AOE': 'auxiliary',
   'T-ARS': 'auxiliary', 'T-ESB': 'auxiliary', 'T-EPF': 'auxiliary',
+  'T-AH': 'auxiliary', 'T-ATF': 'auxiliary', AOR: 'auxiliary',
   'T-AGOS': 'research', 'T-AGS': 'research', 'T-AGM': 'research', AGOS: 'research',
 };
 

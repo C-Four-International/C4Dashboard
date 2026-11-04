@@ -7,6 +7,7 @@ import {
   MILITARY_HOTSPOTS,
   shouldFilterOutShip,
   isMilitaryVesselNameFormat,
+  classifyNavalVessel,
 } from '@/config/military';
 import {
   registerAisCallback,
@@ -256,6 +257,11 @@ export function isCommercialVesselName(name: string): boolean {
   if (!name) return false;
   const normalized = name.toUpperCase().trim();
 
+  // Do not flag warships with naval prefixes (e.g., "USS Harpers Ferry") as commercial
+  if (/^(?:USS|USNS|USCGC|HMS|HMCS|HMAS|FGS|FS|TCG|ROKS|JS|INS|RFS|CNS|PLAN|PLANS|ITS|SPS|CCGS|RFA)\s+/i.test(normalized)) {
+    return false;
+  }
+
   const commercialKeywords = [
     /\b(?:CARGO|CONTAINER|BULKER|BULK|TANKER|FEEDER|EXPRESS|FREIGHTER|BARGE|TUG|TUGBOAT|TRAWLER|FISHER|FISHING|FERRY|CRUISE|YACHT|PILOT|DREDGER|DREDGING)\b/,
     /\b(?:MAERSK|MSC\b|CMA\s+CGM|COSCO|EVERGREEN|HAPAG|OOCL|WAN\s+HAI|YANG\s+MING|ZIM\b)/,
@@ -269,41 +275,24 @@ export function isCommercialVesselName(name: string): boolean {
 /**
  * Match vessel name against known military vessels
  */
-function matchKnownVessel(name: string): typeof KNOWN_NAVAL_VESSELS[number] | undefined {
-  if (!name) return undefined;
+function matchKnownVessel(name: string, explicitHull?: string, aisShipType?: number): typeof KNOWN_NAVAL_VESSELS[number] | undefined {
+  if (!name && !explicitHull) return undefined;
 
-  const normalized = name.toUpperCase().trim();
+  const normalized = (name || '').toUpperCase().trim();
 
   // Obvious commercial/civilian names must never be matched as warships
   if (isCommercialVesselName(normalized)) return undefined;
 
-  for (const vessel of KNOWN_NAVAL_VESSELS) {
-    const vName = vessel.name.toUpperCase();
-    const isSingleWord = !vName.includes(' ') && !vName.includes('.');
-
-    if (isSingleWord) {
-      // For single-word names (like Liaoning, Shandong, Fujian):
-      // Require exact match OR naval prefix: "CNS <Name>", "PLAN <Name>", "PLANS <Name>"
-      const singleWordRegex = new RegExp(`^(?:CNS|PLAN|PLANS)?\\s*${vName}(?:\\s*(?:${vessel.hullNumber || ''}|CV-\\d+))?$`, 'i');
-      if (singleWordRegex.test(normalized)) {
-        return vessel;
-      }
-    } else {
-      // For multi-word names (e.g. "USS Gerald R. Ford", "HMS Queen Elizabeth", "Admiral Kuznetsov"):
-      if (normalized === vName || normalized.startsWith(vName) || normalized.includes(vName)) {
-        return vessel;
-      }
-    }
-
-    if (vessel.hullNumber) {
-      const hull = vessel.hullNumber.toUpperCase();
-      // Hull number should match as a distinct token (e.g. "CVN-78", "DDG-1000", "CV-16", "R08")
-      const escaped = hull.replace(/[-\\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const regex = new RegExp(`(?:^|[^A-Z0-9])(?:CV-)?${escaped}(?:[^A-Z0-9]|$)`, 'i');
-      if (regex.test(normalized)) {
-        return vessel;
-      }
-    }
+  // Use the comprehensive naval classification engine first to determine true type
+  const classified = classifyNavalVessel(name, explicitHull, aisShipType);
+  if (classified) {
+    return {
+      name: classified.name,
+      hullNumber: classified.hullNumber,
+      operator: classified.operator,
+      country: classified.country,
+      vesselType: classified.vesselType,
+    };
   }
 
   // Check for common naval prefixes and identify warship / operator
@@ -315,16 +304,16 @@ function matchKnownVessel(name: string): typeof KNOWN_NAVAL_VESSELS[number] | un
   }> = [
     { prefix: 'USS ', operator: 'usn', country: 'USA', vesselType: 'destroyer' },
     { prefix: 'USNS ', operator: 'usn', country: 'USA', vesselType: 'auxiliary' },
-    { prefix: 'HMS ', operator: 'rn', country: 'UK', vesselType: 'destroyer' },
-    { prefix: 'HMCS ', operator: 'other', country: 'Canada', vesselType: 'patrol' },
-    { prefix: 'HMAS ', operator: 'other', country: 'Australia', vesselType: 'patrol' },
-    { prefix: 'FGS ', operator: 'gaf', country: 'Germany', vesselType: 'destroyer' },
-    { prefix: 'FS ', operator: 'faf', country: 'France', vesselType: 'destroyer' },
+    { prefix: 'HMS ', operator: 'rn', country: 'UK', vesselType: 'frigate' },
+    { prefix: 'HMCS ', operator: 'other', country: 'Canada', vesselType: 'frigate' },
+    { prefix: 'HMAS ', operator: 'other', country: 'Australia', vesselType: 'frigate' },
+    { prefix: 'FGS ', operator: 'gaf', country: 'Germany', vesselType: 'frigate' },
+    { prefix: 'FS ', operator: 'faf', country: 'France', vesselType: 'frigate' },
     { prefix: 'ROKS ', operator: 'other', country: 'South Korea', vesselType: 'destroyer' },
     { prefix: 'JS ', operator: 'other', country: 'Japan', vesselType: 'destroyer' },
-    { prefix: 'TCG ', operator: 'other', country: 'Turkey', vesselType: 'patrol' },
+    { prefix: 'TCG ', operator: 'other', country: 'Turkey', vesselType: 'frigate' },
     { prefix: 'INS ', operator: 'other', country: 'India', vesselType: 'destroyer' },
-    { prefix: 'RFS ', operator: 'vks', country: 'Russia', vesselType: 'destroyer' },
+    { prefix: 'RFS ', operator: 'vks', country: 'Russia', vesselType: 'frigate' },
   ];
 
   for (const rule of navalPrefixRules) {
@@ -422,10 +411,14 @@ function getAisShipTypeName(shipType: number | undefined): string | undefined {
  */
 function getVesselTypeFromAis(shipType: number): MilitaryVesselType | undefined {
   // AIS ship type codes
-  // 35 = Military ops
   // 55 = Law enforcement (Coast Guard / Patrol)
-  if (shipType === 35) return 'destroyer'; // Generic military ops
-  if (shipType === 55) return 'patrol'; // Law enforcement/coast guard
+  // 51 = Search & Rescue
+  // 58 = Medical Transport
+  // 35 = Military ops (preserve unknown so actual type is deduced from name/hull instead of forcing destroyer)
+  if (shipType === 55) return 'patrol';
+  if (shipType === 51) return 'patrol';
+  if (shipType === 58) return 'auxiliary';
+  if (shipType === 35) return 'unknown';
 
   return undefined;
 }
@@ -491,7 +484,7 @@ function processAisPosition(data: AisPositionData): void {
 
   // Check if this is a military/government vessel
   const mmsiAnalysis = analyzeMmsi(mmsi);
-  const knownVessel = matchKnownVessel(name);
+  const knownVessel = matchKnownVessel(name, undefined, data.shipType);
   const aisType = data.shipType ? getVesselTypeFromAis(data.shipType) : undefined;
 
   // Filter to only display military vessel positions on the map
@@ -527,8 +520,11 @@ function processAisPosition(data: AisPositionData): void {
   // Filter out vessels with unknown type that do not match military formats and are not known military
   if (shouldFilterOutShip({
     name,
-    vesselType: knownVessel?.vesselType || aisType || 'unknown',
+    vesselType: (knownVessel?.vesselType && knownVessel.vesselType !== 'unknown')
+      ? knownVessel.vesselType
+      : ((aisType && aisType !== 'unknown') ? aisType : (knownVessel?.vesselType || 'unknown')),
     aisShipType: aisShipTypeName,
+    shipType: data.shipType,
   })) {
     if (trackedVessels.has(mmsi)) {
       trackedVessels.delete(mmsi);
@@ -582,7 +578,9 @@ function processAisPosition(data: AisPositionData): void {
     id: `ais-${mmsi}`,
     mmsi,
     name: name || (knownVessel?.name || `Vessel ${mmsi}`),
-    vesselType: knownVessel?.vesselType || aisType || 'unknown',
+    vesselType: (knownVessel?.vesselType && knownVessel.vesselType !== 'unknown')
+      ? knownVessel.vesselType
+      : ((aisType && aisType !== 'unknown') ? aisType : (knownVessel?.vesselType || 'unknown')),
     aisShipType: getAisShipTypeName(data.shipType),
     hullNumber: knownVessel?.hullNumber,
     operator,
