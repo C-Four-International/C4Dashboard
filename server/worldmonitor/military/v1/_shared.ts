@@ -40,24 +40,159 @@ export const MILITARY_PREFIXES = [
 ];
 
 export const AIRLINE_CODES = new Set([
-  'SVA', 'QTR', 'THY', 'UAE', 'ETD', 'GFA', 'MEA', 'RJA', 'KAC', 'ELY',
+  // Middle East
+  'SVA', 'QTR', 'THY', 'UAE', 'ETD', 'GFA', 'MEA', 'RJA', 'KAC', 'ELY', 'ELAL',
   'IAW', 'IRA', 'MSR', 'SYR', 'PGT', 'AXB', 'FDB', 'KNE', 'FAD', 'ADY', 'OMA',
-  'ABQ', 'ABY', 'NIA', 'FJA', 'SWR', 'HZA', 'OMS', 'EGF', 'NOS', 'SXD',
-  'BAW', 'AFR', 'DLH', 'KLM', 'AUA', 'SAS', 'FIN', 'LOT', 'AZA', 'TAP', 'IBE',
-  'VLG', 'RYR', 'EZY', 'WZZ', 'NOZ', 'BEL', 'AEE', 'ROT',
+  'ABQ', 'ABY', 'NIA', 'FJA', 'HZA', 'OMS', 'EGF', 'NOS', 'SXD', 'ISR', 'IZM',
+  // Europe
+  'BAW', 'AFR', 'DLH', 'KLM', 'AUA', 'SAS', 'FIN', 'LOT', 'AZA', 'ITY', 'TAP', 'IBE',
+  'VLG', 'RYR', 'EZY', 'WZZ', 'WUK', 'WMT', 'NOZ', 'NAX', 'BEL', 'AEE', 'ROT', 'TAR',
+  'SWR', 'EIN', 'TRA', 'EXS', 'TOM', 'VOE', 'EWG', 'CFG', 'DLA', 'BTI', 'ICE', 'LZB',
+  // Asia
   'AIC', 'CPA', 'SIA', 'MAS', 'THA', 'VNM', 'JAL', 'ANA', 'KAL', 'AAR', 'EVA',
-  'CAL', 'CCA', 'CES', 'CSN', 'HDA', 'CHH', 'CXA', 'GIA', 'PAL', 'SLK',
-  'AAL', 'DAL', 'UAL', 'SWA', 'JBU', 'FFT', 'ASA', 'NKS', 'WJA', 'ACA',
-  'FDX', 'UPS', 'GTI', 'ABW', 'CLX', 'MPH',
+  'CAL', 'CCA', 'CES', 'CSN', 'HDA', 'CHH', 'CXA', 'GIA', 'PAL', 'SLK', 'CSZ',
+  'CQH', 'DKH', 'CDG', 'CSC', 'IGO', 'SEJ', 'VTI', 'AKJ', 'QFA', 'VOZ', 'JST', 'ANZ',
+  // Americas
+  'AAL', 'DAL', 'UAL', 'SWA', 'JBU', 'FFT', 'ASA', 'NKS', 'WJA', 'ACA', 'ROU', 'TSC',
+  'FDX', 'UPS', 'GTI', 'ABW', 'CLX', 'MPH', 'ATN', 'PAC', 'BOX', 'BCS',
+  'AMX', 'VOI', 'VIV', 'CMP', 'AVA', 'GLO', 'AZU', 'TAM', 'LAN', 'LPE', 'ARE',
+  // Generic
   'AIR', 'SKY', 'JET',
 ]);
+
+/**
+ * ICAO Annex 10 Vol II Type a: Registration marking format
+ */
+export function isIcaoTypeACallsign(callsign: string): boolean {
+  if (!callsign) return false;
+  const cs = callsign.toUpperCase().trim();
+  if (!cs) return false;
+
+  if (cs.startsWith('RF-') || cs.startsWith('RFF')) return false;
+
+  // Hyphenated registration
+  if (/^[A-Z0-9]{1,3}-[A-Z0-9]{1,5}$/.test(cs)) return true;
+
+  // Unhyphenated registration formats
+  if (/^G[A-Z]{4}$/.test(cs)) return true;
+  if (/^D[A-Z]{4}$/.test(cs) || /^D\d{4}$/.test(cs)) return true;
+  if (/^F[A-Z]{4}$/.test(cs)) return true;
+  if (/^I[A-Z]{4}$/.test(cs) || /^I\d{4}$/.test(cs)) return true;
+  if (/^M[A-Z]{4}$/.test(cs)) return true;
+  if (/^2[A-Z]{4}$/.test(cs)) return true;
+  if (/^C[FGI][A-Z]{3}$/.test(cs)) return true;
+  if (/^VH[A-Z]{3}$/.test(cs)) return true;
+  if (/^Z[KLM][A-Z]{3}$/.test(cs)) return true;
+  if (/^JA\d{4}$/.test(cs) || /^JA\d{2,3}[A-Z]{1,2}$/.test(cs)) return true;
+  if (/^HL\d{4}$/.test(cs)) return true;
+  if (/^VT[A-Z]{3}$/.test(cs)) return true;
+  if (/^EC[A-Z]{3}$/.test(cs)) return true;
+  if (/^PH[A-Z]{3}$/.test(cs) || /^PH\d{2,4}$/.test(cs)) return true;
+  if (/^OO[A-Z]{3}$/.test(cs)) return true;
+  if (/^HB[A-Z]{3}$/.test(cs) || /^HB\d{3,4}$/.test(cs)) return true;
+  if (/^OE[A-Z]{3}$/.test(cs) || /^OE\d{4}$/.test(cs)) return true;
+  if (/^E[IJ][A-Z]{3}$/.test(cs)) return true;
+  if (/^CS[A-Z]{3}$/.test(cs)) return true;
+  if (/^SE[A-Z]{3}$/.test(cs)) return true;
+  if (/^LN[A-Z]{3}$/.test(cs)) return true;
+  if (/^OY[A-Z]{3}$/.test(cs)) return true;
+  if (/^OH[A-Z]{3}$/.test(cs)) return true;
+  if (/^TC[A-Z]{3}$/.test(cs)) return true;
+  if (/^SP[A-Z]{3}$/.test(cs) || /^SP\d{4}$/.test(cs)) return true;
+  if (/^OK[A-Z]{3}$/.test(cs) || /^OK\d{4}$/.test(cs)) return true;
+  if (/^OM[A-Z]{3}$/.test(cs)) return true;
+  if (/^HA[A-Z]{3}$/.test(cs) || /^HA\d{4}$/.test(cs)) return true;
+  if (/^SX[A-Z]{3}$/.test(cs)) return true;
+  if (/^TF[A-Z]{3}$/.test(cs)) return true;
+  if (/^9H[A-Z]{3}$/.test(cs)) return true;
+  if (/^5B[A-Z]{3}$/.test(cs)) return true;
+  if (/^LX[A-Z]{3}$/.test(cs)) return true;
+  if (/^T7[A-Z]{3}$/.test(cs)) return true;
+  if (/^V[PQ]B[A-Z]{2}$/.test(cs) || /^VPC[A-Z]{2}$/.test(cs)) return true;
+  if (/^RA\d{5}$/.test(cs)) return true;
+  if (/^UR[A-Z]{3}$/.test(cs) || /^UR\d{5}$/.test(cs)) return true;
+  if (/^UP[A-Z0-9]{3,5}$/.test(cs)) return true;
+  if (/^4X[A-Z]{3}$/.test(cs)) return true;
+  if (/^A6[A-Z]{3}$/.test(cs)) return true;
+  if (/^A7[A-Z]{3}$/.test(cs)) return true;
+  if (/^HZ[A-Z0-9]{3}$/.test(cs)) return true;
+  if (/^9K[A-Z]{3}$/.test(cs)) return true;
+  if (/^SU[A-Z]{3}$/.test(cs)) return true;
+  if (/^CN[A-Z]{3}$/.test(cs)) return true;
+  if (/^Z[STU][A-Z]{3}$/.test(cs)) return true;
+  if (/^9V[A-Z]{3}$/.test(cs)) return true;
+  if (/^9M[A-Z]{3}$/.test(cs)) return true;
+  if (/^PK[A-Z]{3}$/.test(cs)) return true;
+  if (/^HS[A-Z]{3}$/.test(cs)) return true;
+  if (/^VN[A-Z0-9]{3,4}$/.test(cs)) return true;
+  if (/^RPC\d{4}$/.test(cs)) return true;
+  if (/^P[PRTS][A-Z]{3}$/.test(cs)) return true;
+  if (/^L[VQ][A-Z]{3}$/.test(cs)) return true;
+  if (/^CC[A-Z]{3}$/.test(cs)) return true;
+  if (/^X[ABC][A-Z]{3}$/.test(cs)) return true;
+  if (/^P4[A-Z]{3}$/.test(cs)) return true;
+  if (/^B\d{4,5}$/.test(cs)) return true;
+  if (/^N\d{1,5}[A-Z]{0,2}$/.test(cs)) return true;
+
+  return false;
+}
+
+/**
+ * ICAO Annex 10 Vol II Type b: Operating agency designator + registration suffix
+ */
+export function isIcaoTypeBCallsign(callsign: string): boolean {
+  if (!callsign) return false;
+  const cs = callsign.toUpperCase().trim();
+  if (cs.length < 6 || cs.length > 7) return false;
+  if (!/^[A-Z]{6,7}$/.test(cs)) return false;
+  const prefix3 = cs.slice(0, 3);
+  return AIRLINE_CODES.has(prefix3);
+}
+
+const COMMERCIAL_IATA_DIGIT_CODES = new Set(['U2', 'W6', '6E', '3U', '9W', '2L', 'B6']);
+
+/**
+ * ICAO Annex 10 Vol II Type c: Operating agency designator + flight identification
+ */
+export function isIcaoTypeCCallsign(callsign: string): boolean {
+  if (!callsign) return false;
+  const cs = callsign.toUpperCase().trim();
+  if (!cs) return false;
+
+  if (/^[A-Z]{3,4}\d{1,4}[A-Z]{0,2}$/.test(cs)) {
+    const p3 = cs.slice(0, 3);
+    const p4 = cs.slice(0, 4);
+    if (AIRLINE_CODES.has(p3) || AIRLINE_CODES.has(p4)) {
+      return true;
+    }
+  }
+
+  if (/^[A-Z]{2}\d{1,4}[A-Z]{0,2}$/.test(cs)) {
+    return true;
+  }
+
+  const iata2 = cs.slice(0, 2);
+  if (COMMERCIAL_IATA_DIGIT_CODES.has(iata2) && /^[A-Z0-9]{2}\d{1,4}[A-Z]{0,2}$/.test(cs)) {
+    return true;
+  }
+
+  return false;
+}
+
+export function isCivilianCallsign(callsign: string | null | undefined): boolean {
+  if (!callsign) return false;
+  const cs = callsign.toUpperCase().trim();
+  if (!cs || cs.startsWith('UNKN-')) return false;
+  if (cs.startsWith('RF-') || cs.startsWith('RFF')) return false;
+
+  return isIcaoTypeCCallsign(cs) || isIcaoTypeBCallsign(cs) || isIcaoTypeACallsign(cs);
+}
 
 export function isMilitaryCallsign(callsign: string | null | undefined): boolean {
   if (!callsign) return false;
   const cs = callsign.toUpperCase().trim();
   if (!cs || cs.startsWith('UNKN-')) return false;
-  const prefix3 = cs.slice(0, 3);
-  if (AIRLINE_CODES.has(prefix3)) return false;
+  if (isCivilianCallsign(cs)) return false;
   for (const prefix of MILITARY_PREFIXES) {
     if (cs.startsWith(prefix)) return true;
   }

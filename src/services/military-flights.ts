@@ -6,6 +6,7 @@ import {
   isKnownMilitaryHex,
   getNearbyHotspot,
   shouldFilterOutAircraft,
+  isCivilianCallsign,
   MILITARY_HOTSPOTS,
   MILITARY_QUERY_REGIONS,
 } from '@/config/military';
@@ -159,6 +160,11 @@ function isMilitaryFlight(state: OpenSkyStateArray): boolean {
   const callsign = (state[1] || '').trim();
   const icao24 = state[0];
   const originCountry = state[2];
+
+  // Positive civilian filter: reject ICAO Type a, b, or c formats immediately
+  if (callsign && isCivilianCallsign(callsign)) {
+    return false;
+  }
 
   // Check for known military callsigns (covers all patterns from config)
   if (callsign && identifyByCallsign(callsign, originCountry)) {

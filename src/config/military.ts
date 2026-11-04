@@ -1661,19 +1661,263 @@ export const MILITARY_COUNTRY_LEGEND = [
  * Used to positively identify commercial flights and reject them from the military activity layer.
  */
 export const COMMERCIAL_AIRLINE_CODES = new Set([
-  'AAL', 'DAL', 'UAL', 'SWA', 'JBU', 'FFT', 'ASA', 'NKS', 'WJA', 'ACA',
-  'BAW', 'AFR', 'DLH', 'KLM', 'AUA', 'SAS', 'FIN', 'LOT', 'AZA', 'TAP', 'IBE',
-  'VLG', 'RYR', 'EZY', 'WZZ', 'NOZ', 'BEL', 'AEE', 'ROT', 'SWR', 'EIN', 'TAR',
-  'AIC', 'CPA', 'SIA', 'MAS', 'THA', 'VNM', 'JAL', 'ANA', 'KAL', 'AAR', 'EVA',
-  'CAL', 'CCA', 'CES', 'CSN', 'HDA', 'CHH', 'CXA', 'GIA', 'PAL', 'SLK', 'CGH',
-  'FDX', 'UPS', 'GTI', 'ABW', 'CLX', 'MPH', 'ATN', 'PAC',
-  'SVA', 'QTR', 'THY', 'UAE', 'ETD', 'GFA', 'MEA', 'RJA', 'KAC', 'ELY', 'ELAL',
-  'IAW', 'IRA', 'MSR', 'SYR', 'PGT', 'AXB', 'FDB', 'KNE', 'FAD', 'ADY', 'OMA',
-  'VOZ', 'QFA', 'JST', 'ANZ',
-  'TAM', 'GLO', 'AZU', 'LAN', 'LPE', 'ARE', 'AVA', 'CMP', 'AMX', 'VOI', 'VIV',
-  'RAM', 'ETH', 'SAA', 'KQY',
+  // North America - Major & Regional
+  'AAL', 'DAL', 'UAL', 'SWA', 'JBU', 'FFT', 'ASA', 'NKS', 'HAL', 'AAY',
+  'SKW', 'RPA', 'EDV', 'PDT', 'PSA', 'ENY', 'QXE', 'WJA', 'ACA', 'ROU',
+  'TSC', 'CJT', 'POE', 'FLE', 'PCO',
+  // Cargo & Logistics
+  'FDX', 'UPS', 'GTI', 'ABW', 'CLX', 'MPH', 'ATN', 'PAC', 'BOX', 'BCS',
+  'AZG', 'TAY', 'NPT', 'CKK', 'CYZ',
+  // Europe - Major & Flag Carriers
+  'BAW', 'AFR', 'DLH', 'KLM', 'AUA', 'SAS', 'FIN', 'LOT', 'AZA', 'ITY',
+  'TAP', 'IBE', 'SWR', 'EIN', 'BEL', 'AEE', 'ROT', 'TAR', 'BTI', 'ICE',
+  'CYP', 'LZB', 'ASL', 'CRO', 'MGX', 'WIF', 'DAT',
+  // Europe - Low Cost & Leisure
+  'RYR', 'EZY', 'WZZ', 'WUK', 'WMT', 'VLG', 'NOZ', 'NAX', 'PGT', 'THY',
+  'TRA', 'EXS', 'TOM', 'VOE', 'EWG', 'CFG', 'DLA', 'TVF', 'VXP', 'ENT',
+  'TVS', 'LLC', 'NVR', 'SXS', 'GWI', 'JAF', 'TFL', 'MAY', 'BZH', 'EZS',
+  'RUK', 'DIS', 'OCN', 'CFE',
+  // Asia - China, Hong Kong, Taiwan, Macau
+  'CCA', 'CES', 'CSN', 'CHH', 'CXA', 'CSZ', 'CQH', 'DKH', 'CDG', 'CSC',
+  'CBJ', 'EPA', 'GDC', 'LKE', 'OKA', 'RLH', 'TYA', 'CPA', 'CRK', 'HKE',
+  'AHK', 'EVA', 'CAL', 'TTW', 'SJX', 'AMU', 'HDA',
+  // Asia - Japan & Korea
+  'JAL', 'ANA', 'APJ', 'JJP', 'SJO', 'SKY', 'SFJ', 'SNJ', 'ADO', 'NCA',
+  'KAL', 'AAR', 'JNA', 'ABL', 'ASV', 'ESR', 'TWB', 'JJA',
+  // Asia - Southeast & South Asia
+  'SIA', 'SLK', 'TGW', 'MAS', 'AXM', 'MXD', 'FFM', 'THA', 'THD', 'AIQ',
+  'NOK', 'SLG', 'BKP', 'VNM', 'VJC', 'BAV', 'PIC', 'GIA', 'LNI', 'CTV',
+  'BTK', 'AWQ', 'SJY', 'PAL', 'CEB', 'APG', 'RBA', 'UBW', 'AIC', 'AXB',
+  'IGO', 'SEJ', 'VTI', 'GOW', 'AKJ', 'PIA', 'BPA', 'ERL', 'ABF', 'BBC',
+  'ALK', 'DQA',
+  // Oceania
+  'QFA', 'QNZ', 'VOZ', 'JST', 'ANZ', 'FJI', 'ANG', 'SOL', 'THT', 'TAO', 'ACI',
+  // Middle East
+  'UAE', 'ETD', 'FDB', 'ABY', 'QTR', 'SVA', 'FAD', 'KNE', 'OMA', 'GFA',
+  'KAC', 'JZR', 'MEA', 'RJA', 'MSR', 'MSX', 'ELY', 'ELAL', 'ISR', 'IZM',
+  'IRA', 'IRC', 'MHD', 'IAW', 'SYR',
+  // Latin America & Caribbean
+  'AMX', 'VOI', 'VIV', 'CMP', 'AVA', 'GLO', 'AZU', 'TAM', 'LAN', 'LPE',
+  'LXP', 'ARE', 'ARG', 'AUT', 'BOV', 'SKU', 'JAT', 'SAT', 'WFL', 'VVC',
+  // Africa
+  'RAM', 'DAH', 'DTH', 'ETH', 'KQY', 'KQA', 'SAA', 'LNK', 'RWD', 'TCW',
+  'UGD', 'MAU', 'MDG', 'EGC',
+  // Generic Commercial
   'AIR', 'SKY', 'JET',
 ]);
+
+/**
+ * ICAO Annex 10 Vol II Type a: Registration marking format.
+ * Matches national aircraft registration marks transmitted as callsigns (with or without hyphen).
+ */
+export function isIcaoTypeACallsign(callsign: string): boolean {
+  if (!callsign) return false;
+  const cs = callsign.toUpperCase().trim();
+  if (!cs) return false;
+
+  // Russian military/state exception (RF-xxxx)
+  if (cs.startsWith('RF-') || cs.startsWith('RFF')) return false;
+
+  // Hyphenated registration markings: e.g. G-ABCD, D-AICA, F-GXYZ, OE-LPA, VH-OQA, B-1234, RA-76500, 9H-QAB, C-FABC
+  if (/^[A-Z0-9]{1,3}-[A-Z0-9]{1,5}$/.test(cs)) {
+    return true;
+  }
+
+  // Unhyphenated international registration formats:
+  // United Kingdom: G + 4 letters (e.g. GABCD, GEZYB)
+  if (/^G[A-Z]{4}$/.test(cs)) return true;
+  // Germany: D + 4 letters or 4 digits (e.g. DAICA, D1234)
+  if (/^D[A-Z]{4}$/.test(cs) || /^D\d{4}$/.test(cs)) return true;
+  // France: F + 4 letters (e.g. FGXYZ, FWWOW)
+  if (/^F[A-Z]{4}$/.test(cs)) return true;
+  // Italy: I + 4 letters or digits (e.g. IABCD, I1234)
+  if (/^I[A-Z]{4}$/.test(cs) || /^I\d{4}$/.test(cs)) return true;
+  // Isle of Man: M + 4 letters (e.g. MABCD)
+  if (/^M[A-Z]{4}$/.test(cs)) return true;
+  // Guernsey: 2 + 4 letters (e.g. 2ABCD)
+  if (/^2[A-Z]{4}$/.test(cs)) return true;
+  // Canada: CF/CG/CI + 3 letters (e.g. CFABC, CGXYZ)
+  if (/^C[FGI][A-Z]{3}$/.test(cs)) return true;
+  // Australia: VH + 3 letters (e.g. VHOQA)
+  if (/^VH[A-Z]{3}$/.test(cs)) return true;
+  // New Zealand: ZK/ZL/ZM + 3 letters (e.g. ZKOKQ)
+  if (/^Z[KLM][A-Z]{3}$/.test(cs)) return true;
+  // Japan: JA + 4 digits or alphanumeric (e.g. JA8088, JA01JJ)
+  if (/^JA\d{4}$/.test(cs) || /^JA\d{2,3}[A-Z]{1,2}$/.test(cs)) return true;
+  // South Korea: HL + 4 digits (e.g. HL7788, HL8001)
+  if (/^HL\d{4}$/.test(cs)) return true;
+  // India: VT + 3 letters (e.g. VTABC)
+  if (/^VT[A-Z]{3}$/.test(cs)) return true;
+  // Spain: EC + 3 letters (e.g. ECMRL)
+  if (/^EC[A-Z]{3}$/.test(cs)) return true;
+  // Netherlands: PH + 3 letters or digits (e.g. PHBVA, PH123)
+  if (/^PH[A-Z]{3}$/.test(cs) || /^PH\d{2,4}$/.test(cs)) return true;
+  // Belgium: OO + 3 letters (e.g. OOSNC)
+  if (/^OO[A-Z]{3}$/.test(cs)) return true;
+  // Switzerland: HB + 3 letters or digits (e.g. HBJBA)
+  if (/^HB[A-Z]{3}$/.test(cs) || /^HB\d{3,4}$/.test(cs)) return true;
+  // Austria: OE + 3 letters or digits (e.g. OELPA)
+  if (/^OE[A-Z]{3}$/.test(cs) || /^OE\d{4}$/.test(cs)) return true;
+  // Ireland: EI/EJ + 3 letters (e.g. EIDCL, EJABC)
+  if (/^E[IJ][A-Z]{3}$/.test(cs)) return true;
+  // Portugal: CS + 3 letters (e.g. CSTNP)
+  if (/^CS[A-Z]{3}$/.test(cs)) return true;
+  // Sweden: SE + 3 letters (e.g. SERDL)
+  if (/^SE[A-Z]{3}$/.test(cs)) return true;
+  // Norway: LN + 3 letters (e.g. LNRKO)
+  if (/^LN[A-Z]{3}$/.test(cs)) return true;
+  // Denmark: OY + 3 letters (e.g. OYKBO)
+  if (/^OY[A-Z]{3}$/.test(cs)) return true;
+  // Finland: OH + 3 letters (e.g. OHLTO)
+  if (/^OH[A-Z]{3}$/.test(cs)) return true;
+  // Turkey: TC + 3 letters (e.g. TCJND)
+  if (/^TC[A-Z]{3}$/.test(cs)) return true;
+  // Poland: SP + 3 letters or digits (e.g. SPLRA)
+  if (/^SP[A-Z]{3}$/.test(cs) || /^SP\d{4}$/.test(cs)) return true;
+  // Czech: OK + 3 letters or digits (e.g. OKPET)
+  if (/^OK[A-Z]{3}$/.test(cs) || /^OK\d{4}$/.test(cs)) return true;
+  // Slovakia: OM + 3 letters (e.g. OMBYA)
+  if (/^OM[A-Z]{3}$/.test(cs)) return true;
+  // Hungary: HA + 3 letters or digits (e.g. HALGB)
+  if (/^HA[A-Z]{3}$/.test(cs) || /^HA\d{4}$/.test(cs)) return true;
+  // Greece: SX + 3 letters (e.g. SXDGA)
+  if (/^SX[A-Z]{3}$/.test(cs)) return true;
+  // Iceland: TF + 3 letters (e.g. TFISX)
+  if (/^TF[A-Z]{3}$/.test(cs)) return true;
+  // Malta: 9H + 3 letters (e.g. 9HQAB)
+  if (/^9H[A-Z]{3}$/.test(cs)) return true;
+  // Cyprus: 5B + 3 letters (e.g. 5BDCJ)
+  if (/^5B[A-Z]{3}$/.test(cs)) return true;
+  // Luxembourg: LX + 3 letters (e.g. LXVCF)
+  if (/^LX[A-Z]{3}$/.test(cs)) return true;
+  // San Marino: T7 + 3 letters (e.g. T7ABC)
+  if (/^T7[A-Z]{3}$/.test(cs)) return true;
+  // Bermuda & Cayman: VPB, VQB, VPC + 2 letters (e.g. VPBDK, VPCAL)
+  if (/^V[PQ]B[A-Z]{2}$/.test(cs) || /^VPC[A-Z]{2}$/.test(cs)) return true;
+  // Russia: RA + 5 digits (e.g. RA73000, RA76500)
+  if (/^RA\d{5}$/.test(cs)) return true;
+  // Ukraine: UR + 3 letters or 5 digits (e.g. UR82060)
+  if (/^UR[A-Z]{3}$/.test(cs) || /^UR\d{5}$/.test(cs)) return true;
+  // Kazakhstan: UP + 3-5 alphanumeric (e.g. UPA3201)
+  if (/^UP[A-Z0-9]{3,5}$/.test(cs)) return true;
+  // Israel: 4X + 3 letters (e.g. 4XEDF)
+  if (/^4X[A-Z]{3}$/.test(cs)) return true;
+  // UAE: A6 + 3 letters (e.g. A6EEO)
+  if (/^A6[A-Z]{3}$/.test(cs)) return true;
+  // Qatar: A7 + 3 letters (e.g. A7BAC)
+  if (/^A7[A-Z]{3}$/.test(cs)) return true;
+  // Saudi Arabia: HZ + 3 alphanumeric (e.g. HZMS4)
+  if (/^HZ[A-Z0-9]{3}$/.test(cs)) return true;
+  // Kuwait: 9K + 3 letters (e.g. 9KABC)
+  if (/^9K[A-Z]{3}$/.test(cs)) return true;
+  // Bahrain: A9C + 2 letters
+  if (/^A9C[A-Z]{2}$/.test(cs)) return true;
+  // Oman: A4O + 2 letters
+  if (/^A4O[A-Z]{2}$/.test(cs)) return true;
+  // Egypt: SU + 3 letters (e.g. SUGDM)
+  if (/^SU[A-Z]{3}$/.test(cs)) return true;
+  // Morocco: CN + 3 letters (e.g. CNRGB)
+  if (/^CN[A-Z]{3}$/.test(cs)) return true;
+  // South Africa: ZS/ZT/ZU + 3 letters (e.g. ZSSND)
+  if (/^Z[STU][A-Z]{3}$/.test(cs)) return true;
+  // Ethiopia: ET + 3 letters (e.g. ETAPG)
+  if (/^ET[A-Z]{3}$/.test(cs)) return true;
+  // Singapore: 9V + 3 letters (e.g. 9VSGA)
+  if (/^9V[A-Z]{3}$/.test(cs)) return true;
+  // Malaysia: 9M + 3 letters (e.g. 9MMRA)
+  if (/^9M[A-Z]{3}$/.test(cs)) return true;
+  // Indonesia: PK + 3 letters (e.g. PKGIA)
+  if (/^PK[A-Z]{3}$/.test(cs)) return true;
+  // Thailand: HS + 3 letters (e.g. HSTKC)
+  if (/^HS[A-Z]{3}$/.test(cs)) return true;
+  // Vietnam: VN + 3-4 alphanumeric (e.g. VNA321)
+  if (/^VN[A-Z0-9]{3,4}$/.test(cs)) return true;
+  // Philippines: RPC + 4 digits (e.g. RPC1234)
+  if (/^RPC\d{4}$/.test(cs)) return true;
+  // Brazil: PP/PR/PT/PS + 3 letters (e.g. PPXMA, PRGUO)
+  if (/^P[PRTS][A-Z]{3}$/.test(cs)) return true;
+  // Argentina: LV/LQ + 3 letters (e.g. LVBBO)
+  if (/^L[VQ][A-Z]{3}$/.test(cs)) return true;
+  // Chile: CC + 3 letters (e.g. CCBBA)
+  if (/^CC[A-Z]{3}$/.test(cs)) return true;
+  // Mexico: XA/XB/XC + 3 letters (e.g. XAXYZ)
+  if (/^X[ABC][A-Z]{3}$/.test(cs)) return true;
+  // Aruba: P4 + 3 letters (e.g. P4AAA)
+  if (/^P4[A-Z]{3}$/.test(cs)) return true;
+  // China / Taiwan: B + 4-5 digits (e.g. B1234, B2079, B18601)
+  if (/^B\d{4,5}$/.test(cs)) return true;
+  // USA: FAA N-number (e.g. N12345, N123AB, N1A)
+  if (/^N\d{1,5}[A-Z]{0,2}$/.test(cs)) return true;
+
+  return false;
+}
+
+/**
+ * ICAO Annex 10 Vol II Type b: Operating agency designator + registration suffix.
+ * Matches 3-letter ICAO commercial operator code followed by last 3 or 4 letters of registration.
+ * (e.g. BAWABCD, AFRGXYZ, DLHAICA, TAPMRL, RYRDCL)
+ */
+export function isIcaoTypeBCallsign(callsign: string): boolean {
+  if (!callsign) return false;
+  const cs = callsign.toUpperCase().trim();
+  if (cs.length < 6 || cs.length > 7) return false;
+  if (!/^[A-Z]{6,7}$/.test(cs)) return false;
+
+  const prefix3 = cs.slice(0, 3);
+  return COMMERCIAL_AIRLINE_CODES.has(prefix3);
+}
+
+const COMMERCIAL_IATA_DIGIT_CODES = new Set(['U2', 'W6', '6E', '3U', '9W', '2L', 'B6']);
+
+/**
+ * ICAO Annex 10 Vol II Type c: Operating agency designator + flight identification.
+ * Matches commercial airline flight numbers, including Eurocontrol alphanumeric callsign suffixes.
+ * (e.g. BAW123, DLH456, QTR815, UAE201, DLH45AB, EZY84TG, RYR93LP, THY9Y, AFR182K, WZZ418A)
+ */
+export function isIcaoTypeCCallsign(callsign: string): boolean {
+  if (!callsign) return false;
+  const cs = callsign.toUpperCase().trim();
+  if (!cs) return false;
+
+  // 3-letter ICAO designator (or 4-letter like ELAL) + numeric or alphanumeric flight ID
+  if (/^[A-Z]{3,4}\d{1,4}[A-Z]{0,2}$/.test(cs)) {
+    const p3 = cs.slice(0, 3);
+    const p4 = cs.slice(0, 4);
+    if (COMMERCIAL_AIRLINE_CODES.has(p3) || COMMERCIAL_AIRLINE_CODES.has(p4)) {
+      return true;
+    }
+  }
+
+  // Standard 2-letter IATA airline code + numeric or alphanumeric flight ID (e.g. DL123, AA456, FR93LP)
+  if (/^[A-Z]{2}\d{1,4}[A-Z]{0,2}$/.test(cs)) {
+    return true;
+  }
+
+  // Alphanumeric 2-character IATA codes (e.g. U2 for easyJet, W6 for Wizz, 6E for IndiGo)
+  const iata2 = cs.slice(0, 2);
+  if (COMMERCIAL_IATA_DIGIT_CODES.has(iata2) && /^[A-Z0-9]{2}\d{1,4}[A-Z]{0,2}$/.test(cs)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if a callsign matches civilian ICAO Type a, b, or c formats.
+ */
+export function isCivilianCallsign(callsign: string | null | undefined): boolean {
+  if (!callsign) return false;
+  const cs = callsign.toUpperCase().trim();
+  if (!cs || cs.startsWith('UNKN-')) return false;
+
+  // Russian military/state exception
+  if (cs.startsWith('RF-') || cs.startsWith('RFF')) return false;
+
+  // Never classify known military callsign patterns as civilian
+  if (identifyByCallsign(cs)) return false;
+
+  return isIcaoTypeCCallsign(cs) || isIcaoTypeBCallsign(cs) || isIcaoTypeACallsign(cs);
+}
 
 /**
  * Check if a callsign matches military formats/tactical patterns
@@ -1683,17 +1927,11 @@ export function isMilitaryCallsignFormat(callsign: string | null | undefined): b
   const cs = callsign.toUpperCase().trim();
   if (!cs || cs.startsWith('UNKN-')) return false;
 
-  // If it starts with a known commercial airline code followed by digits, it's commercial
-  if (/^[A-Z]{3}\d{1,4}[A-Z]?$/.test(cs)) {
-    const prefix = cs.slice(0, 3);
-    if (COMMERCIAL_AIRLINE_CODES.has(prefix)) return false;
-  }
-  if (/^[A-Z]{2}\d{1,4}[A-Z]?$/.test(cs)) {
-    return false; // Standard 2-letter IATA flight number (e.g. DL123, AA456)
-  }
-
-  // Check known military callsign patterns (from config)
+  // Check known military callsign patterns (from config) first
   if (identifyByCallsign(cs)) return true;
+
+  // If callsign matches civilian ICAO Type A, B, or C format, it is not military
+  if (isCivilianCallsign(cs)) return false;
 
   // Specific military tactical prefixes
   const militaryPrefixes = [
@@ -1787,27 +2025,20 @@ export function shouldFilterOutAircraft(flight: {
   enrichment?: { confirmedMilitary?: boolean };
   operator?: string;
 }): boolean {
+  const cs = (flight.callsign || '').toUpperCase().trim();
+
+  // If callsign matches civilian ICAO Type A, B, or C formats, reject unless explicitly confirmed military
+  if (cs && isCivilianCallsign(cs)) {
+    if (!flight.enrichment?.confirmedMilitary) {
+      return true;
+    }
+  }
+
   const type = (flight.aircraftType || '').toLowerCase().trim();
   const isTypeUnknown = !type || type === 'unknown' || type === 'military_aircraft_type_unknown';
 
   if (!isTypeUnknown) {
     return false; // Known military type (fighter, bomber, transport, tanker, awacs, drone, etc.)
-  }
-
-  // If callsign matches commercial airline patterns, reject unless explicitly confirmed military
-  const cs = (flight.callsign || '').toUpperCase().trim();
-  if (cs) {
-    const prefix3 = cs.slice(0, 3);
-    const prefix4 = cs.slice(0, 4);
-    if (COMMERCIAL_AIRLINE_CODES.has(prefix3) || COMMERCIAL_AIRLINE_CODES.has(prefix4)) {
-      if (!flight.enrichment?.confirmedMilitary) {
-        return true;
-      }
-    }
-    // Reject standard IATA 2-letter airline flight numbers (e.g., AA123, DL456)
-    if (/^[A-Z]{2}\d{1,4}[A-Z]?$/.test(cs) && !flight.enrichment?.confirmedMilitary) {
-      return true;
-    }
   }
 
   const isConfirmedMil = Boolean(
