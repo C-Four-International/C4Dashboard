@@ -7,6 +7,9 @@ import {
   isCivilianCallsign,
   isMilitaryCallsignFormat,
   shouldFilterOutAircraft,
+  isKnownMilitaryHex,
+  isCivilianAircraftType,
+  isTrainingOrCivilSupportCallsign,
 } from '../src/config/military.ts';
 import {
   isCivilianCallsign as isServerCivilianCallsign,
@@ -248,6 +251,208 @@ describe('shouldFilterOutAircraft End-to-End Filtering', () => {
     assert.equal(isMilitaryCallsign('G-ABCD'), false);
     assert.equal(isMilitaryCallsign('RCH412'), true);
     assert.equal(isMilitaryCallsign('FORTE10'), true);
+  });
+});
+
+describe('Canadian Airline Contract, Regional Carriers & Flight School Filtering', () => {
+  it('correctly classifies Canadian contract and regional airline callsigns as civilian', () => {
+    // WestJet Encore
+    assert.equal(isCivilianCallsign('WEN3101'), true);
+    assert.equal(isCivilianCallsign('WEN3244'), true);
+    assert.equal(isMilitaryCallsignFormat('WEN3101'), false);
+
+    // Jazz Aviation / Air Canada Express
+    assert.equal(isCivilianCallsign('JZA8951'), true);
+    assert.equal(isCivilianCallsign('JZA123'), true);
+    assert.equal(isMilitaryCallsignFormat('JZA8951'), false);
+
+    // Air Georgian, Sky Regional, Central Mountain Air, PAL Airlines
+    assert.equal(isCivilianCallsign('GGN712'), true);
+    assert.equal(isCivilianCallsign('SKV101'), true);
+    assert.equal(isCivilianCallsign('GLR456'), true);
+    assert.equal(isCivilianCallsign('PVL789'), true);
+
+    // Canadian North, Air Creebec, Air Inuit, Wasaya, Calm Air, Perimeter
+    assert.equal(isCivilianCallsign('MPE123'), true);
+    assert.equal(isCivilianCallsign('CRQ202'), true);
+    assert.equal(isCivilianCallsign('AIE303'), true);
+    assert.equal(isCivilianCallsign('WSG404'), true);
+    assert.equal(isCivilianCallsign('CAV505'), true);
+    assert.equal(isCivilianCallsign('PAG606'), true);
+    assert.equal(isCivilianCallsign('KEW707'), true);
+    assert.equal(isCivilianCallsign('MAL808'), true);
+
+    // Server-side check
+    assert.equal(isServerCivilianCallsign('WEN3101'), true);
+    assert.equal(isServerCivilianCallsign('JZA8951'), true);
+    assert.equal(isMilitaryCallsign('WEN3101'), false);
+    assert.equal(isMilitaryCallsign('JZA8951'), false);
+  });
+
+  it('correctly identifies flight academies and university training callsigns as civilian', () => {
+    // Canadian flight training centres
+    assert.equal(isCivilianCallsign('MFC101'), true); // Moncton Flight College
+    assert.equal(isCivilianCallsign('SNC24'), true);  // Seneca College
+    assert.equal(isCivilianCallsign('BFC5'), true);   // Brampton Flight Centre
+    assert.equal(isCivilianCallsign('SAU12'), true);  // Sault College
+    assert.equal(isCivilianCallsign('OAS33'), true);  // Ottawa Aviation Services
+    assert.equal(isCivilianCallsign('VFC4'), true);   // Victoria Flying Club
+    assert.equal(isCivilianCallsign('WWF9'), true);   // Waterloo Wellington Flight Centre
+
+    // US & Global academies
+    assert.equal(isCivilianCallsign('ERU123'), true); // Embry-Riddle
+    assert.equal(isCivilianCallsign('NDU45'), true);  // North Dakota
+    assert.equal(isCivilianCallsign('PUR8'), true);   // Purdue
+    assert.equal(isCivilianCallsign('WMU77'), true);  // Western Michigan
+    assert.equal(isCivilianCallsign('ATP99'), true);  // ATP Flight School
+    assert.equal(isCivilianCallsign('CAE55'), true);  // CAE
+    assert.equal(isCivilianCallsign('OXF12'), true);  // Oxford Aviation
+    assert.equal(isCivilianCallsign('LFA88'), true);  // Lufthansa Training
+
+    // Server-side check
+    assert.equal(isServerCivilianCallsign('MFC101'), true);
+    assert.equal(isServerCivilianCallsign('ERU123'), true);
+    assert.equal(isMilitaryCallsign('MFC101'), false);
+    assert.equal(isMilitaryCallsign('ERU123'), false);
+  });
+
+  it('detects civilian training and utility callsign keywords', () => {
+    assert.equal(isTrainingOrCivilSupportCallsign('CADET01'), true);
+    assert.equal(isTrainingOrCivilSupportCallsign('STUDENT1'), true);
+    assert.equal(isTrainingOrCivilSupportCallsign('SOLO2'), true);
+    assert.equal(isTrainingOrCivilSupportCallsign('TRAIN11'), true);
+    assert.equal(isTrainingOrCivilSupportCallsign('INSTRUCT4'), true);
+    assert.equal(isTrainingOrCivilSupportCallsign('CESSNA1'), true);
+    assert.equal(isTrainingOrCivilSupportCallsign('PIPER2'), true);
+    assert.equal(isTrainingOrCivilSupportCallsign('DIAMOND3'), true);
+    assert.equal(isTrainingOrCivilSupportCallsign('SKYTUG1'), true);
+    assert.equal(isTrainingOrCivilSupportCallsign('GLIDER5'), true);
+    assert.equal(isTrainingOrCivilSupportCallsign('SURVEY10'), true);
+    assert.equal(isTrainingOrCivilSupportCallsign('PHOTO1'), true);
+
+    // Ensure they are marked civilian and not military
+    assert.equal(isCivilianCallsign('CADET01'), true);
+    assert.equal(isCivilianCallsign('STUDENT1'), true);
+    assert.equal(isCivilianCallsign('SOLO2'), true);
+    assert.equal(isCivilianCallsign('PIPER2'), true);
+    assert.equal(isMilitaryCallsignFormat('CADET01'), false);
+    assert.equal(isMilitaryCallsignFormat('SOLO2'), false);
+
+    // Server-side check
+    assert.equal(isServerCivilianCallsign('CADET01'), true);
+    assert.equal(isServerCivilianCallsign('STUDENT1'), true);
+    assert.equal(isMilitaryCallsign('CADET01'), false);
+  });
+
+  it('verifies Canadian civil hexes (C00000-C0FFFF) are NOT marked military, while RCAF (C2B000-C2BFFF) are', () => {
+    // Canadian civil aircraft hex codes (previously erroneously included in MILITARY_HEX_RANGES)
+    assert.equal(isKnownMilitaryHex('C01234'), undefined);
+    assert.equal(isKnownMilitaryHex('C089AB'), undefined);
+    assert.equal(isKnownMilitaryHex('C0FFFF'), undefined);
+
+    // Verified RCAF Canadian Armed Forces military block
+    assert.ok(isKnownMilitaryHex('C2B000'));
+    assert.ok(isKnownMilitaryHex('C2B123'));
+    assert.ok(isKnownMilitaryHex('C2BFFF'));
+    assert.equal(isKnownMilitaryHex('C2B123')?.country, 'Canada');
+  });
+
+  it('identifies civilian regional, connecting, and training aircraft typecodes', () => {
+    // Regional turboprops & commuter jets
+    assert.equal(isCivilianAircraftType('DH8D'), true);
+    assert.equal(isCivilianAircraftType('Q400'), true);
+    assert.equal(isCivilianAircraftType('CRJ9'), true);
+    assert.equal(isCivilianAircraftType('CRJ2'), true);
+    assert.equal(isCivilianAircraftType('AT76'), true);
+    assert.equal(isCivilianAircraftType('SF34'), true);
+    assert.equal(isCivilianAircraftType('B190'), true);
+    assert.equal(isCivilianAircraftType('SW4'), true);
+
+    // Training aircraft & light singles
+    assert.equal(isCivilianAircraftType('C172'), true);
+    assert.equal(isCivilianAircraftType('C152'), true);
+    assert.equal(isCivilianAircraftType('PA28'), true);
+    assert.equal(isCivilianAircraftType('DA40'), true);
+    assert.equal(isCivilianAircraftType('DA20'), true);
+    assert.equal(isCivilianAircraftType('SR22'), true);
+
+    // Commercial airliners
+    assert.equal(isCivilianAircraftType('A320'), true);
+    assert.equal(isCivilianAircraftType('A330'), true);
+    assert.equal(isCivilianAircraftType('B738'), true);
+
+    // Military types should not be in civilian typecodes
+    assert.equal(isCivilianAircraftType('F16'), false);
+    assert.equal(isCivilianAircraftType('C17'), false);
+    assert.equal(isCivilianAircraftType('KC135'), false);
+  });
+
+  it('shouldFilterOutAircraft filters out contract flights, training flights, and civil typecodes', () => {
+    // WestJet Encore Dash 8
+    assert.equal(
+      shouldFilterOutAircraft({
+        aircraftType: 'unknown',
+        callsign: 'WEN3101',
+        hexCode: 'C01234',
+        typeCode: 'DH8D',
+      }),
+      true
+    );
+
+    // Jazz CRJ900
+    assert.equal(
+      shouldFilterOutAircraft({
+        aircraftType: 'unknown',
+        callsign: 'JZA8951',
+        hexCode: 'C05678',
+        typeCode: 'CRJ9',
+      }),
+      true
+    );
+
+    // Seneca College Cessna 172
+    assert.equal(
+      shouldFilterOutAircraft({
+        aircraftType: 'unknown',
+        callsign: 'SNC24',
+        hexCode: 'C09999',
+        typeCode: 'C172',
+      }),
+      true
+    );
+
+    // Flight training cadet callsign
+    assert.equal(
+      shouldFilterOutAircraft({
+        aircraftType: 'unknown',
+        callsign: 'CADET01',
+        hexCode: 'A00123',
+        typeCode: 'PA28',
+      }),
+      true
+    );
+
+    // Unknown aircraft with civil typecode (e.g. Piper Cherokee PA28)
+    assert.equal(
+      shouldFilterOutAircraft({
+        aircraftType: 'unknown',
+        callsign: 'UNKNOWN',
+        hexCode: 'C02222',
+        typeCode: 'PA28',
+      }),
+      true
+    );
+
+    // Confirmed RCAF military flight (CANFORCE01 / CC-130 Hercules) should NOT be filtered out
+    assert.equal(
+      shouldFilterOutAircraft({
+        aircraftType: 'transport',
+        callsign: 'CFC3011',
+        hexCode: 'C2B011',
+        typeCode: 'C130',
+      }),
+      false
+    );
   });
 });
 

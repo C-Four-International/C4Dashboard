@@ -52,10 +52,21 @@ export const AIRLINE_CODES = new Set([
   'AIC', 'CPA', 'SIA', 'MAS', 'THA', 'VNM', 'JAL', 'ANA', 'KAL', 'AAR', 'EVA',
   'CAL', 'CCA', 'CES', 'CSN', 'HDA', 'CHH', 'CXA', 'GIA', 'PAL', 'SLK', 'CSZ',
   'CQH', 'DKH', 'CDG', 'CSC', 'IGO', 'SEJ', 'VTI', 'AKJ', 'QFA', 'VOZ', 'JST', 'ANZ',
-  // Americas
+  // Americas - Major
   'AAL', 'DAL', 'UAL', 'SWA', 'JBU', 'FFT', 'ASA', 'NKS', 'WJA', 'ACA', 'ROU', 'TSC',
   'FDX', 'UPS', 'GTI', 'ABW', 'CLX', 'MPH', 'ATN', 'PAC', 'BOX', 'BCS',
   'AMX', 'VOI', 'VIV', 'CMP', 'AVA', 'GLO', 'AZU', 'TAM', 'LAN', 'LPE', 'ARE',
+  // Americas - Regional Feeder & Contract Airlines
+  'SKW', 'RPA', 'EDV', 'CPZ', 'PDT', 'PSA', 'ENY', 'QXE', 'GJS', 'ASH', 'FLG',
+  // Canadian Airline Contract & Regional Carriers
+  'WEN', 'JZA', 'GGN', 'SKV', 'GLR', 'PVL', 'VAL', 'MPE', 'FAB', 'CRQ', 'AIE',
+  'WSG', 'BLS', 'NCB', 'PLR', 'CAV', 'PAG', 'KEW', 'MAL', 'NRL', 'NDL', 'SWG',
+  'KFA', 'ANT', 'PSC', 'SUT', 'CRN', 'KBA', 'CHR', 'EVN', 'SNT', 'HRT', 'SSR',
+  'EXA', 'SGN',
+  // Flight Schools, Flight Academies & Training Aircraft
+  'MFC', 'SNC', 'BFC', 'SAU', 'OAS', 'VFC', 'WWF', 'CTL', 'CHM', 'MFT', 'PFC',
+  'OFC', 'CWA', 'KFC', 'BFA', 'CFA', 'HFA', 'WCA', 'ERU', 'NDU', 'PUR', 'WMU',
+  'OSU', 'ATP', 'FSI', 'CAE', 'OXF', 'LFA', 'FTE', 'CFT', 'LGT', 'IFT', 'USF',
   // Generic
   'AIR', 'SKY', 'JET',
 ]);
@@ -179,18 +190,43 @@ export function isIcaoTypeCCallsign(callsign: string): boolean {
   return false;
 }
 
+export const CIVILIAN_TRAINING_KEYWORDS = [
+  'CADET', 'STUDENT', 'SOLO', 'TRAIN', 'INSTRUCT', 'INSTR', 'SCHOOL', 'ACADEMY',
+  'AERO', 'CLUB', 'PILOT', 'LEARN', 'SIMUL', 'PRACTICE', 'PRACT', 'CHECK', 'STAGE',
+  'TOW', 'SKYTUG', 'GLIDER', 'GLIDR', 'SOAR', 'JUMP', 'SKYDIVE', 'DIVER', 'PARA',
+  'PHOTO', 'CAMERA', 'SURVEY', 'MAPPING', 'GEOLOGY', 'PIPELINE', 'PIPE', 'POWERLINE',
+  'CESSNA', 'PIPER', 'BEECH', 'MOONEY', 'DIAMOND', 'CIRRUS', 'GRUMMAN', 'ROBIN', 'TECNAM',
+  'ROBINSON', 'SCHWEIZER',
+];
+
+export function isTrainingOrCivilSupportCallsign(callsign: string): boolean {
+  if (!callsign) return false;
+  const cs = callsign.toUpperCase().trim().replace(/[\s-]+/g, '');
+  for (const keyword of CIVILIAN_TRAINING_KEYWORDS) {
+    if (cs.startsWith(keyword) || cs.includes(keyword)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function isCivilianCallsign(callsign: string | null | undefined): boolean {
   if (!callsign) return false;
-  const cs = callsign.toUpperCase().trim();
+  const cs = callsign.toUpperCase().trim().replace(/\s+/g, '');
   if (!cs || cs.startsWith('UNKN-')) return false;
   if (cs.startsWith('RF-') || cs.startsWith('RFF')) return false;
 
-  return isIcaoTypeCCallsign(cs) || isIcaoTypeBCallsign(cs) || isIcaoTypeACallsign(cs);
+  return (
+    isIcaoTypeCCallsign(cs) ||
+    isIcaoTypeBCallsign(cs) ||
+    isIcaoTypeACallsign(cs) ||
+    isTrainingOrCivilSupportCallsign(cs)
+  );
 }
 
 export function isMilitaryCallsign(callsign: string | null | undefined): boolean {
   if (!callsign) return false;
-  const cs = callsign.toUpperCase().trim();
+  const cs = callsign.toUpperCase().trim().replace(/\s+/g, '');
   if (!cs || cs.startsWith('UNKN-')) return false;
   if (isCivilianCallsign(cs)) return false;
   for (const prefix of MILITARY_PREFIXES) {

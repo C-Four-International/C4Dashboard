@@ -367,6 +367,8 @@ interface AdsbFiResponse {
   ac: Array<{
     hex: string;
     flight?: string;
+    t?: string;
+    desc?: string;
     lat?: number;
     lon?: number;
     alt_baro?: number | 'ground';
@@ -398,14 +400,17 @@ async function fetchFromTar1090(url: string, sourceName: string): Promise<Milita
 
     const callsign = (plane.flight || '').trim();
     const icao24 = plane.hex.toLowerCase();
+    const typeCode = plane.t?.trim();
 
-    const info = determineAircraftInfo(callsign, icao24);
+    const info = determineAircraftInfo(callsign, icao24, undefined, typeCode);
 
     if (shouldFilterOutAircraft({
       aircraftType: info.type,
       callsign,
       hexCode: icao24,
       operator: info.operator,
+      typeCode,
+      aircraftModel: plane.desc,
     })) {
       continue;
     }

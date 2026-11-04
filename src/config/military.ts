@@ -221,8 +221,6 @@ export const MILITARY_AIRCRAFT_TYPES: Record<string, { type: MilitaryAircraftTyp
   'K35R': { type: 'tanker', name: 'KC-135R Stratotanker' },
   'KC10': { type: 'tanker', name: 'KC-10 Extender' },
   'KC46': { type: 'tanker', name: 'KC-46 Pegasus' },
-  'A330': { type: 'tanker', name: 'A330 MRTT' },
-  'A332': { type: 'tanker', name: 'A330 MRTT' },
 
   // AWACS/AEW
   'E3': { type: 'awacs', name: 'E-3 Sentry AWACS' },
@@ -285,99 +283,38 @@ export const MILITARY_HEX_RANGES: { start: string; end: string; operator: Milita
   { start: 'ADF7C0', end: 'ADF7DF', operator: 'usaf', country: 'USA' }, // USAF VIP / special transport / tankers
   { start: 'AE0000', end: 'AEFFFF', operator: 'usaf', country: 'USA' }, // Main US DoD military block
 
-  // UK Military
+  // UK Royal Air Force / MoD
   { start: '43C000', end: '43CFFF', operator: 'raf', country: 'UK' },
 
-  // France Military
-  { start: '3A0000', end: '3AFFFF', operator: 'faf', country: 'France' },
-  { start: '3B0000', end: '3BFFFF', operator: 'faf', country: 'France' },
+  // France Military (FAF / Marine Nationale / ALAT; 3A is civil)
+  { start: '3B0000', end: '3B7FFF', operator: 'faf', country: 'France' },
 
-  // Germany Military
+  // Germany Military (GAF; 3C-3E is civil)
   { start: '3F0000', end: '3FFFFF', operator: 'gaf', country: 'Germany' },
 
-  // Israel Military (critical for Middle East)
+  // Canada Military (RCAF Canadian Armed Forces verified block; C00000-C0FFFF is Canadian civil)
+  { start: 'C2B000', end: 'C2BFFF', operator: 'other', country: 'Canada' },
+
+  // Israel Military (IAF)
   { start: '738000', end: '73FFFF', operator: 'iaf', country: 'Israel' },
 
   // NATO AWACS (Luxembourg registration but NATO operated)
   { start: '4D0000', end: '4D03FF', operator: 'nato', country: 'NATO' },
 
-  // Italy Military
-  { start: '300000', end: '33FFFF', operator: 'other', country: 'Italy' },
-
-  // Spain Military
-  { start: '340000', end: '37FFFF', operator: 'other', country: 'Spain' },
-
-  // Netherlands Military
-  { start: '480000', end: '480FFF', operator: 'other', country: 'Netherlands' },
-
-  // Turkey Military (important for Middle East)
-  { start: '4BA000', end: '4BCFFF', operator: 'other', country: 'Turkey' },
-
-  // Saudi Arabia Military
-  { start: '710000', end: '717FFF', operator: 'other', country: 'Saudi Arabia' },
-
-  // UAE Military
-  { start: '896000', end: '896FFF', operator: 'other', country: 'UAE' },
-
-  // Qatar Military
-  { start: '06A000', end: '06AFFF', operator: 'other', country: 'Qatar' },
-
-  // Kuwait Military
-  { start: '706000', end: '706FFF', operator: 'other', country: 'Kuwait' },
-
-  // Japan Self-Defense Forces
-  { start: '840000', end: '87FFFF', operator: 'other', country: 'Japan' },
-
-  // South Korea Military
-  { start: '718000', end: '71FFFF', operator: 'other', country: 'South Korea' },
-
-  // Australia Military
+  // Australia Military (RAAF)
   { start: '7CF800', end: '7CFFFF', operator: 'other', country: 'Australia' },
 
-  // Canada Military
-  { start: 'C00000', end: 'C0FFFF', operator: 'other', country: 'Canada' },
+  // Netherlands Military (RNLAF)
+  { start: '480000', end: '480FFF', operator: 'other', country: 'Netherlands' },
 
-  // India Military
-  { start: '800000', end: '83FFFF', operator: 'other', country: 'India' },
+  // Italy Military (AMI military block; 30-32 is civil)
+  { start: '330000', end: '333FFF', operator: 'other', country: 'Italy' },
 
-  // Pakistan Military
-  { start: '760000', end: '767FFF', operator: 'other', country: 'Pakistan' },
+  // Spain Military (EdA military block; 34-36 is civil)
+  { start: '370000', end: '373FFF', operator: 'other', country: 'Spain' },
 
-  // Egypt Military
+  // Egypt Military (EAF)
   { start: '500000', end: '5003FF', operator: 'other', country: 'Egypt' },
-
-  // Poland Military
-  { start: '488000', end: '48FFFF', operator: 'other', country: 'Poland' },
-
-  // Greece Military
-  { start: '468000', end: '46FFFF', operator: 'other', country: 'Greece' },
-
-  // Sweden Military
-  { start: '4A8000', end: '4AFFFF', operator: 'other', country: 'Sweden' },
-
-  // Norway Military
-  { start: '478000', end: '47FFFF', operator: 'other', country: 'Norway' },
-
-  // Belgium Military
-  { start: '448000', end: '44FFFF', operator: 'other', country: 'Belgium' },
-
-  // Denmark Military
-  { start: '458000', end: '45FFFF', operator: 'other', country: 'Denmark' },
-
-  // Finland Military
-  { start: '460000', end: '467FFF', operator: 'other', country: 'Finland' },
-
-  // Portugal Military
-  { start: '490000', end: '497FFF', operator: 'other', country: 'Portugal' },
-
-  // Czechia Military
-  { start: '498000', end: '49FFFF', operator: 'other', country: 'Czechia' },
-
-  // Switzerland Military
-  { start: '4B0000', end: '4B7FFF', operator: 'other', country: 'Switzerland' },
-
-  // Singapore Military
-  { start: '768000', end: '76FFFF', operator: 'other', country: 'Singapore' },
 ];
 
 /**
@@ -1661,22 +1598,94 @@ export const MILITARY_COUNTRY_LEGEND = [
  * Used to positively identify commercial flights and reject them from the military activity layer.
  */
 export const COMMERCIAL_AIRLINE_CODES = new Set([
-  // North America - Major & Regional
+  // North America - Major, Regional & Feeder
   'AAL', 'DAL', 'UAL', 'SWA', 'JBU', 'FFT', 'ASA', 'NKS', 'HAL', 'AAY',
   'SKW', 'RPA', 'EDV', 'PDT', 'PSA', 'ENY', 'QXE', 'WJA', 'ACA', 'ROU',
-  'TSC', 'CJT', 'POE', 'FLE', 'PCO',
+  'TSC', 'CJT', 'POE', 'FLE', 'PCO', 'GJS', 'ASH', 'AWI', 'UCA', 'CPZ',
+  'SIL', 'KAP', 'EJA', 'NJE', 'LXJ', 'FJO', 'VJT', 'XOJ', 'WHT', 'JIT',
+  'FYG', 'TAG',
+  // Canadian Airline Contract, Feeder & Connecting Flights
+  'WEN', // WestJet Encore ("ENCORE" - Dash 8 Q400 contract connecting flights)
+  'JZA', // Jazz Aviation ("JAZZ" - Air Canada Express regional/connecting flights)
+  'GGN', // Air Georgian (Air Canada Express)
+  'SKV', // Sky Regional Airlines ("MAPLE" - Air Canada Express)
+  'GLR', // Central Mountain Air ("GLACIER" - Canadian regional connecting flights)
+  'PVL', // PAL Airlines ("PROVINCIAL" - Eastern Canada regional connecting flights)
+  'VAL', // Voyageur Airways ("VOYAGEUR" - Canadian charter / regional contract)
+  'MPE', // Canadian North ("EMPRESS" - Northern Canada scheduled connecting)
+  'FAB', // First Air (Northern Canada connecting)
+  'CRQ', // Air Creebec ("CREEBEC" - Regional connecting flights)
+  'AIE', // Air Inuit ("INUIT" - Arctic connecting flights)
+  'WSG', // Wasaya Airways ("WASAYA" - Ontario connecting feeder flights)
+  'BLS', // Bearskin Airlines ("BEARSKIN" - Northern Ontario feeder)
+  'NCB', // North Cariboo Air ("NORTH CARIBOO" - Charter/feeder)
+  'PLR', // Northwestern Air ("POLARIS" - Regional connecting flights)
+  'CAV', // Calm Air ("CALM AIR" - Manitoba/Nunavut connecting flights)
+  'PAG', // Perimeter Aviation ("PERIMETER" - Manitoba connecting flights)
+  'KEW', // Keewatin Air ("BLIZZARD" - Medevac / connecting flights)
+  'MAL', // Morningstar Air Express ("MORNINGSTAR" - Cargo/feeder)
+  'NRL', // Nolinor Aviation ("NOLINOR" - Charter/connecting)
+  'NDL', // Chrono Aviation ("NEEDLE" - Regional connecting)
+  'SWG', // Sunwing Airlines ("SUNWING" - Leisure/charter)
+  'KFA', // Kelowna Flightcraft / KF Cargo ("FLIGHTCRAFT")
+  'ANT', // Air North ("AIR NORTH" - Yukon connecting flights)
+  'PSC', // Pascan Aviation ("PASCAN" - Quebec regional feeder)
+  'SUT', // Summit Air ("SUMMIT" - Regional connecting)
+  'CRN', // Carson Air ("CARSON" - Cargo/feeder)
+  'KBA', // Kenn Borek Air ("BOREK AIR" - Arctic utility/connecting)
+  'CHR', // Chorus Aviation (Jazz parent)
+  'EVN', // EVAS Air (Air Canada Express feeder)
+  'SNT', // Sunwest Aviation
+  'HRT', // Chartright Air
+  'SSR', // Skyservice
+  'EXA', // Exact Air
+  'SGN', // Air Saguenay
+  // Flight Schools, Flight Academies & Training Aircraft
+  'MFC', // Moncton Flight College (Canada flight training)
+  'SNC', // Seneca College Flight Training (Canada)
+  'BFC', // Brampton Flight Centre (Canada flight training)
+  'SAU', // Sault College Aviation (Canada)
+  'OAS', // Ottawa Aviation Services (Canada)
+  'VFC', // Victoria Flying Club (Canada)
+  'WWF', // Waterloo Wellington Flight Centre (Canada)
+  'CTL', // Centennial College (Canada)
+  'CHM', // Chilliwack Aviation (Canada)
+  'MFT', // Montair Aviation (Canada)
+  'PFC', // Pacific Flying Club (Canada)
+  'OFC', // Ottawa Flying Club (Canada)
+  'CWA', // Calgary Flight Training (Canada)
+  'KFC', // Kitchener Flying Club (Canada)
+  'BFA', // Boundary Bay Flight Academy (Canada)
+  'CFA', // Canadian Flight Academy (Canada)
+  'HFA', // Harv's Air Service (Canada flight school)
+  'WCA', // West Coast Aviation (Canada)
+  'ERU', // Embry-Riddle Aeronautical University ("AIR RIDDLE" - US)
+  'NDU', // University of North Dakota ("SIOUX" - US)
+  'PUR', // Purdue University (US)
+  'WMU', // Western Michigan University ("BRONCO" - US)
+  'OSU', // Ohio State University (US)
+  'ATP', // ATP Flight School (US)
+  'FSI', // FlightSafety International (US)
+  'CAE', // CAE Flight Training (Global)
+  'OXF', // Oxford Aviation Academy (UK/Global)
+  'LFA', // Lufthansa Aviation Training (Europe)
+  'FTE', // Flight Training Europe (Europe)
+  'CFT', // Civilian Flight Training
+  'LGT', // L3Harris Flight Academy
+  'IFT', // Inflight Training
+  'USF', // US Flight Academy
   // Cargo & Logistics
   'FDX', 'UPS', 'GTI', 'ABW', 'CLX', 'MPH', 'ATN', 'PAC', 'BOX', 'BCS',
   'AZG', 'TAY', 'NPT', 'CKK', 'CYZ',
   // Europe - Major & Flag Carriers
   'BAW', 'AFR', 'DLH', 'KLM', 'AUA', 'SAS', 'FIN', 'LOT', 'AZA', 'ITY',
   'TAP', 'IBE', 'SWR', 'EIN', 'BEL', 'AEE', 'ROT', 'TAR', 'BTI', 'ICE',
-  'CYP', 'LZB', 'ASL', 'CRO', 'MGX', 'WIF', 'DAT',
-  // Europe - Low Cost & Leisure
+  'CYP', 'LZB', 'ASL', 'CRO', 'MGX', 'WIF', 'DAT', 'AUR', 'LGL',
+  // Europe - Low Cost, Regional & Leisure
   'RYR', 'EZY', 'WZZ', 'WUK', 'WMT', 'VLG', 'NOZ', 'NAX', 'PGT', 'THY',
   'TRA', 'EXS', 'TOM', 'VOE', 'EWG', 'CFG', 'DLA', 'TVF', 'VXP', 'ENT',
   'TVS', 'LLC', 'NVR', 'SXS', 'GWI', 'JAF', 'TFL', 'MAY', 'BZH', 'EZS',
-  'RUK', 'DIS', 'OCN', 'CFE',
+  'RUK', 'DIS', 'OCN', 'CFE', 'CLH', 'ANE', 'HOP', 'CHX',
   // Asia - China, Hong Kong, Taiwan, Macau
   'CCA', 'CES', 'CSN', 'CHH', 'CXA', 'CSZ', 'CQH', 'DKH', 'CDG', 'CSC',
   'CBJ', 'EPA', 'GDC', 'LKE', 'OKA', 'RLH', 'TYA', 'CPA', 'CRK', 'HKE',
@@ -1903,11 +1912,73 @@ export function isIcaoTypeCCallsign(callsign: string): boolean {
 }
 
 /**
- * Check if a callsign matches civilian ICAO Type a, b, or c formats.
+ * Known civilian training, sport, and civil utility callsign keywords.
+ * Used to positively identify flight training, survey, glider tow, and utility aircraft
+ * and reject them from being falsely matched as military tactical callsigns.
+ */
+export const CIVILIAN_TRAINING_KEYWORDS = [
+  'CADET', 'STUDENT', 'SOLO', 'TRAIN', 'INSTRUCT', 'INSTR', 'SCHOOL', 'ACADEMY',
+  'AERO', 'CLUB', 'PILOT', 'LEARN', 'SIMUL', 'PRACTICE', 'PRACT', 'CHECK', 'STAGE',
+  'TOW', 'SKYTUG', 'GLIDER', 'GLIDR', 'SOAR', 'JUMP', 'SKYDIVE', 'DIVER', 'PARA',
+  'PHOTO', 'CAMERA', 'SURVEY', 'MAPPING', 'GEOLOGY', 'PIPELINE', 'PIPE', 'POWERLINE',
+  'CESSNA', 'PIPER', 'BEECH', 'MOONEY', 'DIAMOND', 'CIRRUS', 'GRUMMAN', 'ROBIN', 'TECNAM',
+  'ROBINSON', 'SCHWEIZER',
+];
+
+export function isTrainingOrCivilSupportCallsign(callsign: string): boolean {
+  if (!callsign) return false;
+  const cs = callsign.toUpperCase().trim().replace(/[\s-]+/g, '');
+  for (const keyword of CIVILIAN_TRAINING_KEYWORDS) {
+    if (cs.startsWith(keyword) || cs.includes(keyword)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Standard civilian, commercial connecting, regional, and training aircraft type codes.
+ */
+export const CIVILIAN_AIRCRAFT_TYPECODES = new Set([
+  // Canadian & Regional Turboprops & Connecting aircraft
+  'DH8A', 'DH8B', 'DH8C', 'DH8D', 'Q400',
+  'CRJ1', 'CRJ2', 'CRJ7', 'CRJ9', 'CRJX',
+  'E170', 'E175', 'E190', 'E195', 'E75L', 'E75S', 'E290', 'E295', 'E135', 'E145',
+  'AT43', 'AT45', 'AT46', 'AT72', 'AT75', 'AT76',
+  'SF34', 'SB20', 'SW4', 'B190', 'JS31', 'JS32', 'JS41', 'D228', 'D328',
+  'DHC6', 'DHC7', 'PC12',
+  // Training Aircraft & General Aviation Light Singles/Twins
+  'C150', 'C152', 'C172', 'C177', 'C182', 'C206', 'C208', 'C210', 'C72R', 'C82R',
+  'PA28', 'PA32', 'PA34', 'PA38', 'PA44', 'PA46', 'P28A', 'P28R', 'P28T', 'PA18', 'PA24', 'PA30', 'PA31',
+  'DA20', 'DA40', 'DA42', 'DA62', 'DV20',
+  'SR20', 'SR22', 'SF50',
+  'BE33', 'BE35', 'BE36', 'BE55', 'BE58', 'BE76', 'BE77', 'B350', 'BE20', 'B200',
+  'M20P', 'M20T', 'M20J', 'M20',
+  'AA1', 'AA5', 'AA5A', 'AA5B',
+  'P92', 'P96', 'P2002', 'P2006', 'P2008', 'P2010',
+  'G115', 'AT3', 'C42', 'EV97', 'A210', 'WT9', 'TL20', 'TB9', 'TB10', 'TB20', 'CAP10',
+  'HR20', 'DR40', 'R216', 'Z42', 'Z43',
+  'R22', 'R44', 'R66', 'G2CA', 'S300', 'H269',
+  'ASK21', 'DG10', 'DG50', 'DG1000', 'LS4', 'DISC', 'DUOD', 'VENT',
+  // Commercial Jetliners (Narrowbody & Widebody)
+  'A20N', 'A21N', 'A318', 'A319', 'A320', 'A321', 'A330', 'A332', 'A333', 'A338', 'A339',
+  'A342', 'A343', 'A345', 'A346', 'A359', 'A35K', 'A388', 'A220', 'BCS1', 'BCS3',
+  'B737', 'B738', 'B739', 'B38M', 'B39M', 'B744', 'B748', 'B752', 'B753', 'B762', 'B763', 'B764',
+  'B772', 'B773', 'B77L', 'B77W', 'B788', 'B789', 'B78X',
+]);
+
+export function isCivilianAircraftType(typeCode?: string | null): boolean {
+  if (!typeCode) return false;
+  const normalized = typeCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return CIVILIAN_AIRCRAFT_TYPECODES.has(normalized);
+}
+
+/**
+ * Check if a callsign matches civilian ICAO Type a, b, or c formats, or training/civil support.
  */
 export function isCivilianCallsign(callsign: string | null | undefined): boolean {
   if (!callsign) return false;
-  const cs = callsign.toUpperCase().trim();
+  const cs = callsign.toUpperCase().trim().replace(/\s+/g, '');
   if (!cs || cs.startsWith('UNKN-')) return false;
 
   // Russian military/state exception
@@ -1916,7 +1987,12 @@ export function isCivilianCallsign(callsign: string | null | undefined): boolean
   // Never classify known military callsign patterns as civilian
   if (identifyByCallsign(cs)) return false;
 
-  return isIcaoTypeCCallsign(cs) || isIcaoTypeBCallsign(cs) || isIcaoTypeACallsign(cs);
+  return (
+    isIcaoTypeCCallsign(cs) ||
+    isIcaoTypeBCallsign(cs) ||
+    isIcaoTypeACallsign(cs) ||
+    isTrainingOrCivilSupportCallsign(cs)
+  );
 }
 
 /**
@@ -1924,13 +2000,13 @@ export function isCivilianCallsign(callsign: string | null | undefined): boolean
  */
 export function isMilitaryCallsignFormat(callsign: string | null | undefined): boolean {
   if (!callsign) return false;
-  const cs = callsign.toUpperCase().trim();
+  const cs = callsign.toUpperCase().trim().replace(/\s+/g, '');
   if (!cs || cs.startsWith('UNKN-')) return false;
 
   // Check known military callsign patterns (from config) first
   if (identifyByCallsign(cs)) return true;
 
-  // If callsign matches civilian ICAO Type A, B, or C format, it is not military
+  // If callsign matches civilian ICAO Type A, B, or C format, or civil training/support, it is not military
   if (isCivilianCallsign(cs)) return false;
 
   // Specific military tactical prefixes
@@ -2023,13 +2099,29 @@ export function shouldFilterOutAircraft(flight: {
   callsign?: string;
   hexCode?: string;
   enrichment?: { confirmedMilitary?: boolean };
+  enriched?: { confirmedMilitary?: boolean; typeCode?: string };
   operator?: string;
+  typeCode?: string;
+  aircraftModel?: string;
 }): boolean {
-  const cs = (flight.callsign || '').toUpperCase().trim();
+  const isConfirmedMil = Boolean(
+    flight.enrichment?.confirmedMilitary ||
+    flight.enriched?.confirmedMilitary
+  );
 
-  // If callsign matches civilian ICAO Type A, B, or C formats, reject unless explicitly confirmed military
+  const cs = (flight.callsign || '').toUpperCase().trim().replace(/\s+/g, '');
+
+  // If callsign matches civilian ICAO Type A, B, or C formats or training/civil support, reject unless confirmed military
   if (cs && isCivilianCallsign(cs)) {
-    if (!flight.enrichment?.confirmedMilitary) {
+    if (!isConfirmedMil) {
+      return true;
+    }
+  }
+
+  // If aircraft has a known civilian/commercial/training type code, reject unless confirmed military
+  const tc = flight.typeCode || flight.enriched?.typeCode;
+  if (tc && isCivilianAircraftType(tc)) {
+    if (!isConfirmedMil) {
       return true;
     }
   }
@@ -2041,13 +2133,7 @@ export function shouldFilterOutAircraft(flight: {
     return false; // Known military type (fighter, bomber, transport, tanker, awacs, drone, etc.)
   }
 
-  const isConfirmedMil = Boolean(
-    flight.enrichment?.confirmedMilitary ||
-    (flight.hexCode && isKnownMilitaryHex(flight.hexCode)) ||
-    (flight.operator && flight.operator !== 'other' && flight.operator !== 'MILITARY_OPERATOR_OTHER')
-  );
-
-  if (isConfirmedMil) {
+  if (isConfirmedMil || (flight.hexCode && isKnownMilitaryHex(flight.hexCode))) {
     return false;
   }
 
