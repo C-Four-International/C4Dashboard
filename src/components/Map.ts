@@ -2561,6 +2561,7 @@ export class MapComponent {
 
       // FAA NOTAM Airspace Bubbles
       if (this.notams.length > 0) {
+        console.log(`[Map] Rendering ${this.notams.length} NOTAM markers on SVG map`);
         this.notams.forEach((notam) => {
           const pos = projection([notam.lon, notam.lat]);
           if (!pos) return;
@@ -3769,6 +3770,7 @@ export class MapComponent {
   }
 
   public setNotams(notams: FaaNotam[]): void {
+    console.log(`[Map] setNotams called with ${notams.length} NOTAMs (flights layer enabled: ${Boolean(this.state.layers.flights)})`);
     this.notams = notams;
     this.render();
   }

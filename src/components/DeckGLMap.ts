@@ -1619,6 +1619,7 @@ export class DeckGLMap {
 
     // FAA NOTAMs layer (temporary flight restrictions, restricted, danger, prohibited, MOAs, closures)
     if (mapLayers.flights && this.notams.length > 0) {
+      console.log(`[DeckGLMap] Adding notams-layer to deck.gl with ${this.notams.length} restrictions`);
       layers.push(this.createNotamsLayer(this.notams));
     }
 
@@ -2739,6 +2740,7 @@ export class DeckGLMap {
   }
 
   private createNotamsLayer(notams: FaaNotam[]): ScatterplotLayer {
+    console.log(`[DeckGLMap] Creating ScatterplotLayer for ${notams.length} NOTAM features`);
     return new ScatterplotLayer({
       id: 'notams-layer',
       data: notams,
@@ -6319,6 +6321,7 @@ export class DeckGLMap {
   }
 
   public setNotams(notams: FaaNotam[]): void {
+    console.log(`[DeckGLMap] setNotams called with ${notams.length} NOTAMs (flights layer enabled: ${Boolean(this.state.layers.flights)})`);
     this.notams = notams;
     this.render();
   }

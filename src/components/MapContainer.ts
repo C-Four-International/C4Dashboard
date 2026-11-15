@@ -305,6 +305,7 @@ export class MapContainer {
   }
 
   public setNotams(notams: FaaNotam[]): void {
+    console.log(`[MapContainer] setNotams called with ${notams.length} items (useDeckGL: ${this.useDeckGL})`);
     if (this.useDeckGL) {
       this.deckGLMap?.setNotams(notams);
     } else {

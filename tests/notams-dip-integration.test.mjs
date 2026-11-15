@@ -147,12 +147,27 @@ describe('FAA NOTAMs via NASA DIP Catalog API & Desktop Layer Integration', () =
     assert.ok(deckSrc.includes('setNotams'), 'DeckGLMap must implement setNotams');
   });
 
-  it('loads NOTAMs in Aviation layer on desktop runtime via DataLoader', () => {
+  it('loads NOTAMs in Aviation layer universally via DataLoader with decoupled resilience and verbose logging', () => {
     const loaderSrc = readSrc('src/app/data-loader.ts');
 
     assert.ok(loaderSrc.includes('fetchFaaNotams'), 'DataLoader must import fetchFaaNotams');
-    assert.ok(loaderSrc.includes('isDesktopRuntime()'), 'DataLoader must check isDesktopRuntime()');
     assert.ok(loaderSrc.includes('this.ctx.map?.setNotams(notams)'), 'DataLoader must pass notams to map');
+    assert.ok(loaderSrc.includes('[DataLoader] [NOTAMs]'), 'DataLoader must include verbose logging');
+  });
+
+  it('provides verbose console logging across NOTAM services, data loader, and deck.gl/SVG map components', () => {
+    const serviceSrc = readSrc('src/services/notams.ts');
+    assert.ok(serviceSrc.includes('[NOTAMs] fetchFaaNotams called'), 'Service must log call details');
+    assert.ok(serviceSrc.includes('[NOTAMs] Requesting NOTAMs from endpoint'), 'Service must log endpoint URL');
+    assert.ok(serviceSrc.includes('[NOTAMs] API response status'), 'Service must log API status');
+
+    const deckSrc = readSrc('src/components/DeckGLMap.ts');
+    assert.ok(deckSrc.includes('[DeckGLMap] setNotams called with'), 'DeckGLMap must log setNotams');
+    assert.ok(deckSrc.includes('[DeckGLMap] Creating ScatterplotLayer'), 'DeckGLMap must log layer creation');
+
+    const mapSrc = readSrc('src/components/Map.ts');
+    assert.ok(mapSrc.includes('[Map] setNotams called with'), 'Map must log setNotams');
+    assert.ok(mapSrc.includes('[Map] Rendering'), 'Map must log NOTAM markers rendering');
   });
 
   it('mentions FAA NOTAMs and NASA DIP catalog in layer description and legend', () => {

@@ -763,6 +763,8 @@ export default async function handler(req) {
 
   // Serve from edge in-memory cache if fresh within 18-hour window (<= 41 requests/month)
   if (!forceFresh && cachedNotams && (now - lastCacheTime < CACHE_TTL_MS)) {
+    const ageSec = Math.round((now - lastCacheTime) / 1000);
+    console.log(`[NOTAM Edge] Cache HIT: returning ${cachedNotams.length} cached NOTAMs (age: ${ageSec}s / TTL: ${CACHE_MAX_AGE_SEC}s)`);
     return new Response(JSON.stringify(cachedNotams), {
       status: 200,
       headers: {
@@ -830,6 +832,7 @@ export default async function handler(req) {
   let notams = null;
 
   try {
+    console.log(`[NOTAM Edge] Fetching live NOTAMs from upstream: ${targetUrlString}`);
     const fetchHeaders = {
       'Accept': 'application/json',
       'User-Agent': 'WorldMonitor/2.5 (Aviation Intelligence)',
@@ -845,6 +848,8 @@ export default async function handler(req) {
       signal: AbortSignal.timeout(8000),
     });
 
+    console.log(`[NOTAM Edge] Upstream response status: ${response.status} ${response.statusText}`);
+
     if (response.ok) {
       const data = await response.json();
       const rawList = Array.isArray(data)
@@ -853,6 +858,7 @@ export default async function handler(req) {
       const parsed = normalizeNotamifyNotams(rawList);
       if (parsed && parsed.length > 0) {
         notams = parsed;
+        console.log(`[NOTAM Edge] Successfully parsed ${parsed.length} NOTAMs from Notamify upstream`);
       }
     }
   } catch (err) {
@@ -861,6 +867,7 @@ export default async function handler(req) {
 
   // Fallback to our authentic 6-category NOTAM catalog if upstream is unreachable or empty
   if (!notams || notams.length === 0) {
+    console.log(`[NOTAM Edge] Using baseline catalog fallback with ${BASELINE_NOTAMS.length} NOTAMs across 6 categories`);
     notams = BASELINE_NOTAMS;
   }
 

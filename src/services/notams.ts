@@ -103,8 +103,16 @@ export async function fetchFaaNotams(
       ? { forceRefresh: optionsOrForceRefresh }
       : optionsOrForceRefresh;
 
+  console.log('[NOTAMs] fetchFaaNotams called with options:', options);
+
   if (options.forceRefresh) {
+    console.log('[NOTAMs] Force refresh requested - clearing circuit breaker cache');
     notamsCircuitBreaker.clearCache();
+  }
+
+  const cached = notamsCircuitBreaker.getCached();
+  if (cached && !options.forceRefresh) {
+    console.log(`[NOTAMs] Serving ${cached.length} NOTAMs directly from circuit breaker cache (TTL: 18h)`);
   }
 
   const fetcher = async (): Promise<FaaNotam[]> => {
@@ -121,19 +129,28 @@ export async function fetchFaaNotams(
 
     const qs = params.toString();
     const url = toRuntimeUrl(`/api/notams${qs ? `?${qs}` : ''}`);
+    console.log(`[NOTAMs] Requesting NOTAMs from endpoint: ${url}`);
+
     const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
       },
     });
 
+    console.log(`[NOTAMs] API response status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
+      console.error(`[NOTAMs] Failed to fetch NOTAMs from Notamify API: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch NOTAMs from Notamify API (${response.status})`);
     }
 
     const data = await response.json();
+    const count = Array.isArray(data) ? data.length : 0;
+    console.log(`[NOTAMs] Successfully parsed ${count} NOTAM airspace restriction features`);
     return Array.isArray(data) ? (data as FaaNotam[]) : [];
   };
 
-  return notamsCircuitBreaker.execute(fetcher, []);
+  const notams = await notamsCircuitBreaker.execute(fetcher, []);
+  console.log(`[NOTAMs] Returning ${notams.length} NOTAMs (circuit breaker status: ${notamsCircuitBreaker.getStatus()})`);
+  return notams;
 }

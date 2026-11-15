@@ -66,7 +66,6 @@ import { enrichEventsWithExposure } from '@/services/population-exposure';
 import { fetchHumanConflictEvents, getCuratedConflictEvents } from '@/services/human-conflict';
 import { debounce } from '@/utils';
 import { getAiFlowSettings } from '@/services/ai-flow-settings';
-import { isDesktopRuntime } from '@/services/runtime';
 import { t, getCurrentLanguage } from '@/services/i18n';
 import { canQueueAiClassification, AI_CLASSIFY_MAX_PER_FEED } from '@/services/ai-classify-queue';
 import { classifyWithAI } from '@/services/threat-classifier';
@@ -1490,37 +1489,56 @@ export class DataLoaderManager implements AppModule {
   }
 
   async loadFlightDelays(): Promise<void> {
-    try {
-      const delays = await fetchFlightDelays();
+    console.log('[DataLoader] [Aviation] Loading aviation layer data (delays & NOTAMs)...');
+    let delaysCount = 0;
+    let notamsCount = 0;
+    let delaysError: unknown = null;
+    let notamsError: unknown = null;
+
+    const [delaysResult, notamsResult] = await Promise.allSettled([
+      fetchFlightDelays(),
+      fetchFaaNotams(),
+    ]);
+
+    if (delaysResult.status === 'fulfilled') {
+      const delays = delaysResult.value;
+      delaysCount = delays.length;
       this.ctx.map?.setFlightDelays(delays);
-      this.ctx.map?.setLayerReady('flights', delays.length > 0);
+      this.ctx.statusPanel?.updateApi('FAA', { status: 'ok' });
+      console.log(`[DataLoader] [Aviation] Successfully loaded ${delays.length} flight delay alerts`);
+    } else {
+      delaysError = delaysResult.reason;
+      console.warn('[DataLoader] [Aviation] Failed to load flight delays:', delaysError);
+      this.ctx.statusPanel?.updateApi('FAA', { status: 'error' });
+    }
+
+    if (notamsResult.status === 'fulfilled') {
+      const notams = notamsResult.value;
+      notamsCount = notams.length;
+      console.log(`[DataLoader] [NOTAMs] Successfully fetched ${notams.length} NOTAM airspace restrictions. Updating map layer.`);
+      this.ctx.map?.setNotams(notams);
+    } else {
+      notamsError = notamsResult.reason;
+      console.warn('[DataLoader] [NOTAMs] Failed to load NOTAMs:', notamsError);
+    }
+
+    const anySuccess = delaysResult.status === 'fulfilled' || notamsResult.status === 'fulfilled';
+    const totalCount = delaysCount + notamsCount;
+
+    if (anySuccess) {
+      this.ctx.map?.setLayerReady('flights', totalCount > 0);
       this.ctx.statusPanel?.updateFeed('Flights', {
         status: 'ok',
-        itemCount: delays.length,
+        itemCount: totalCount,
       });
-      this.ctx.statusPanel?.updateApi('FAA', { status: 'ok' });
-
-      // On desktop runtime, load FAA NOTAMs via NASA DIP catalog
-      if (isDesktopRuntime()) {
-        try {
-          const notams = await fetchFaaNotams();
-          this.ctx.map?.setNotams(notams);
-          if (notams.length > 0) {
-            this.ctx.map?.setLayerReady('flights', true);
-            const totalCount = delays.length + notams.length;
-            this.ctx.statusPanel?.updateFeed('Flights', {
-              status: 'ok',
-              itemCount: totalCount,
-            });
-          }
-        } catch (notamErr) {
-          console.warn('[DataLoader] Failed to load FAA NOTAMs from NASA DIP catalog:', notamErr);
-        }
-      }
-    } catch (error) {
+      console.log(`[DataLoader] [Aviation] Aviation layer ready (${totalCount} total items: ${delaysCount} delays, ${notamsCount} NOTAMs)`);
+    } else {
       this.ctx.map?.setLayerReady('flights', false);
-      this.ctx.statusPanel?.updateFeed('Flights', { status: 'error', errorMessage: String(error) });
-      this.ctx.statusPanel?.updateApi('FAA', { status: 'error' });
+      this.ctx.statusPanel?.updateFeed('Flights', {
+        status: 'error',
+        errorMessage: String(delaysError || notamsError || 'Failed to load aviation data'),
+      });
+      console.error('[DataLoader] [Aviation] Failed to load both flight delays and NOTAMs');
     }
   }
 
