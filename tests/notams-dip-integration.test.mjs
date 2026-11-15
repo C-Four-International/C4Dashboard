@@ -24,8 +24,8 @@ describe('FAA NOTAMs via NASA DIP Catalog API & Desktop Layer Integration', () =
 
     const cacheControl = res.headers.get('Cache-Control');
     assert.ok(cacheControl, 'Cache-Control header must be set');
-    assert.ok(cacheControl.includes('max-age=21600'), 'Cache-Control must specify 21600 seconds (6 hours)');
-    assert.ok(cacheControl.includes('s-maxage=21600'), 'Cache-Control must specify s-maxage=21600');
+    assert.ok(cacheControl.includes('max-age=64800'), 'Cache-Control must specify 64800 seconds (18 hours)');
+    assert.ok(cacheControl.includes('s-maxage=64800'), 'Cache-Control must specify s-maxage=64800 (18 hours)');
 
     const allowOrigin = res.headers.get('Access-Control-Allow-Origin');
     assert.equal(allowOrigin, 'https://worldmonitor.app');
@@ -105,7 +105,7 @@ describe('FAA NOTAMs via NASA DIP Catalog API & Desktop Layer Integration', () =
   it('defines 6-hour client circuit breaker TTL and semi-transparent color mappings', () => {
     const notamsSrc = readSrc('src/services/notams.ts');
 
-    assert.ok(notamsSrc.includes('6 * 60 * 60 * 1000'), 'Must use 6-hour cache TTL (6 * 60 * 60 * 1000)');
+    assert.ok(notamsSrc.includes('18 * 60 * 60 * 1000'), 'Must use 18-hour cache TTL (18 * 60 * 60 * 1000)');
     assert.ok(notamsSrc.includes('createCircuitBreaker'), 'Must use circuit breaker');
     assert.ok(notamsSrc.includes('fetchFaaNotams'), 'Must export fetchFaaNotams');
     assert.ok(notamsSrc.includes('getNotamColor'), 'Must export getNotamColor');
@@ -159,7 +159,7 @@ describe('FAA NOTAMs via NASA DIP Catalog API & Desktop Layer Integration', () =
     const enSrc = readSrc('src/locales/en.json');
     assert.ok(enSrc.includes('FAA NOTAM airspace restrictions'), 'en.json must mention FAA NOTAM airspace restrictions');
     assert.ok(enSrc.includes('NASA DIP catalog'), 'en.json must mention NASA DIP catalog');
-    assert.ok(enSrc.includes('Cache: 6 hours') || enSrc.includes('Cache: 6 hrs'), 'en.json must mention 6 hours cache');
+    assert.ok(enSrc.includes('Cache: 18 hours') || enSrc.includes('Cache: 18 hrs'), 'en.json must mention 18 hours cache');
 
     const deckSrc = readSrc('src/components/DeckGLMap.ts');
     assert.ok(deckSrc.includes('Airspace Restrictions (FAA NOTAMs)'), 'DeckGLMap legend must include Airspace Restrictions');

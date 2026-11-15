@@ -73,25 +73,54 @@ export function getNotamColor(type: NotamType): NotamColorConfig {
   return NOTAM_COLOR_MAP[type] || NOTAM_COLOR_MAP.tfr;
 }
 
-// 6-hour circuit breaker cache TTL (6 * 60 * 60 * 1000 ms)
-export const NOTAMS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+// 18-hour circuit breaker cache TTL (18 * 60 * 60 * 1000 ms = 64,800,000 ms)
+// Guarantees <= 41 requests per 31-day month, strictly staying under the 50 requests/month limit
+export const NOTAMS_CACHE_TTL_MS = 18 * 60 * 60 * 1000;
+
+export interface FetchNotamsOptions {
+  forceRefresh?: boolean;
+  locations?: string[];
+  lat?: number;
+  lon?: number;
+  radiusNm?: number;
+}
 
 const notamsCircuitBreaker = createCircuitBreaker<FaaNotam[]>({
-  name: 'FAA NOTAMs (NASA DIP)',
+  name: 'Aviation NOTAMs (Notamify)',
   cacheTtlMs: NOTAMS_CACHE_TTL_MS,
   persistCache: true,
 });
 
 /**
- * Fetches FAA NOTAMs using NASA's DIP catalog via the /api/notams endpoint with 6-hour caching.
+ * Fetches FAA / international NOTAMs using Notamify API via the /api/notams endpoint with 6-hour caching.
+ * Supports querying by ICAO location codes (up to 5) or coordinates proximity.
  */
-export async function fetchFaaNotams(forceRefresh = false): Promise<FaaNotam[]> {
-  if (forceRefresh) {
+export async function fetchFaaNotams(
+  optionsOrForceRefresh: boolean | FetchNotamsOptions = false
+): Promise<FaaNotam[]> {
+  const options: FetchNotamsOptions =
+    typeof optionsOrForceRefresh === 'boolean'
+      ? { forceRefresh: optionsOrForceRefresh }
+      : optionsOrForceRefresh;
+
+  if (options.forceRefresh) {
     notamsCircuitBreaker.clearCache();
   }
 
   const fetcher = async (): Promise<FaaNotam[]> => {
-    const url = toRuntimeUrl(`/api/notams${forceRefresh ? '?fresh=1' : ''}`);
+    const params = new URLSearchParams();
+    if (options.forceRefresh) params.set('fresh', '1');
+    if (options.locations && options.locations.length > 0) {
+      params.set('locations', options.locations.join(','));
+    }
+    if (typeof options.lat === 'number' && typeof options.lon === 'number') {
+      params.set('lat', String(options.lat));
+      params.set('lon', String(options.lon));
+      if (options.radiusNm) params.set('radius', String(options.radiusNm));
+    }
+
+    const qs = params.toString();
+    const url = toRuntimeUrl(`/api/notams${qs ? `?${qs}` : ''}`);
     const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
@@ -99,7 +128,7 @@ export async function fetchFaaNotams(forceRefresh = false): Promise<FaaNotam[]> 
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch FAA NOTAMs from NASA DIP catalog (${response.status})`);
+      throw new Error(`Failed to fetch NOTAMs from Notamify API (${response.status})`);
     }
 
     const data = await response.json();

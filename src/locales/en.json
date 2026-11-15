@@ -942,7 +942,7 @@
           "infraDatacentersFull": "Hyperscale AI compute clusters and specialized data centers operating ≥10,000 GPUs. [Cache: Curated / Static]",
           "radiationDesc": "Real-time and baseline gamma radiation detection and monitoring from EPA RadNet and Safecast stations in major global cities, nuclear facilities, and exclusion zones. Displays normalized Geiger-Müller equivalent CPM and ambient dose rates. [Cache: 6 hours]",
           "transportShipping": "Commercial shipping vessel tracking, cargo fleets, and trade density across strategic chokepoints via AIS and IMF PortWatch. [Cache: 15 mins]",
-          "transportDelays": "Commercial airport ground stops, flight delays, and FAA NOTAM airspace restrictions (temporary flight restrictions, restricted, danger, prohibited areas, military operating areas, and airspace reservations/closures) via NASA DIP catalog. [Cache: 6 hours]",
+          "transportDelays": "Commercial airport ground stops, flight delays, and FAA NOTAM airspace restrictions (temporary flight restrictions, restricted, danger, prohibited areas, military operating areas, and airspace reservations/closures) via NASA DIP catalog. [Cache: 18 hours]",
           "naturalEventsFull": "Global seismic activity from USGS earthquakes coupled with NASA EONET storm, volcanic eruption, and flood events. [Cache: 5 mins for earthquakes / 15 mins for EONET]",
           "firesFull": "Active thermal anomalies, wildfire detections, and burning perimeters from NASA FIRMS (MODIS / VIIRS). [Cache: 1 hour]",
           "climateAnomalies": "Global surface temperature and precipitation deviations relative to 30-year climatological baselines. [Cache: 6 hours]",

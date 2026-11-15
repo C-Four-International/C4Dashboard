@@ -1170,7 +1170,7 @@ export class MapPopup {
           </div>
           <div class="popup-stat">
             <span class="stat-label">Data Catalog</span>
-            <span class="stat-value">FAA SWIM via NASA Digital Information Platform (DIP) [6h Cache]</span>
+            <span class="stat-value">${escapeHtml(notam.source || 'Notamify')} via NASA Digital Information Platform (DIP) [18h Cache]</span>
           </div>
         </div>
       </div>
