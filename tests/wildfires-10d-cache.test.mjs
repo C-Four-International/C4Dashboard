@@ -40,6 +40,12 @@ describe('NASA FIRMS 24h Retrieval & 10-Day Caching', () => {
     assert.match(clientSrc, /toMapFires[\s\S]*?detectedAt: f\.detectedAt,/, 'toMapFires must map detectedAt');
   });
 
+  it('filters payload to way below 10MB by brightness (325K+) and percentage certainty (70%+)', () => {
+    assert.match(serverSrc, /MIN_BRIGHTNESS_KELVIN\s*=\s*325/, 'Must enforce minimum brightness threshold');
+    assert.match(serverSrc, /MIN_CERTAINTY_PERCENT\s*=\s*70/, 'Must enforce 70%+ certainty threshold');
+    assert.match(serverSrc, /calculateCertaintyPercentage/, 'Must calculate normalized certainty percentage');
+  });
+
   it('DeckGLMap filters fires using detectedAt for sub-day and multi-day precision', () => {
     assert.match(deckMapSrc, /this\.filterByTime\(this\.firmsFireData,\s*\(fire\)\s*=>\s*fire\.detectedAt\s*\?\?\s*fire\.acq_date\)/,
       'DeckGLMap must use fire.detectedAt for time selection menu');

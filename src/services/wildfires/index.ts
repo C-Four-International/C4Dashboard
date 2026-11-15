@@ -122,7 +122,7 @@ export async function fetchAllFires(_days?: number): Promise<FetchResult> {
 
   if (memoryDetections) {
     for (const f of memoryDetections) {
-      if ((f.detectedAt || 0) >= cutoff) {
+      if ((f.detectedAt || 0) >= cutoff && f.brightness >= 325 && (f.confidence === 'FIRE_CONFIDENCE_HIGH' || confidenceToNumber(f.confidence) >= 70)) {
         fireMap.set(f.id, f);
       }
     }

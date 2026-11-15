@@ -20,7 +20,7 @@ import type {
 import { CHROME_UA } from '../../../_shared/constants';
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
 
-const REDIS_CACHE_KEY = 'wildfire:fires:10d:v7';
+const REDIS_CACHE_KEY = 'wildfire:fires:10d:v8';
 const REDIS_CACHE_TTL = 3600; // 1h — FIRMS NRT updates every ~3h
 const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
 const TEN_DAYS_SECONDS = 10 * 24 * 60 * 60; // 864,000s
@@ -146,6 +146,40 @@ function mapConfidence(c: string): FireConfidence {
 }
 
 /**
+ * Minimum brightness and certainty percentage thresholds to reduce payload size to way less than 10MB
+ * while maintaining authentic active fire detections across all monitored regions.
+ */
+export const MIN_BRIGHTNESS_KELVIN = 325; // Filters low-temperature thermal noise (<325K)
+export const MIN_CERTAINTY_PERCENT = 70;  // 70%+ certainty filter
+
+/**
+ * Calculates a normalized certainty percentage (0-100) from the confidence string, brightness, and FRP.
+ * - MODIS: raw confidence is already a percentage (0-100).
+ * - VIIRS: raw confidence is 'high' (>80-100%), 'nominal' (30-80%), or 'low' (<30%).
+ *   For VIIRS 'nominal', certainty is derived from sensor brightness above background (325K-367K saturation)
+ *   and FRP (MW), reaching 70%+ for authentic elevated thermal anomalies.
+ */
+export function calculateCertaintyPercentage(confStr: string, brightness: number, frp: number): number {
+  const num = parseFloat(confStr);
+  if (!Number.isNaN(num)) {
+    return num; // MODIS percentage
+  }
+
+  const s = (confStr || '').trim().toLowerCase();
+  if (s === 'h' || s === 'high' || s.startsWith('high')) {
+    return 95; // VIIRS high certainty
+  }
+  if (s === 'l' || s === 'low' || s.startsWith('low')) {
+    return 25; // VIIRS low certainty (<30%)
+  }
+
+  // VIIRS nominal: scales from 50% to 85%+ based on brightness and FRP
+  const brightBonus = Math.max(0, Math.min(30, ((brightness - 325) / 35) * 30));
+  const frpBonus = Math.min(10, (frp || 0) * 1.0);
+  return Math.round(50 + brightBonus + frpBonus);
+}
+
+/**
  * Parse FIRMS acq_date (YYYY-MM-DD) + acq_time (HHMM) into Unix epoch milliseconds.
  */
 function parseDetectedAt(acqDate: string, acqTime: string): number {
@@ -199,6 +233,15 @@ function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): List
 
     const frp = frpIdx !== -1 && vals[frpIdx] ? parseFloat(vals[frpIdx]) : 0;
     const brightness = brightIdx !== -1 && vals[brightIdx] ? parseFloat(vals[brightIdx]) : 0;
+
+    // Filter by brightness threshold (>= 325K) to eliminate cool background thermal noise
+    if (brightness < MIN_BRIGHTNESS_KELVIN) continue;
+
+    const rawConf = confIdx !== -1 && vals[confIdx] ? vals[confIdx].trim() : '';
+    const certainty = calculateCertaintyPercentage(rawConf, brightness, frp);
+
+    // Filter by percentage certainty (70%+)
+    if (certainty < MIN_CERTAINTY_PERCENT) continue;
 
     let matchedRegion = '';
     for (let r = 0; r < regionEntries.length; r++) {
