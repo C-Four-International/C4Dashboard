@@ -5,7 +5,7 @@ import {
   type ListFireDetectionsResponse,
 } from '@/generated/client/worldmonitor/wildfire/v1/service_client';
 import { createCircuitBreaker } from '@/utils';
-import { getPersistentCache, setPersistentCache } from '@/services/persistent-cache';
+import { getPersistentCache, setPersistentCache, deletePersistentCache } from '@/services/persistent-cache';
 import { toRuntimeUrl } from '@/services/runtime';
 
 export type { FireDetection };
@@ -55,6 +55,7 @@ let memoryDetections: FireDetection[] | null = null;
 
 // Pre-load from persistent cache when available in browser/desktop environment
 if (typeof window !== 'undefined') {
+  (window as unknown as Record<string, unknown>).clearFiresCache = clearFiresCache;
   getPersistentCache<FireDetection[]>(PERSISTENT_CACHE_KEY).then((cached) => {
     if (cached?.data && Array.isArray(cached.data) && cached.data.length > 0) {
       if (!memoryDetections) {
@@ -65,6 +66,16 @@ if (typeof window !== 'undefined') {
 }
 
 // -- Public API --
+
+export async function clearFiresCache(): Promise<void> {
+  memoryDetections = null;
+  breaker.clearCache();
+  try {
+    await deletePersistentCache(PERSISTENT_CACHE_KEY);
+    await deletePersistentCache('cb:Wildfires:10d');
+  } catch { /* best effort */ }
+  console.log('[Wildfires] Cleared client memory and persistent cache.');
+}
 
 export function getInstantFires(): FetchResult {
   const cached = breaker.getCached();
