@@ -6,6 +6,7 @@ import {
 } from '@/generated/client/worldmonitor/wildfire/v1/service_client';
 import { createCircuitBreaker } from '@/utils';
 import { getPersistentCache, setPersistentCache } from '@/services/persistent-cache';
+import { toRuntimeUrl } from '@/services/runtime';
 
 export type { FireDetection };
 
@@ -45,7 +46,9 @@ import { BASELINE_FIRES } from './baseline';
 const PERSISTENT_CACHE_KEY = 'wildfires:10d:v1';
 const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
 
-const client = new WildfireServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
+const client = new WildfireServiceClient('', {
+  fetch: (url, opts) => globalThis.fetch(toRuntimeUrl(typeof url === 'string' ? url : url.toString()), opts),
+});
 const breaker = createCircuitBreaker<ListFireDetectionsResponse>({ name: 'Wildfires:10d', cacheTtlMs: 15 * 60 * 1000, persistCache: true });
 
 let memoryDetections: FireDetection[] | null = null;
@@ -91,11 +94,27 @@ export async function fetchAllFires(_days?: number): Promise<FetchResult> {
     } catch { /* best effort */ }
   }
 
+  // If memory cache only contains stale detections older than 48 hours, clear circuit breaker cache
+  if (memoryDetections && memoryDetections.length > 0) {
+    const latestExisting = memoryDetections.reduce((max, f) => Math.max(max, f.detectedAt || 0), 0);
+    const isStale = latestExisting > 0 && (Date.now() - latestExisting > 48 * 3600 * 1000);
+    if (isStale) {
+      console.warn(`[Wildfires] Existing cache contains stale detections (latest: ${new Date(latestExisting).toISOString()}). Invalidating circuit breaker cache to force fresh upstream pull.`);
+      breaker.clearCache();
+    }
+  }
+
+  console.log('[Wildfires] Requesting fire detections from server...');
   const response = await breaker.execute(async () => {
     return client.listFireDetections({});
-  }, { fireDetections: memoryDetections || BASELINE_FIRES });
+  }, { fireDetections: [] });
 
   const freshDetections = response?.fireDetections || [];
+  if (freshDetections.length > 0) {
+    console.log(`[Wildfires] Received ${freshDetections.length} fresh detections from server (latest: ${new Date(freshDetections[0]?.detectedAt || 0).toISOString()}).`);
+  } else {
+    console.warn('[Wildfires] No fresh detections received from server. Retaining cached detections or baseline.');
+  }
 
   // Merge fresh detections with accumulated 10-day dataset
   const cutoff = Date.now() - TEN_DAYS_MS;
@@ -116,11 +135,14 @@ export async function fetchAllFires(_days?: number): Promise<FetchResult> {
   }
 
   const merged = Array.from(fireMap.values());
+  merged.sort((a, b) => (b.detectedAt || 0) - (a.detectedAt || 0));
+
   const finalDetections = merged.length > 0
     ? merged
     : (memoryDetections && memoryDetections.length > 0 ? memoryDetections : BASELINE_FIRES);
 
   memoryDetections = finalDetections;
+  console.log(`[Wildfires] Total active detections across 10-day window: ${finalDetections.length} (latest: ${new Date(finalDetections[0]?.detectedAt || 0).toISOString()})`);
 
   // Persist the 10-day accumulated dataset
   if (merged.length > 0) {

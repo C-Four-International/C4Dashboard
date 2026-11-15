@@ -1760,10 +1760,12 @@ export class DataLoaderManager implements AppModule {
 
   async loadFirmsData(): Promise<void> {
     try {
+      console.log('[DataLoader] [FIRMS] Initiating satellite fire data load...');
       // 1. Optimistic instant render on first try (0ms)
       if (!this.firmsLoaded) {
         const instant = getInstantFires();
         if (instant && instant.totalCount > 0) {
+          console.log(`[DataLoader] [FIRMS] Rendering instant cache with ${instant.totalCount} detections`);
           const flat = flattenFires(instant.regions);
           const stats = computeRegionStats(instant.regions);
           this.ctx.map?.setFires(toMapFires(flat));
@@ -1783,6 +1785,8 @@ export class DataLoaderManager implements AppModule {
         this.firmsLoaded = true;
         const flat = flattenFires(regions);
         const stats = computeRegionStats(regions);
+        const latestTime = flat.reduce((max, f) => Math.max(max, f.detectedAt || 0), 0);
+        console.log(`[DataLoader] [FIRMS] Loaded ${totalCount} active fire detections. Latest timestamp: ${latestTime > 0 ? new Date(latestTime).toISOString() : 'unknown'}`);
 
         signalAggregator.ingestSatelliteFires(flat.map(f => ({
           lat: f.location?.latitude ?? 0,

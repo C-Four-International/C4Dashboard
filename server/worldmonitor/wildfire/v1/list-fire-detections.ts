@@ -20,7 +20,7 @@ import type {
 import { CHROME_UA } from '../../../_shared/constants';
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
 
-const REDIS_CACHE_KEY = 'wildfire:fires:10d:v6';
+const REDIS_CACHE_KEY = 'wildfire:fires:10d:v7';
 const REDIS_CACHE_TTL = 3600; // 1h — FIRMS NRT updates every ~3h
 const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
 const TEN_DAYS_SECONDS = 10 * 24 * 60 * 60; // 864,000s
@@ -302,6 +302,11 @@ async function getOrUpdate10DayFires(): Promise<ListFireDetectionsResponse['fire
 
       // Fetch fresh detections from upstream FIRMS
       const freshDetections = await fetchFromSources(parsedRegions);
+      if (freshDetections.length > 0) {
+        console.log(`[FIRMS] Fetched ${freshDetections.length} fresh detections from upstream. Latest detection: ${new Date(freshDetections[0]?.detectedAt || 0).toISOString()}`);
+      } else {
+        console.warn('[FIRMS] Upstream sources returned 0 detections. Retaining existing cache if available.');
+      }
 
       // Merge fresh detections with existing cached detections
       const cutoff = now - TEN_DAYS_MS;

@@ -400,6 +400,18 @@ async function serveStaticFile(req, res, filePath, urlPath) {
 
 // ── Main Server Factory ──────────────────────────────────────────────────────
 export async function createStandaloneServer() {
+  const rpcBundle = path.join(API_DIR, '[domain]', 'v1', '[rpc].js');
+  const rpcSource = path.join(API_DIR, '[domain]', 'v1', '[rpc].ts');
+  if (!fs.existsSync(rpcBundle) || (fs.existsSync(rpcSource) && fs.statSync(rpcSource).mtimeMs > fs.statSync(rpcBundle).mtimeMs)) {
+    console.log('[Server] Compiling sebuf RPC gateway bundle...');
+    try {
+      const { execFileSync } = await import('node:child_process');
+      execFileSync(process.execPath, [path.join(projectRoot, 'scripts', 'build-sidecar-sebuf.mjs')], { stdio: 'inherit' });
+    } catch (err) {
+      console.warn('[Server] Could not build sebuf RPC gateway bundle:', err.message);
+    }
+  }
+
   const routes = await buildRouteTable(API_DIR);
   console.log(`[Server] Discovered ${routes.length} API route modules in ${API_DIR}`);
 
