@@ -143,3 +143,28 @@ describe('Live Webcams Automatic Fallback Livestream Switching', () => {
   });
 });
 
+describe('Live Webcams Seoul and Hong Kong Stream Configuration', () => {
+  it('configures active verified fallbacks for Seoul with multiple stream alternatives', () => {
+    assert.ok(
+      panelTs.includes("id: 'seoul'") &&
+      panelTs.includes("city: 'Seoul'") &&
+      panelTs.includes("fallbackVideoId: 'Q6WKC4vDsUU'") && // Namsan Tower 4K Live
+      panelTs.includes("'gCBwHr41Z4E'") && // Yeouido Han River 4K Live
+      panelTs.includes("'RVvYQghFCXk'"), // Banpo Bridge Han River 4K Live
+      'Seoul must configure verified active primary and fallback video streams'
+    );
+  });
+
+  it('configures active verified fallbacks for Hong Kong with multiple stream alternatives', () => {
+    assert.ok(
+      panelTs.includes("id: 'hong-kong'") &&
+      panelTs.includes("city: 'Hong Kong'") &&
+      panelTs.includes("fallbackVideoId: 'Z8NTLkEFZjg'") && // TST Victoria Harbour Live Cam
+      panelTs.includes("'ScBtCcGZMDk'") && // Victoria Harbour 24/7 Live
+      panelTs.includes("'KrVZ7wYHiWQ'") && // Eastern Victoria Harbour Live Cam
+      panelTs.includes("'OtreHvXgAoA'"), // Hong Kong Skyline & Cityscape 4K
+      'Hong Kong must configure verified active primary and fallback video streams'
+    );
+  });
+});
+

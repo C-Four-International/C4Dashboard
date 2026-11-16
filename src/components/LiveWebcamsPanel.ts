@@ -215,10 +215,12 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Hong Kong',
     country: 'Hong Kong',
     region: 'asia',
-    fallbackVideoId: 'PznqRZYdiHs', // Aberdeen Harbour
+    fallbackVideoId: 'Z8NTLkEFZjg', // Tsim Sha Tsui Victoria Harbour Live Cam
     fallbackVideoIds: [
-      'EvpdNDoG2r0', // The Peak 24/7 Live Camera
-      'NdAyRlYxw3M', // Asian Maritime Bay Cam
+      'ScBtCcGZMDk', // Victoria Harbour 24/7 Live
+      'KrVZ7wYHiWQ', // Eastern Victoria Harbour Live Cam
+      'OtreHvXgAoA', // Hong Kong Skyline & Cityscape 4K
+      'ygC5wni2DMQ', // Hong Kong International Airport (HKG) Live
     ],
   },
   {
@@ -226,11 +228,11 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Seoul',
     country: 'South Korea',
     region: 'asia',
-    fallbackVideoId: 'GhNscofIqHU', // Namsan Tower
+    fallbackVideoId: 'Q6WKC4vDsUU', // Namsan Tower Seoul 4K Live
     fallbackVideoIds: [
-      'pYUCZ8ELKq0', // Han River Live Cam
-      'uTKdetNwFys', // Yongsan Seoul Core 4K
-      'aV-Yms9zzao', // Yeouido Han River 4K
+      'gCBwHr41Z4E', // Yeouido Han River & Gangbyeonbuk-ro 4K Live
+      'RVvYQghFCXk', // Banpo Bridge Han River 4K Live
+      'vk5BHoDxXf0', // Mapo & World Cup Bridge Han River 4K Live
     ],
   },
   {

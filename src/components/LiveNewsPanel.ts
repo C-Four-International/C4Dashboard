@@ -110,6 +110,8 @@ export const OPTIONAL_LIVE_CHANNELS: LiveChannel[] = [
   { id: 'cna-asia', name: 'CNA (NewsAsia)', handle: '@channelnewsasia', fallbackVideoId: '-PWMxjBgr0k' },
   { id: 'nhk-world', name: 'NHK World Japan', handle: '@NHKWORLDJAPAN', fallbackVideoId: 'IimtbuqYIE8' },
   { id: 'india-today', name: 'India Today', handle: '@indiatoday', fallbackVideoId: 'aXPO9gpZM9U' },
+  { id: 'ytn-news', name: 'YTN News (Korea)', handle: '@ytnnews24', fallbackVideoId: '1gM6TpojPvY', fallbackVideoIds: ['OxQQsIvJTTU'] },
+  { id: 'phoenix-news', name: 'Phoenix TV (Hong Kong)', handle: '@phoenixTV', fallbackVideoId: 'Ry--eMIjYLQ' },
   // Middle East
   { id: 'al-hadath', name: 'Al Hadath', handle: '@AlHadath', fallbackVideoId: 'au8t81S0tag' },
   { id: 'sky-news-arabia', name: 'Sky News Arabia', handle: '@skynewsarabia', fallbackVideoId: 'ppgTP8xQQsM' },
@@ -130,7 +132,7 @@ export const OPTIONAL_CHANNEL_REGIONS: { key: string; labelKey: string; channelI
   { key: 'na', labelKey: 'components.liveNews.regionNorthAmerica', channelIds: ['abc-news', 'cbs-news', 'nbc-news'] },
   { key: 'eu', labelKey: 'components.liveNews.regionEurope', channelIds: ['bbc-news', 'france24-en', 'welt', 'trt-haber', 'ntv-turkey', 'cnn-turk', 'tv-rain'] },
   { key: 'latam', labelKey: 'components.liveNews.regionLatinAmerica', channelIds: ['jovem-pan', 'record-news', 'band-jornalismo', 'tn-argentina', 'milenio', 'noticias-caracol', 'ntn24', 't13'] },
-  { key: 'asia', labelKey: 'components.liveNews.regionAsia', channelIds: ['ann-news', 'ntv-news', 'cti-news', 'tvbs-news', 'wion', 'cna-asia', 'nhk-world', 'india-today', 'vtc-now'] },
+  { key: 'asia', labelKey: 'components.liveNews.regionAsia', channelIds: ['ann-news', 'ntv-news', 'cti-news', 'tvbs-news', 'wion', 'cna-asia', 'nhk-world', 'india-today', 'vtc-now', 'ytn-news', 'phoenix-news'] },
   { key: 'me', labelKey: 'components.liveNews.regionMiddleEast', channelIds: ['al-hadath', 'sky-news-arabia', 'trt-world', 'iran-intl', 'al-ghad', 'asharq-news', 'cgtn-arabic'] },
   { key: 'africa', labelKey: 'components.liveNews.regionAfrica', channelIds: ['africanews', 'channels-tv', 'ktn-news', 'enca', 'sabc-news'] },
 ];
