@@ -1,4 +1,5 @@
 import { Panel } from './Panel';
+import { escapeHtml } from '@/utils/sanitize';
 import { fetchLiveVideoId, clearLiveVideoCache } from '@/services/live-news';
 import { isDesktopRuntime, getRemoteApiBaseUrl, getApiBaseUrl } from '@/services/runtime';
 import { t } from '../services/i18n';
@@ -864,12 +865,20 @@ export class LiveNewsPanel extends Panel {
       : `https://www.youtube.com/${channel.handle}`;
 
     this.content.innerHTML = `
-      <div class="live-offline">
-        <div class="offline-icon">!</div>
-        <div class="offline-text">${t('components.liveNews.cannotEmbed', { name: channel.name, code: String(errorCode) })}</div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
-          <button class="offline-retry btn-check-stream">Check for New Stream</button>
-          <a class="offline-retry" href="${watchUrl}" target="_blank" rel="noopener noreferrer">${t('components.liveNews.openOnYouTube')}</a>
+      <div class="stream-offline-screen">
+        <div class="stream-offline-radar">
+          <div class="stream-offline-radar-ring outer"></div>
+          <div class="stream-offline-radar-ring inner"></div>
+          <div class="stream-offline-radar-crosshair-h"></div>
+          <div class="stream-offline-radar-crosshair-v"></div>
+          <div class="stream-offline-radar-sweep"></div>
+          <div class="stream-offline-radar-dot"></div>
+        </div>
+        <div class="stream-offline-title">Stream Offline - No Fallbacks Available</div>
+        <div class="stream-offline-subtitle">${escapeHtml(channel.name.toUpperCase())} &bull; ${t('components.liveNews.cannotEmbed', { name: channel.name, code: String(errorCode) })}</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+          <button class="stream-offline-retry-btn btn-check-stream">Check for New Stream</button>
+          <a class="stream-offline-retry-btn" href="${watchUrl}" target="_blank" rel="noopener noreferrer">${t('components.liveNews.openOnYouTube')}</a>
         </div>
       </div>
     `;

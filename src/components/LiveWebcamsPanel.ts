@@ -24,11 +24,10 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Jerusalem',
     country: 'Israel',
     region: 'middle-east',
-    fallbackVideoId: '77akujLn4k8', // EarthCam - Western Wall Live (24/7)
+    fallbackVideoId: '77akujLn4k8', // EarthCam - Western Wall Live (Jerusalem, Israel)
     fallbackVideoIds: [
       'AKGqd20ik_A', // Western Wall, The Kotel Live
       'zp6LNSoq000', // Western Wall, Temple Archaeological Park
-      'LdS7TXNmQgQ', // Jerusalem Skyline 24/7 Live
     ],
   },
   {
@@ -36,11 +35,10 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Mecca',
     country: 'Saudi Arabia',
     region: 'middle-east',
-    fallbackVideoId: 'do7cUEcekS0', // Saudi Quran TV Makkah Live HD
+    fallbackVideoId: '9Bmair0q8Ss', // Makkah Live Kaaba View
     fallbackVideoIds: [
-      'uFBt3KHGApI', // Mecca Live 4K
       '0R1KE0wxDe8', // Makkah Live Haram Plaza
-      '9Bmair0q8Ss', // Makkah Live Kaaba View
+      'uFBt3KHGApI', // Mecca Live 4K
     ],
   },
 
@@ -50,10 +48,11 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'London',
     country: 'UK',
     region: 'europe',
-    fallbackVideoId: 'zMCea32gpmg', // EarthCam - Abbey Road Crossing
+    fallbackVideoId: 'zMCea32gpmg', // EarthCam - Abbey Road Crossing (London, England)
     fallbackVideoIds: [
-      'uDBYuEV4zjI', // Heathrow Airport 24/7
-      'mNiI7CbnxyQ', // UK Coastal 4K Live
+      'uDBYuEV4zjI', // Heathrow Airport LIVE 24/7 (London, England)
+      'MXmzsjABC-U', // London Webcam LIVE 4K | London Bridge & River Thames
+      'kFdBqIK72xw', // LIVE Notting Hill Gate Station - London 4K Webcam
     ],
   },
   {
@@ -61,10 +60,10 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Paris',
     country: 'France',
     region: 'europe',
-    fallbackVideoId: 'QI-PPEW2Bgc', // Eiffel Tower & Montparnasse
+    fallbackVideoId: 'QI-PPEW2Bgc', // Eiffel Tower & Montparnasse (Paris, France)
     fallbackVideoIds: [
-      'kboDFtMZqQI', // Champs-Élysées & Arc de Triomphe
-      'CKIRyx-ZXM0', // Eiffel Tower & Seine River 8K
+      'kboDFtMZqQI', // Champs-Élysées & Arc de Triomphe (Paris, France)
+      'CKIRyx-ZXM0', // Eiffel Tower & Seine River 8K (Paris, France)
     ],
   },
   {
@@ -84,11 +83,11 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Mallorca',
     country: 'Spain',
     region: 'europe',
-    fallbackVideoId: 'jtdyLykT_XY', // EarthCam - Mallorca
+    fallbackVideoId: 'jtdyLykT_XY', // EarthCam - Mallorca, Spain
     fallbackVideoIds: [
-      'wiVzU1mcCTA', // EarthCam - Tamariu
-      'SFENGpVVpL4', // Magaluf Beach & Punta Ballena
-      'KwLMqsQVNe0', // Playa de Cala Gat
+      'b_mKk1uL6ZI', // Live Webcam Palma de Mallorca - Paseo Marítimo
+      'g6Y8HM9AVnA', // Mallorca Webcam LIVE Magaluf Beach & Punta Ballena
+      'SCXirfESCck', // Mallorca Webcam Magaluf/Palmanova Playa Son Maties
     ],
   },
   {
@@ -96,7 +95,7 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'St. Petersburg',
     country: 'Russia',
     region: 'europe',
-    fallbackVideoId: 'CjtIYbmVfck', // Palace Bridge 4K
+    fallbackVideoId: 'CjtIYbmVfck', // Palace Bridge 4K, Saint Petersburg
     fallbackVideoIds: [
       'eqJf0FloKyQ', // Neva River Palace Bridge
       'c6E86ojXhNs', // St. Petersburg Pavlov Sky
@@ -109,10 +108,9 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'New York',
     country: 'USA',
     region: 'americas',
-    fallbackVideoId: 'JQ_jwk_7OVE', // EarthCam - Times Square North 4K
+    fallbackVideoId: '5C9oM7C2Q9k', // EarthCam - World Trade Center (New York City, NY)
     fallbackVideoIds: [
-      '5C9oM7C2Q9k', // EarthCam - World Trade Center
-      'sixP_dAJ8D4', // EarthCam - Lincoln Harbor NYC Skyline
+      'sixP_dAJ8D4', // EarthCam - Lincoln Harbor (NYC Skyline)
       'o5Ie_LpZ9uk', // EarthCam - Statue of Liberty
       'tErYxn2UM5Y', // EarthCam - Brooklyn Bridge Cam
     ],
@@ -122,11 +120,11 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Miami',
     country: 'USA',
     region: 'americas',
-    fallbackVideoId: '96gYpFS4ZvY', // Biscayne Bay DoubleTree
+    fallbackVideoId: 'GkBMgHwSIV0', // Miami Skyline LIVE | MacArthur Causeway Live Cam
     fallbackVideoIds: [
-      'tAdTOOsrZBQ', // EarthCam - Anglins Pier (Lauderdale-By-The-Sea)
-      '4LTSTw4jnZc', // EarthCam - Sanibel Island
-      'H_kswlYZN5o', // Duval Street Key West
+      'ychZ7GLisbA', // LIVE Miami Skyline 24/7 | Brickell & Biscayne Bay
+      'NHv3lZ7eYt8', // South Beach, Miami Beach LIVE 24/7
+      'H91O7OQudcc', // Sunny Isles Beach - Miami, Florida - Live Cam
     ],
   },
   {
@@ -134,10 +132,11 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Chicago',
     country: 'USA',
     region: 'americas',
-    fallbackVideoId: 'EiUyBIcG4fQ', // EarthCam - Midway Airport
+    fallbackVideoId: 'EiUyBIcG4fQ', // EarthCam - Midway Airport (Chicago, IL)
     fallbackVideoIds: [
-      'sixP_dAJ8D4', // EarthCam - Lincoln Harbor Waterfront
-      'IU_-Pl9O5jQ', // EarthCam - Midwest Wildlife Cam
+      'O0UGT7AT3aw', // EarthCam - Chicago Skydeck Cam (Chicago, IL)
+      'YHvb8noWs40', // 4K Chicago Lakefront 24/7 LIVE | Navy Pier & Skyline
+      'V5VOgXph8cM', // Chicago LIVE Webcam
     ],
   },
   {
@@ -145,10 +144,10 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'New Orleans',
     country: 'USA',
     region: 'americas',
-    fallbackVideoId: 'QxFFjXu_zqs', // EarthCam - Bourbon Street Balcony View
+    fallbackVideoId: 'QxFFjXu_zqs', // EarthCam - Bourbon Street Balcony View (New Orleans, LA)
     fallbackVideoIds: [
-      'xqdukYhcGEU', // EarthCam - Bourbon Street View
-      '6tq8S2pp8PQ', // EarthCam - Southern River Cam
+      'xqdukYhcGEU', // EarthCam - Bourbon Street View (New Orleans, LA)
+      'iZRbml7fnXI', // MSY Airport LIVE 24/7 • New Orleans
     ],
   },
   {
@@ -156,11 +155,10 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Washington D.C.',
     country: 'USA',
     region: 'americas',
-    fallbackVideoId: 'oDCAAfOSqvA', // EarthCam - Washington Monument
+    fallbackVideoId: 'mG2gAWY_Guw', // EarthCam - Washington Monument (Washington, D.C.)
     fallbackVideoIds: [
-      'F1EQEDL4ddU', // EarthCam - Liberty Bell / Independence Hall
-      '9mMnqO1UuIU', // EarthCam - Philadelphia Skyline
-      'OSI8qWMoK5E', // EarthCam - Flight 93 Memorial Tower of Voices
+      '5p_KGD4fJZs', // earthTV White House Cam (Washington, D.C.)
+      'CpYKIeqU1qc', // FOX LOCAL DC 24/7 Live Stream (Washington, D.C.)
     ],
   },
   {
@@ -168,10 +166,11 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Las Vegas',
     country: 'USA',
     region: 'americas',
-    fallbackVideoId: 'uaIhqF1hz0I', // Fremont Street Live Cam 2
+    fallbackVideoId: 'uaIhqF1hz0I', // Fremont Street LIVE Camera 2 - Downtown Las Vegas
     fallbackVideoIds: [
-      'JQ_jwk_7OVE', // EarthCam - Times Square 4K
-      'QxFFjXu_zqs', // EarthCam - Bourbon Street Live
+      'C1hrfERKzbg', // LIVE: Las Vegas Strip Stream | Real-Time View
+      'ZvYvZLfPatQ', // 24/7 LIVE CAM on FREMONT STREET, Downtown Las Vegas
+      'V7_orOtu-oo', // LAS Vegas Airport LIVE 24/7 with views of 26R & 26L
     ],
   },
   {
@@ -179,10 +178,11 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Los Angeles',
     country: 'USA',
     region: 'americas',
-    fallbackVideoId: 'EO_1LWqsCNE', // Venice Beach Live Cam
+    fallbackVideoId: 'EO_1LWqsCNE', // Venice Beach Live Cam (Los Angeles, CA)
     fallbackVideoIds: [
-      '4LTSTw4jnZc', // EarthCam - Coastal Beach Cam
-      'tAdTOOsrZBQ', // EarthCam - Anglins Pier Cam
+      'v97JpT3ZA0w', // LIVE Santa Monica Beach & Pier Cam: California
+      'D33ZD6sRvnA', // Venice Beach LIVE Cam 24/7 - Boardwalk, Skaters & Ocean
+      'KzsNnyN8D_Q', // LIVE 24/7 LAX Airport Action Runways 25L & 25R
     ],
   },
   {
@@ -190,10 +190,11 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Honolulu',
     country: 'USA',
     region: 'americas',
-    fallbackVideoId: 'eCHeZDEVSeU', // Honolulu Harbor
+    fallbackVideoId: 'kCPppYpcY_s', // Park Shore Waikiki Hotel Live Cam | Waikiki Beach, Honolulu
     fallbackVideoIds: [
-      'wTLnC0o0UJ0', // Lawai Beach Resort Hawaii
-      '5cH9Zr9cCvM', // AlohaLiveCam Hawaii Ocean Tour
+      '4CK0CsimBHs', // Waikiki Beach LIVE Cam | Waikiki Beach Marriott Resort, Honolulu
+      'y5XS3fMISRk', // Hawaii live stream 4K - Ala Moana, Magic Island, Honolulu
+      'f_yY-0miTzo', // Live Stream from Ala Moana, Honolulu, Hawaii
     ],
   },
 
@@ -205,9 +206,8 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     region: 'asia',
     fallbackVideoId: 'NdAyRlYxw3M', // Tokyo Bay Ships & Planes
     fallbackVideoIds: [
-      'sIy0J6TeCxY', // Odaiba Beach Tokyo
+      'hlbh4P0Mz8M', // Tokyo Odaiba Live Camera | Rainbow Bridge
       'KCUlAtKjU0w', // Shinjuku Kabukicho Cam 2
-      'CBajd9um0zI', // Shinjuku Kabukicho Cam 1
     ],
   },
   {
@@ -240,10 +240,9 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Sydney',
     country: 'Australia',
     region: 'asia',
-    fallbackVideoId: '5uZa3-RMFos', // Sydney Harbour 24/7 (~4K)
+    fallbackVideoId: '5uZa3-RMFos', // WebcamSydney 1 Live Stream of Harbour 24/7 (~4K)
     fallbackVideoIds: [
-      'j-0OhK7TDow', // Sydney Harbour Bridge & Opera House
-      'H3W5vZbp0Yc', // Australian Runway Cam
+      '0F-vs59QJas', // Sydney Harbour LIVE Bridge & Opera House
     ],
   },
   {
@@ -251,10 +250,12 @@ const WEBCAM_FEEDS: WebcamFeed[] = [
     city: 'Taipei',
     country: 'Taiwan',
     region: 'asia',
-    fallbackVideoId: 'z_fY1pj1VBw', // Taipei 101 Xiangshan 4K
+    fallbackVideoId: 'z_fY1pj1VBw', // Taipei 101 Xiangshan 4K (象山看台北)
     fallbackVideoIds: [
-      'NdAyRlYxw3M', // Pacific Bay Live Cam
-      'GhNscofIqHU', // Metropolitan Live Cam
+      'Ndo_8RuefH4', // Taipei Dadaocheng Wharf 4K (大稻埕碼頭 4K即時影像)
+      'fP4ecxfsJos', // Taipei Dajia Riverside Park 4K (大佳河濱公園 4K即時影像)
+      'uvwfYzwY8tg', // Taipei Bishan Temple & Taipei 101 View (碧山巖 4K即時影像)
+      '34h_Cy_n0Ok', // Taipei Jiantanshan Weifeng Observatory (劍潭山微風平台 4K即時影像)
     ],
   },
 ];
@@ -415,9 +416,11 @@ export class LiveWebcamsPanel extends Panel {
       const cell = this.content.querySelector<HTMLElement>(`[data-feed-id="${feedId}"]`);
       if (cell) {
         const oldIframe = cell.querySelector('iframe');
+        const oldScreen = cell.querySelector('.stream-offline-screen');
         const badge = cell.querySelector<HTMLButtonElement>('.webcam-stream-badge');
+        const newIframe = this.createIframe(feed);
+
         if (oldIframe) {
-          const newIframe = this.createIframe(feed);
           oldIframe.src = 'about:blank';
           cell.replaceChild(newIframe, oldIframe);
           const ifrIdx = this.iframes.indexOf(oldIframe);
@@ -426,7 +429,14 @@ export class LiveWebcamsPanel extends Panel {
           } else {
             this.iframes.push(newIframe);
           }
+        } else if (oldScreen) {
+          cell.replaceChild(newIframe, oldScreen);
+          this.iframes.push(newIframe);
+        } else {
+          cell.insertBefore(newIframe, cell.firstChild);
+          this.iframes.push(newIframe);
         }
+
         if (badge) {
           badge.textContent = `CAM ${nextIdx + 1}/${streams.length}`;
           badge.classList.remove('offline');
@@ -439,8 +449,10 @@ export class LiveWebcamsPanel extends Panel {
       const wrapper = this.content.querySelector<HTMLElement>('.webcam-single');
       if (wrapper) {
         const oldIframe = wrapper.querySelector('iframe');
+        const oldScreen = wrapper.querySelector('.stream-offline-screen');
+        const newIframe = this.createIframe(feed);
+
         if (oldIframe) {
-          const newIframe = this.createIframe(feed);
           oldIframe.src = 'about:blank';
           wrapper.replaceChild(newIframe, oldIframe);
           const ifrIdx = this.iframes.indexOf(oldIframe);
@@ -449,7 +461,14 @@ export class LiveWebcamsPanel extends Panel {
           } else {
             this.iframes.push(newIframe);
           }
+        } else if (oldScreen) {
+          wrapper.replaceChild(newIframe, oldScreen);
+          this.iframes.push(newIframe);
+        } else {
+          wrapper.insertBefore(newIframe, wrapper.firstChild);
+          this.iframes.push(newIframe);
         }
+
         const streamBtns = this.content.querySelectorAll<HTMLButtonElement>('.webcam-stream-btn');
         streamBtns.forEach((btn, idx) => {
           btn.classList.toggle('active', idx === nextIdx);
@@ -717,6 +736,8 @@ export class LiveWebcamsPanel extends Panel {
       console.warn(`[LiveWebcamsPanel] All fallback streams for ${feed.city} failed. Will retry in 60s.`);
       this.allFallbacksFailed.add(feedId);
 
+      this.showOfflineScreen(feedId, feed.city);
+
       if (this.viewMode === 'grid') {
         const cell = this.content.querySelector<HTMLElement>(`[data-feed-id="${feedId}"]`);
         if (cell) {
@@ -745,6 +766,80 @@ export class LiveWebcamsPanel extends Panel {
 
     console.info(`[LiveWebcamsPanel] Auto-switching ${feed.city} from ${currentVideoId} to fallback CAM ${nextIdx + 1}/${streams.length} (${streams[nextIdx]}) [Reason: ${reason || 'unreachable'}]`);
     this.switchFeedToStreamIndex(feedId, nextIdx);
+  }
+
+  private createOfflineScreen(feedId: string, city: string): HTMLElement {
+    const screen = document.createElement('div');
+    screen.className = 'stream-offline-screen';
+    screen.dataset.offlineFeedId = feedId;
+    screen.innerHTML = `
+      <div class="stream-offline-radar">
+        <div class="stream-offline-radar-ring outer"></div>
+        <div class="stream-offline-radar-ring inner"></div>
+        <div class="stream-offline-radar-crosshair-h"></div>
+        <div class="stream-offline-radar-crosshair-v"></div>
+        <div class="stream-offline-radar-sweep"></div>
+        <div class="stream-offline-radar-dot"></div>
+      </div>
+      <div class="stream-offline-title">Stream Offline - No Fallbacks Available</div>
+      <div class="stream-offline-subtitle">${escapeHtml(city.toUpperCase())} &bull; SIGNAL UNREACHABLE</div>
+      <button class="stream-offline-retry-btn" type="button">Retry Connection</button>
+    `;
+
+    const retryBtn = screen.querySelector('.stream-offline-retry-btn');
+    retryBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.retryFeedStream(feedId);
+    });
+
+    return screen;
+  }
+
+  private showOfflineScreen(feedId: string, city: string): void {
+    const screen = this.createOfflineScreen(feedId, city);
+
+    if (this.viewMode === 'grid') {
+      const cell = this.content.querySelector<HTMLElement>(`[data-feed-id="${feedId}"]`);
+      if (cell) {
+        const existingScreen = cell.querySelector('.stream-offline-screen');
+        if (existingScreen) return;
+        const iframe = cell.querySelector('iframe');
+        if (iframe) {
+          iframe.src = 'about:blank';
+          cell.replaceChild(screen, iframe);
+          const ifrIdx = this.iframes.indexOf(iframe);
+          if (ifrIdx !== -1) this.iframes.splice(ifrIdx, 1);
+        } else {
+          cell.insertBefore(screen, cell.firstChild);
+        }
+      }
+    } else if (this.viewMode === 'single' && this.activeFeed.id === feedId) {
+      const wrapper = this.content.querySelector<HTMLElement>('.webcam-single');
+      if (wrapper) {
+        const existingScreen = wrapper.querySelector('.stream-offline-screen');
+        if (existingScreen) return;
+        const iframe = wrapper.querySelector('iframe');
+        if (iframe) {
+          iframe.src = 'about:blank';
+          wrapper.replaceChild(screen, iframe);
+          const ifrIdx = this.iframes.indexOf(iframe);
+          if (ifrIdx !== -1) this.iframes.splice(ifrIdx, 1);
+        } else {
+          wrapper.insertBefore(screen, wrapper.firstChild);
+        }
+      }
+    }
+  }
+
+  private retryFeedStream(feedId: string): void {
+    this.allFallbacksFailed.delete(feedId);
+    this.failedStreamsByFeed.delete(feedId);
+    const retryTimer = this.allFallbacksRetryTimeout.get(feedId);
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      this.allFallbacksRetryTimeout.delete(feedId);
+    }
+    this.switchFeedToStreamIndex(feedId, 0);
   }
 
   private createToolbar(): void {
@@ -976,28 +1071,34 @@ export class LiveWebcamsPanel extends Panel {
       label.appendChild(citySpan);
 
       const streams = this.getFeedStreams(feed);
+      const isFailed = this.allFallbacksFailed.has(feed.id);
       const streamIdx = (this.streamIndices.get(feed.id) ?? 0) + 1;
       const cycleBtn = document.createElement('button');
       if (streams.length > 1) {
-        cycleBtn.className = 'webcam-stream-badge';
-        cycleBtn.title = `Switch camera angle (${streams.length} available)`;
-        cycleBtn.textContent = `CAM ${streamIdx}/${streams.length}`;
+        cycleBtn.className = `webcam-stream-badge${isFailed ? ' offline' : ''}`;
+        cycleBtn.title = isFailed ? 'All streams unreachable — retrying in 60s (click to retry now)' : `Switch camera angle (${streams.length} available)`;
+        cycleBtn.textContent = isFailed ? 'OFFLINE' : `CAM ${streamIdx}/${streams.length}`;
         cycleBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           this.cycleFeedStream(feed.id);
         });
       } else {
-        cycleBtn.className = 'webcam-stream-badge webcam-stream-badge-single';
-        cycleBtn.title = `${feed.city} live stream`;
-        cycleBtn.textContent = 'LIVE';
+        cycleBtn.className = `webcam-stream-badge webcam-stream-badge-single${isFailed ? ' offline' : ''}`;
+        cycleBtn.title = isFailed ? 'All streams unreachable — retrying in 60s (click to retry now)' : `${feed.city} live stream`;
+        cycleBtn.textContent = isFailed ? 'OFFLINE' : 'LIVE';
       }
       label.appendChild(cycleBtn);
 
-      const iframe = this.createIframe(feed);
-      cell.appendChild(iframe);
+      if (isFailed) {
+        const offlineScreen = this.createOfflineScreen(feed.id, feed.city);
+        cell.appendChild(offlineScreen);
+      } else {
+        const iframe = this.createIframe(feed);
+        cell.appendChild(iframe);
+        this.iframes.push(iframe);
+      }
       cell.appendChild(label);
       grid.appendChild(cell);
-      this.iframes.push(iframe);
     });
 
     this.content.appendChild(grid);
@@ -1010,9 +1111,14 @@ export class LiveWebcamsPanel extends Panel {
     const wrapper = document.createElement('div');
     wrapper.className = 'webcam-single';
 
-    const iframe = this.createIframe(this.activeFeed);
-    wrapper.appendChild(iframe);
-    this.iframes.push(iframe);
+    if (this.allFallbacksFailed.has(this.activeFeed.id)) {
+      const offlineScreen = this.createOfflineScreen(this.activeFeed.id, this.activeFeed.city);
+      wrapper.appendChild(offlineScreen);
+    } else {
+      const iframe = this.createIframe(this.activeFeed);
+      wrapper.appendChild(iframe);
+      this.iframes.push(iframe);
+    }
 
     const switcher = document.createElement('div');
     switcher.className = 'webcam-switcher';
