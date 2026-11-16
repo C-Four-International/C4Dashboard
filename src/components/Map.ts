@@ -139,6 +139,7 @@ export class MapComponent {
   private firmsFireData: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string; detectedAt?: number }> = [];
   private radiationData: RadiationStation[] = [];
   private outbreaksData: DiseaseOutbreak[] = [];
+  private humanConflictEvents: import('@/types').HumanConflictEvent[] = [];
   private techEvents: TechEventMarker[] = [];
   private techActivities: TechHubActivity[] = [];
   private geoActivities: GeoHubActivity[] = [];
@@ -1597,6 +1598,53 @@ export class MapComponent {
           this.popup.show({
             type: 'outbreak',
             data: outbreak,
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        });
+
+        this.overlays.appendChild(div);
+      });
+    }
+
+    // Human Conflict layer (GDELT / UCDP / ACLED)
+    if (this.state.layers.humanConflict && this.humanConflictEvents.length > 0) {
+      const cutoff = this.state.timeRange === 'all' ? 0 : Date.now() - this.getTimeRangeMs();
+      const filtered = cutoff === 0
+        ? this.humanConflictEvents
+        : this.humanConflictEvents.filter((c) => {
+            const dateStr = c.date;
+            if (!dateStr) return true;
+            let ts: number;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
+              ts = new Date(`${dateStr.trim()}T23:59:59.999Z`).getTime();
+            } else {
+              ts = new Date(dateStr).getTime();
+            }
+            return Number.isFinite(ts) ? ts >= cutoff : true;
+          });
+
+      filtered.forEach((conflict) => {
+        const pos = projection([conflict.lon, conflict.lat]);
+        if (!pos) return;
+
+        const div = document.createElement('div');
+        div.className = `human-conflict-marker ${conflict.category}`;
+        div.style.left = `${pos[0]}px`;
+        div.style.top = `${pos[1]}px`;
+        const color = conflict.category === 'battles' ? '#dc2626'
+          : conflict.category === 'riots' ? '#ea580c'
+          : conflict.category === 'protests' ? '#ca8a04'
+          : '#3b82f6';
+        div.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="${color}"><circle cx="12" cy="12" r="8" fill-opacity="0.3"/><circle cx="12" cy="12" r="4"/><path d="M12 2l2.4 7.2h7.6l-6.1 4.5 2.3 7.3-6.2-4.6-6.2 4.6 2.3-7.3-6.1-4.5h7.6z" fill-opacity="0.8"/></svg>`;
+        div.title = `💥 ${conflict.title} (${conflict.country}) · ${conflict.date}`;
+
+        div.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = this.container.getBoundingClientRect();
+          this.popup.show({
+            type: 'humanConflict',
+            data: conflict,
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
           });
@@ -3868,8 +3916,9 @@ export class MapComponent {
     }
   }
 
-  public setHumanConflictEvents(_events: import('@/types').HumanConflictEvent[]): void {
-    // SVG/mobile fallback intentionally does not render this layer to stay lightweight.
+  public setHumanConflictEvents(events: import('@/types').HumanConflictEvent[]): void {
+    this.humanConflictEvents = events;
+    this.render();
   }
 
   public setCyberThreats(_threats: CyberThreat[]): void {

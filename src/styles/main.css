@@ -12145,6 +12145,19 @@ a.prediction-link:hover {
   }
 }
 
+.human-conflict-marker {
+  position: absolute;
+  transform: translate(-50%, -50%) scale(var(--marker-scale, 1));
+  cursor: pointer;
+  z-index: 10;
+  pointer-events: auto;
+  transition: transform 0.15s ease;
+}
+.human-conflict-marker:hover {
+  transform: translate(-50%, -50%) scale(calc(var(--marker-scale, 1) * 1.3));
+  z-index: 15;
+}
+
 .tech-event-popup {
   min-width: 180px;
   max-width: 250px;

@@ -832,8 +832,23 @@ export class DeckGLMap {
     if (value == null) return null;
     if (this.timeParseCache.has(value)) return this.timeParseCache.get(value)!;
 
-    const ts = value instanceof Date ? value.getTime() : new Date(value).getTime();
-    const result = Number.isFinite(ts) ? ts : null;
+    let result: number | null = null;
+    if (value instanceof Date) {
+      result = value.getTime();
+    } else if (typeof value === 'number') {
+      result = Number.isFinite(value) ? value : null;
+    } else if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        // Date-only string (e.g. YYYY-MM-DD): evaluate at end-of-day UTC (23:59:59.999Z)
+        // so recent events on that day are included in the rolling 24h/48h/7d windows
+        const ts = new Date(`${trimmed}T23:59:59.999Z`).getTime();
+        result = Number.isFinite(ts) ? ts : null;
+      } else {
+        const ts = new Date(trimmed).getTime();
+        result = Number.isFinite(ts) ? ts : null;
+      }
+    }
 
     this.timeParseCache.set(value, result);
     return result;
@@ -1710,17 +1725,9 @@ export class DeckGLMap {
       layers.push(this.createUcdpEventsLayer(ucdpEventsToRender));
     }
 
-    // Human Conflict layer (UCDP API)
-    // Filter out stale events: prioritize user's selected time range (e.g. 7d, 24h).
-    // If none match strict range, limit to active conflicts within 180 days and strictly purge old historical records.
-    const activeConflicts = this.humanConflictEvents.filter(e => {
-      const ts = this.parseTime(e.date);
-      return ts != null && ts >= (Date.now() - (180 * 24 * 60 * 60 * 1000));
-    });
-    let humanConflictToRender = filteredHumanConflict.length > 0 ? filteredHumanConflict : activeConflicts;
-    if (humanConflictToRender.length === 0 && this.humanConflictEvents.length > 0) {
-      humanConflictToRender = this.humanConflictEvents;
-    }
+    // Human Conflict layer (GDELT / UCDP / ACLED API)
+    // Filtered by active time slider range (1h, 6h, 24h, 48h, 7d, all)
+    const humanConflictToRender = filteredHumanConflict;
     if (mapLayers.humanConflict && humanConflictToRender.length > 0) {
       layers.push(this.createHumanConflictLayer(humanConflictToRender));
       layers.push(this.createGhostLayer('human-conflict-layer', humanConflictToRender, d => [Number(d.lon), Number(d.lat)], { radiusMinPixels: 14 }));
@@ -5958,6 +5965,7 @@ export class DeckGLMap {
 
   public setTimeRange(range: TimeRange): void {
     this.state.timeRange = range;
+    this.timeFilterCache.clear();
     this.rebuildProtestSupercluster();
     this.rebuildTechEventSupercluster();
     this.onTimeRangeChange?.(range);
@@ -6154,9 +6162,9 @@ export class DeckGLMap {
       radiusMaxPixels: 24,
       pickable: true,
       updateTriggers: {
-        getPosition: [events.length],
-        getFillColor: [events.length],
-        getRadius: [events.length],
+        getPosition: [this.state.timeRange, events.length],
+        getFillColor: [this.state.timeRange, events.length],
+        getRadius: [this.state.timeRange, events.length],
       },
     });
   }

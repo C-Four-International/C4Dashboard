@@ -1325,7 +1325,7 @@ export class DataLoaderManager implements AppModule {
     }
 
     try {
-      const events = await fetchHumanConflictEvents({ limit: 250, days: 14 });
+      const events = await fetchHumanConflictEvents({ limit: 300, days: 30 });
       const finalEvents = (events && events.length > 0) ? events : getCuratedConflictEvents();
       this.ctx.intelligenceCache.humanConflict = finalEvents;
       this.ctx.map?.setHumanConflictEvents(finalEvents);
