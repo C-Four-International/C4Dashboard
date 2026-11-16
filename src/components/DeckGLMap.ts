@@ -55,6 +55,7 @@ import type { DisplacementFlow } from '@/services/displacement';
 import type { Earthquake } from '@/services/earthquakes';
 import type { ClimateAnomaly } from '@/services/climate';
 import type { RadiationStation } from '@/services/radiation';
+import type { DiseaseOutbreak } from '@/services/outbreaks';
 import { ArcLayer } from '@deck.gl/layers';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import { CollisionFilterExtension } from '@deck.gl/extensions';
@@ -298,6 +299,8 @@ const MARKER_ICONS = {
   delta: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><polygon points="16,2 29,28 16,22 3,28" fill="white"/></svg>`),
   // Warship Hull - for military vessels / naval combatants (sharp pointed bow, straight beam, flat transom stern)
   warship: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M16 2 L26 11 L25 28 L7 28 L6 11 Z" fill="white"/></svg>`),
+  // Biohazard - for disease outbreaks (WHO DON & CDC Socrata)
+  biohazard: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="none" stroke="white" stroke-width="3"/><circle cx="16" cy="16" r="5" fill="white"/><line x1="16" y1="2" x2="16" y2="9" stroke="white" stroke-width="3"/><line x1="4" y1="25" x2="10" y2="20" stroke="white" stroke-width="3"/><line x1="28" y1="25" x2="22" y2="20" stroke="white" stroke-width="3"/></svg>`),
 };
 
 export interface MapMilitaryClusterItem {
@@ -347,6 +350,7 @@ export class DeckGLMap {
   private naturalEvents: NaturalEvent[] = [];
   private firmsFireData: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string; detectedAt?: number }> = [];
   private radiationData: RadiationStation[] = [];
+  private outbreaksData: DiseaseOutbreak[] = [];
   private techEvents: TechEventMarker[] = [];
   private flightDelays: AirportDelayAlert[] = [];
   private notams: FaaNotam[] = [];
@@ -1528,6 +1532,12 @@ export class DeckGLMap {
       layers.push(this.createGhostLayer('radiation-layer', this.radiationData, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
     }
 
+    // Disease Outbreaks layer (WHO DON & CDC Socrata)
+    if (mapLayers.outbreaks && this.outbreaksData.length > 0) {
+      layers.push(this.createOutbreaksLayer(this.outbreaksData));
+      layers.push(this.createGhostLayer('outbreaks-layer', this.outbreaksData, d => [d.lon, d.lat], { radiusMinPixels: 14 }));
+    }
+
     // Spaceports layer — hidden at low zoom
     if (mapLayers.spaceports && this.isLayerVisible('spaceports')) {
       layers.push(this.createSpaceportsLayer());
@@ -2670,6 +2680,33 @@ export class DeckGLMap {
       sizeScale: 1,
       sizeMinPixels: 6,
       sizeMaxPixels: 17,
+      pickable: true,
+    });
+  }
+
+  private createOutbreaksLayer(outbreaks: DiseaseOutbreak[]): IconLayer {
+    return new IconLayer({
+      id: 'outbreaks-layer',
+      data: outbreaks,
+      getPosition: (d: DiseaseOutbreak) => [d.lon, d.lat],
+      getIcon: () => 'biohazard',
+      iconAtlas: MARKER_ICONS.biohazard,
+      iconMapping: { biohazard: { x: 0, y: 0, width: 32, height: 32, mask: true } },
+      getSize: (d: DiseaseOutbreak) => {
+        if (d.severity === 'critical') return 16;
+        if (d.severity === 'high') return 13;
+        if (d.severity === 'moderate') return 11;
+        return 9;
+      },
+      getColor: (d: DiseaseOutbreak) => {
+        if (d.severity === 'critical') return [239, 68, 68, 240] as [number, number, number, number];
+        if (d.severity === 'high') return [249, 115, 22, 230] as [number, number, number, number];
+        if (d.severity === 'moderate') return [234, 179, 8, 220] as [number, number, number, number];
+        return [56, 189, 248, 200] as [number, number, number, number];
+      },
+      sizeScale: 1,
+      sizeMinPixels: 7,
+      sizeMaxPixels: 18,
       pickable: true,
     });
   }
@@ -4177,6 +4214,15 @@ export class DeckGLMap {
           html: `<div class="deckgl-tooltip"><strong>☢ ${text(st.name)}</strong><br/><strong>${st.cpm.toLocaleString()} CPM</strong> <small style="opacity:0.85">(GM equiv)</small> · ${doseStr}${statusBadge}${rawNote}<br/><small style="opacity:0.75">${text(st.source)}${timeStr ? ` · ${text(timeStr)}` : ''}</small></div>`,
         };
       }
+      case 'outbreaks-layer': {
+        const o = obj as DiseaseOutbreak;
+        const color = o.severity === 'critical' ? '#ef4444' : o.severity === 'high' ? '#f97316' : o.severity === 'moderate' ? '#eab308' : '#38bdf8';
+        const casesStr = o.cases != null && o.cases > 0 ? ` · <strong>${o.cases.toLocaleString()} cases</strong>` : '';
+        const dateStr = o.date ? new Date(o.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        return {
+          html: `<div class="deckgl-tooltip"><strong>🦠 ${text(o.disease)}</strong><br/><span style="color:${color};font-weight:700;text-transform:uppercase">${text(o.severity)}</span> · <strong>${text(o.location)}</strong>${casesStr}<br/><small style="opacity:0.8">${text(o.source)} Surveillance · ${text(dateStr)}</small></div>`,
+        };
+      }
       case 'aqi-bubbles-layer': {
         const station = obj as AQIStation;
         const aqiNum = parseInt(station.aqi, 10);
@@ -4588,6 +4634,7 @@ export class DeckGLMap {
       'nuclear-layer': 'nuclear',
       'irradiators-layer': 'irradiator',
       'radiation-layer': 'radiation',
+      'outbreaks-layer': 'outbreak',
       'datacenters-layer': 'datacenter',
       'cables-layer': 'cable',
       'pipelines-layer': 'pipeline',
@@ -4788,6 +4835,7 @@ export class DeckGLMap {
             { key: 'waterTemperature', label: t('components.deckgl.layers.waterTemperature') || 'Water Surface Temp', icon: '&#127754;' },
             { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
             { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
+            { key: 'outbreaks', label: t('components.deckgl.layers.outbreaks'), icon: '🦠' },
             { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
           ],
         },
@@ -4835,6 +4883,7 @@ export class DeckGLMap {
               { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '&#9928;' },
               { key: 'waterTemperature', label: t('components.deckgl.layers.waterTemperature') || 'Water Surface Temp', icon: '&#127754;' },
               { key: 'aqi', label: t('components.deckgl.layers.aqi'), icon: '💨' },
+              { key: 'outbreaks', label: t('components.deckgl.layers.outbreaks'), icon: '🦠' },
               { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
             ],
           },
@@ -4923,6 +4972,7 @@ export class DeckGLMap {
                 { key: 'climate', label: t('components.deckgl.layers.climateAnomalies'), icon: '&#127787;' },
                 { key: 'aqi', label: 'Air Quality', icon: '💨' },
                 { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '&#128293;' },
+                { key: 'outbreaks', label: t('components.deckgl.layers.outbreaks'), icon: '🦠' },
                 { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '&#127755;' },
                 { key: 'agriculturalStressDI', label: 'Drought Intensity', icon: '&#127806;' },
                 { key: 'agriculturalStressVCI', label: 'Vegetation Conditions', icon: '&#127806;' },
@@ -5111,6 +5161,7 @@ export class DeckGLMap {
       case 'spaceports': return 'militarySpaceports';
       case 'datacenters': return 'infraDatacentersFull';
       case 'radiation': return 'radiationDesc';
+      case 'outbreaks': return 'outbreaksDesc';
       case 'minerals': return 'mineralsFull';
       case 'nuclear': return 'militaryNuclear';
       case 'agriculturalStressASI': return 'agriculturalStressASIDesc';
@@ -5284,6 +5335,7 @@ export class DeckGLMap {
       tacticalCircle: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><circle cx="7" cy="7" r="5.5" fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="1.5"/><circle cx="7" cy="7" r="1.5" fill="${color}"/></svg>`,
       heatmap: () => `<svg width="18" height="14" viewBox="0 0 18 14" class="legend-shape-svg"><defs><linearGradient id="legendGpsHeatGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ffffb2"/><stop offset="35%" stop-color="#fecc5c"/><stop offset="70%" stop-color="#fd8d3c"/><stop offset="100%" stop-color="#bd0026"/></linearGradient></defs><rect x="1" y="2" width="16" height="10" rx="2" fill="url(#legendGpsHeatGrad)"/></svg>`,
       sstHeatmap: () => `<svg width="18" height="14" viewBox="0 0 18 14" class="legend-shape-svg"><defs><linearGradient id="legendSstHeatGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#40004b"/><stop offset="15%" stop-color="#2166ac"/><stop offset="32%" stop-color="#4393c3"/><stop offset="50%" stop-color="#92c5de"/><stop offset="68%" stop-color="#fee090"/><stop offset="85%" stop-color="#d6604d"/><stop offset="100%" stop-color="#67001f"/></linearGradient></defs><rect x="1" y="2" width="16" height="10" rx="2" fill="url(#legendSstHeatGrad)"/></svg>`,
+      biohazard: (color: string) => `<svg width="14" height="14" viewBox="0 0 14 14" class="legend-shape-svg"><circle cx="7" cy="7" r="5.5" fill="${color}" fill-opacity="0.2" stroke="${color}" stroke-width="1.5"/><circle cx="7" cy="7" r="2" fill="${color}"/><line x1="7" y1="1" x2="7" y2="4" stroke="${color}" stroke-width="1.5"/><line x1="2" y1="11" x2="5" y2="9" stroke="${color}" stroke-width="1.5"/><line x1="12" y1="11" x2="9" y2="9" stroke="${color}" stroke-width="1.5"/></svg>`,
     };
 
     interface LegendCategoryDef {
@@ -5657,6 +5709,18 @@ export class DeckGLMap {
                 { color: '#fee090', label: 'Mild (18°C)' },
                 { color: '#d6604d', label: 'Warm (26°C)' },
                 { color: '#67001f', label: 'Tropical (35°C)' },
+              ],
+            },
+            {
+              shape: shapes.biohazard('#ef4444'),
+              badge: 'Biohazard',
+              name: t('components.deckgl.layers.outbreaks'),
+              desc: 'Active infectious disease outbreaks and public health emergencies from WHO Disease Outbreak News (DON) and CDC Socrata NNDSS.',
+              subswatches: [
+                { color: '#ef4444', label: 'Critical (Ebola, MERS, H5N1)' },
+                { color: '#f97316', label: 'High (Measles, Mpox, CPO)' },
+                { color: '#eab308', label: 'Moderate' },
+                { color: '#38bdf8', label: 'Monitoring' },
               ],
             },
           ],
@@ -6369,6 +6433,11 @@ export class DeckGLMap {
 
   public setRadiation(stations: RadiationStation[]): void {
     this.radiationData = stations;
+    this.render();
+  }
+
+  public setOutbreaks(outbreaks: DiseaseOutbreak[]): void {
+    this.outbreaksData = outbreaks;
     this.render();
   }
 

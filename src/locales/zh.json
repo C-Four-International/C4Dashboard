@@ -784,7 +784,8 @@
         "centralBanks": "央行",
         "commodityHubs": "大宗商品枢纽",
         "gulfInvestments": "GCC投资",
-        "tradeRoutes": "贸易航线"
+        "tradeRoutes": "贸易航线",
+        "outbreaks": "疾病爆发"
       },
       "tooltip": {
         "earthquake": "地震",

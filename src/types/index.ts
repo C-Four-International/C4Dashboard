@@ -575,6 +575,7 @@ export interface MapLayers {
   nuclear: boolean;
   irradiators: boolean;
   radiation: boolean;
+  outbreaks: boolean;
   sanctions: boolean;
   weather: boolean;
   weatherRadar: boolean;

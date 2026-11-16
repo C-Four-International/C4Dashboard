@@ -20,6 +20,7 @@ export * from './conflict';
 export * from './displacement';
 export * from './research';
 export * from './radiation';
+export * from './outbreaks';
 export * from './wildfires';
 export * from './climate';
 export * from './unrest';

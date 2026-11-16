@@ -784,7 +784,8 @@
         "centralBanks": "中央銀行",
         "commodityHubs": "コモディティハブ",
         "gulfInvestments": "GCC投資",
-        "tradeRoutes": "貿易ルート"
+        "tradeRoutes": "貿易ルート",
+        "outbreaks": "感染症の発生"
       },
       "tooltip": {
         "earthquake": "地震",

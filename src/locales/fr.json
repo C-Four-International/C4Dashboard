@@ -784,7 +784,8 @@
         "centralBanks": "Banques centrales",
         "commodityHubs": "Centres de matières premières",
         "gulfInvestments": "Investissements du CCG",
-        "tradeRoutes": "Routes Commerciales"
+        "tradeRoutes": "Routes Commerciales",
+        "outbreaks": "Epidemies"
       },
       "tooltip": {
         "earthquake": "Tremblement de terre",

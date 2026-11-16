@@ -13,6 +13,7 @@ import type { GeoHubActivity } from '@/services/geo-activity';
 import { getNaturalEventIcon } from '@/services/eonet';
 import type { WeatherAlert } from '@/services/weather';
 import type { RadiationStation } from '@/services/radiation';
+import type { DiseaseOutbreak } from '@/services/outbreaks';
 import { getSeverityColor } from '@/services/weather';
 import {
   MAP_URLS,
@@ -137,6 +138,7 @@ export class MapComponent {
   private naturalEvents: NaturalEvent[] = [];
   private firmsFireData: Array<{ lat: number; lon: number; brightness: number; frp: number; confidence: number; region: string; acq_date: string; daynight: string; detectedAt?: number }> = [];
   private radiationData: RadiationStation[] = [];
+  private outbreaksData: DiseaseOutbreak[] = [];
   private techEvents: TechEventMarker[] = [];
   private techActivities: TechHubActivity[] = [];
   private geoActivities: GeoHubActivity[] = [];
@@ -355,14 +357,14 @@ export class MapComponent {
       // Shipping & Air Traffic
       'ais', 'flights', 'waterways', 'gpsJamming',
       // Natural & Day/Night
-      'dayNight', 'natural', 'waterTemperature', 'weather', 'fires', 'aqi',
+      'dayNight', 'natural', 'waterTemperature', 'weather', 'fires', 'aqi', 'outbreaks',
       // Additional geopolitical/economic
       'sanctions', 'protests', 'economic',
     ];
     const techLayers: (keyof MapLayers)[] = [
       'cables', 'datacenters', 'radiation', 'outages', 'bgpAnomalies', 'gpsJamming',  // tech infrastructure
       'startupHubs', 'cloudRegions', 'accelerators', 'techHQs', 'techEvents', // tech ecosystem
-      'natural', 'waterTemperature', 'weather', 'weatherRadar', 'fires', 'aqi',                   // natural events
+      'natural', 'waterTemperature', 'weather', 'weatherRadar', 'fires', 'aqi', 'outbreaks',                   // natural events
       'economic',                                         // economic/geographic
       'flights',                                          // aviation
     ];
@@ -370,7 +372,7 @@ export class MapComponent {
       'stockExchanges', 'financialCenters', 'centralBanks', 'commodityHubs', // finance ecosystem
       'cables', 'pipelines', 'radiation', 'outages', 'gpsJamming',      // infrastructure
       'sanctions', 'economic', 'waterways',               // geopolitical/economic
-      'natural', 'waterTemperature', 'weather', 'weatherRadar', 'fires', 'aqi',               // natural events
+      'natural', 'waterTemperature', 'weather', 'weatherRadar', 'fires', 'aqi', 'outbreaks',               // natural events
       'flights',                                          // aviation
     ];
     const happyLayers: (keyof MapLayers)[] = [
@@ -415,6 +417,7 @@ export class MapComponent {
       commodityHubs: 'components.deckgl.layers.commodityHubs',
       gulfInvestments: 'components.deckgl.layers.gulfInvestments',
       fires: 'components.deckgl.layers.satelliteFires',
+      outbreaks: 'components.deckgl.layers.outbreaks',
       aqi: 'components.deckgl.layers.aqi',
       threatScore: 'Threat Score',
     };
@@ -501,6 +504,7 @@ export class MapComponent {
       helpItem(label('weatherRadar'), 'weatherRadarDesc', '&#127782;'),
       helpItem(label('waterTemperature'), 'waterTemperatureDesc', '&#127754;'),
       helpItem(label('aqi'), 'aqiDesc', '💨'),
+      helpItem(label('outbreaks'), 'outbreaksDesc', '🦠'),
     ])}
         ${helpSection('labels', [
       helpItem(staticLabel('countries'), 'countriesOverlay', '&#127757;'),
@@ -540,6 +544,7 @@ export class MapComponent {
       helpItem(label('waterTemperature'), 'waterTemperatureDesc', '&#127754;'),
       helpItem(label('aqi'), 'aqiDesc', '💨'),
       helpItem(label('fires'), 'firesFull', '&#128293;'),
+      helpItem(label('outbreaks'), 'outbreaksDesc', '🦠'),
     ])}
         ${helpSection('labels', [
       helpItem(staticLabel('countries'), 'countriesOverlay', '&#127757;'),
@@ -587,6 +592,7 @@ export class MapComponent {
       helpItem(label('weather'), 'weatherAlerts', '&#9928;'),
       helpItem(label('fires'), 'firesFull', '&#128293;'),
       helpItem(label('aqi'), 'aqiDesc', '💨'),
+      helpItem(label('outbreaks'), 'outbreaksDesc', '🦠'),
     ])}
         ${helpSection('geopolitical', [
       helpItem(staticLabel('sanctions'), 'geoSanctions', '&#128179;'),
@@ -1561,6 +1567,36 @@ export class MapComponent {
           this.popup.show({
             type: 'radiation',
             data: station,
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        });
+
+        this.overlays.appendChild(div);
+      });
+    }
+
+    // Disease Outbreaks monitoring (WHO DON & CDC Socrata)
+    if (this.state.layers.outbreaks && this.outbreaksData.length > 0) {
+      this.outbreaksData.forEach((outbreak) => {
+        const pos = projection([outbreak.lon, outbreak.lat]);
+        if (!pos) return;
+
+        const div = document.createElement('div');
+        div.className = `outbreak-marker ${outbreak.severity}`;
+        div.style.left = `${pos[0]}px`;
+        div.style.top = `${pos[1]}px`;
+        const color = outbreak.severity === 'critical' ? '#ef4444' : outbreak.severity === 'high' ? '#f97316' : outbreak.severity === 'moderate' ? '#eab308' : '#38bdf8';
+        div.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="${color}"><circle cx="12" cy="12" r="8" fill-opacity="0.3"/><circle cx="12" cy="12" r="4"/><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" fill-opacity="0.8"/></svg>`;
+        const casesText = outbreak.cases != null && outbreak.cases > 0 ? ` · ${outbreak.cases.toLocaleString()} cases` : '';
+        div.title = `🦠 ${outbreak.disease}: ${outbreak.location} (${outbreak.severity.toUpperCase()})${casesText} · ${outbreak.source}`;
+
+        div.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = this.container.getBoundingClientRect();
+          this.popup.show({
+            type: 'outbreak',
+            data: outbreak,
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
           });
@@ -3799,6 +3835,11 @@ export class MapComponent {
 
   public setRadiation(stations: RadiationStation[]): void {
     this.radiationData = stations;
+    this.render();
+  }
+
+  public setOutbreaks(outbreaks: DiseaseOutbreak[]): void {
+    this.outbreaksData = outbreaks;
     this.render();
   }
 

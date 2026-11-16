@@ -89,6 +89,7 @@ export class MobileLayerPicker {
             { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '🌍' },
             { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '⛈️' },
             { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '🔥' },
+            { key: 'outbreaks', label: t('components.deckgl.layers.outbreaks'), icon: '🦠' },
             { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '🌋' },
           ],
         },
@@ -134,6 +135,7 @@ export class MobileLayerPicker {
           layers: [
             { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '🌍' },
             { key: 'weather', label: t('components.deckgl.layers.weather'), icon: '⛈️' },
+            { key: 'outbreaks', label: t('components.deckgl.layers.outbreaks'), icon: '🦠' },
             { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '🌋' },
           ],
         },
@@ -216,6 +218,7 @@ export class MobileLayerPicker {
           { key: 'dayNight', label: t('components.deckgl.layers.dayNight'), icon: '🌍' },
           { key: 'weather', label: 'Weather Alerts', icon: '⛈️' },
           { key: 'fires', label: t('components.deckgl.layers.fires'), icon: '🔥' },
+          { key: 'outbreaks', label: t('components.deckgl.layers.outbreaks'), icon: '🦠' },
           { key: 'natural', label: t('components.deckgl.layers.naturalEvents'), icon: '🌋' },
         ],
       },

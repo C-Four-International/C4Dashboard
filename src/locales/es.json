@@ -648,7 +648,8 @@
         "centralBanks": "Bancos centrales",
         "commodityHubs": "Centros de productos básicos",
         "gulfInvestments": "Inversiones del CCG",
-        "tradeRoutes": "Rutas Comerciales"
+        "tradeRoutes": "Rutas Comerciales",
+        "outbreaks": "Brotes de enfermedades"
       },
       "layersTitle": "capas",
       "layerGuide": "Guía de capas",

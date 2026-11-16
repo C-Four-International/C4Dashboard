@@ -4770,6 +4770,15 @@ body.playback-mode .status-dot {
   border-left: 3px solid var(--status-live);
 }
 
+.popup-header.outbreak {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(249, 115, 22, 0.08));
+  border-left: 3px solid var(--semantic-high, #ef4444);
+}
+
+.popup-header.outbreak .popup-title {
+  color: var(--semantic-high, #ef4444);
+}
+
 /* AI Data Centers */
 .datacenter-marker {
   position: absolute;

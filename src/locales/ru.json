@@ -784,7 +784,8 @@
         "centralBanks": "Центральные банки",
         "commodityHubs": "Сырьевые хабы",
         "gulfInvestments": "Инвестиции стран Залива",
-        "tradeRoutes": "Торговые маршруты"
+        "tradeRoutes": "Торговые маршруты",
+        "outbreaks": "Вспышки заболеваний"
       },
       "tooltip": {
         "earthquake": "Землетрясение",

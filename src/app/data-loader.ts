@@ -61,6 +61,7 @@ import { dataFreshness, type DataSourceId } from '@/services/data-freshness';
 import { fetchUnhcrPopulation } from '@/services/displacement';
 import { fetchClimateAnomalies } from '@/services/climate';
 import { fetchRadiationData, getInstantRadiationStations } from '@/services/radiation';
+import { fetchOutbreaksData, getInstantOutbreaks } from '@/services/outbreaks';
 import { getInstantNaturalEvents } from '@/services/eonet';
 import { enrichEventsWithExposure } from '@/services/population-exposure';
 import { fetchHumanConflictEvents, getCuratedConflictEvents } from '@/services/human-conflict';
@@ -166,6 +167,7 @@ export class DataLoaderManager implements AppModule {
   private digestBreaker = { state: 'closed' as 'closed' | 'open' | 'half-open', failures: 0, cooldownUntil: 0 };
   private lastGoodDigest: ListFeedDigestResponse | null = null;
   private radiationDataLoaded = false;
+  private outbreaksDataLoaded = false;
   private firmsLoaded = false;
   private naturalEventsLoaded = false;
   private militaryVesselsListenerRegistered = false;
@@ -372,6 +374,7 @@ export class DataLoaderManager implements AppModule {
     if (SITE_VARIANT !== 'happy' && CYBER_LAYER_ENABLED && this.ctx.mapLayers.cyberThreats) tasks.push({ name: 'cyberThreats', task: runGuarded('cyberThreats', () => this.loadCyberThreats()) });
     if (SITE_VARIANT !== 'happy' && (this.ctx.mapLayers.techEvents || SITE_VARIANT === 'tech')) tasks.push({ name: 'techEvents', task: runGuarded('techEvents', () => this.loadTechEvents()) });
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.radiation) tasks.push({ name: 'radiation', task: runGuarded('radiation', () => this.loadRadiationData()) });
+    if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.outbreaks) tasks.push({ name: 'outbreaks', task: runGuarded('outbreaks', () => this.loadOutbreaksData()) });
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.outages) tasks.push({ name: 'outages', task: runGuarded('outages', () => this.loadOutages()) });
     if (SITE_VARIANT !== 'happy' && this.ctx.mapLayers.humanConflict) tasks.push({ name: 'humanConflict', task: runGuarded('humanConflict', () => this.loadHumanConflict()) });
 
@@ -445,6 +448,9 @@ export class DataLoaderManager implements AppModule {
           break;
         case 'radiation':
           await this.loadRadiationData();
+          break;
+        case 'outbreaks':
+          await this.loadOutbreaksData();
           break;
         case 'weatherRadar':
           this.ctx.map?.setLayerLoading('weatherRadar', true);
@@ -1842,6 +1848,28 @@ export class DataLoaderManager implements AppModule {
       }
     } catch (e) {
       console.warn('[DataLoader] Radiation load failed:', e);
+    }
+  }
+
+  async loadOutbreaksData(forceRefresh = false): Promise<void> {
+    try {
+      // 1. Optimistic instant render on first try (0ms)
+      if (!this.outbreaksDataLoaded) {
+        const instantOutbreaks = getInstantOutbreaks();
+        if (instantOutbreaks && instantOutbreaks.length > 0) {
+          this.ctx.map?.setOutbreaks(instantOutbreaks);
+          this.ctx.map?.setLayerReady('outbreaks', true);
+        }
+      }
+
+      const outbreaks = await fetchOutbreaksData(forceRefresh);
+      if (outbreaks && outbreaks.length > 0) {
+        this.outbreaksDataLoaded = true;
+        this.ctx.map?.setOutbreaks(outbreaks);
+        this.ctx.map?.setLayerReady('outbreaks', true);
+      }
+    } catch (e) {
+      console.warn('[DataLoader] Outbreaks load failed:', e);
     }
   }
 

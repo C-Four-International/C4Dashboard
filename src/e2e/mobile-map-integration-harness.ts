@@ -95,6 +95,7 @@ const layers = {
   nuclear: false,
   irradiators: false,
   radiation: false,
+  outbreaks: false,
   sanctions: false,
   weather: false,
   weatherRadar: false,

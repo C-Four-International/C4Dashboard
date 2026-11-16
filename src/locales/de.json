@@ -648,7 +648,8 @@
         "centralBanks": "Zentralbanken",
         "commodityHubs": "Rohstoffzentren",
         "gulfInvestments": "GCC-Investitionen",
-        "tradeRoutes": "Handelsrouten"
+        "tradeRoutes": "Handelsrouten",
+        "outbreaks": "Krankheitsausbrueche"
       },
       "layersTitle": "Schichten",
       "layerGuide": "Ebenenführer",

@@ -716,6 +716,7 @@ const STANDALONE_API_ENDPOINTS: Record<string, string> = {
   '/api/social-intel': './api/social-intel.js',
   '/api/translate': './api/translate.js',
   '/api/notams': './api/notams.js',
+  '/api/outbreaks': './api/outbreaks.js',
   '/api/download': './api/download.js',
   '/api/fwdstart': './api/fwdstart.js',
   '/api/version': './api/version.js',

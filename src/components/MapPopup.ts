@@ -1,5 +1,6 @@
 import type { ConflictZone, HumanConflictEvent, Hotspot, NewsItem, MilitaryBase, StrategicWaterway, NuclearFacility, EconomicCenter, GammaIrradiator, Pipeline, UnderseaCable, CableAdvisory, RepairShip, InternetOutage, AIDataCenter, AisDisruptionEvent, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, Port, Spaceport, CriticalMineralProject, CyberThreat, BgpAnomaly, AQIStation, AQIClusterData } from '@/types';
 import type { RadiationStation } from '@/services/radiation';
+import type { DiseaseOutbreak } from '@/services/outbreaks';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { FaaNotam } from '@/services/notams';
 import type { Earthquake } from '@/services/earthquakes';
@@ -17,7 +18,7 @@ import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot
 import { getCableHealthRecord } from '@/services/cable-health';
 import { getAqiCategory, getStationParticulates } from '@/services/aqi';
 
-export type PopupType = 'conflict' | 'humanConflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'radiation' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'notam' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'climate' | 'aqiCluster' | 'aqiStation';
+export type PopupType = 'conflict' | 'humanConflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'cyberThreat' | 'bgpAnomaly' | 'nuclear' | 'economic' | 'irradiator' | 'radiation' | 'outbreak' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'notam' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'climate' | 'aqiCluster' | 'aqiStation';
 
 interface TechEventPopupData {
   id: string;
@@ -123,7 +124,7 @@ interface DatacenterClusterData {
 
 interface PopupData {
   type: PopupType;
-  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | CyberThreat | BgpAnomaly | NuclearFacility | EconomicCenter | GammaIrradiator | RadiationStation | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData | ClimateAnomaly | AQIClusterData | AQIStation;
+  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | CyberThreat | BgpAnomaly | NuclearFacility | EconomicCenter | GammaIrradiator | RadiationStation | DiseaseOutbreak | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData | ClimateAnomaly | AQIClusterData | AQIStation;
   relatedNews?: NewsItem[];
   x: number;
   y: number;
@@ -376,6 +377,8 @@ export class MapPopup {
         return this.renderIrradiatorPopup(data.data as GammaIrradiator);
       case 'radiation':
         return this.renderRadiationPopup(data.data as RadiationStation);
+      case 'outbreak':
+        return this.renderOutbreakPopup(data.data as DiseaseOutbreak);
       case 'pipeline':
         return this.renderPipelinePopup(data.data as Pipeline);
       case 'cable':
@@ -1540,6 +1543,84 @@ export class MapPopup {
         <p class="popup-description" style="margin-top:12px;font-size:11px;line-height:1.5;">
           ${sourceDesc}
         </p>
+      </div>
+    `;
+  }
+
+  private renderOutbreakPopup(outbreak: DiseaseOutbreak): string {
+    const badgeClass =
+      outbreak.severity === 'critical' ? 'critical' :
+      outbreak.severity === 'high' ? 'high' :
+      outbreak.severity === 'moderate' ? 'elevated' : 'normal';
+
+    const sourceLabel = outbreak.source === 'WHO'
+      ? 'WHO Disease Outbreak News (DON)'
+      : 'CDC National Notifiable Diseases (NNDSS)';
+
+    const dateStr = outbreak.date ? new Date(outbreak.date).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }) : 'Recent';
+
+    const hasCases = outbreak.cases != null && outbreak.cases > 0;
+
+    return `
+      <div class="popup-header outbreak">
+        <span class="popup-title">🦠 ${escapeHtml(outbreak.disease.toUpperCase())}</span>
+        <span class="popup-badge ${badgeClass}">${escapeHtml(outbreak.severity.toUpperCase())}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-subtitle">${escapeHtml(outbreak.title)}</div>
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">Location</span>
+            <span class="stat-value" style="font-weight:700;">${escapeHtml(outbreak.location)}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Surveillance Source</span>
+            <span class="stat-value">${escapeHtml(sourceLabel)}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">Reported Date</span>
+            <span class="stat-value">${escapeHtml(dateStr)}</span>
+          </div>
+          ${hasCases ? `
+            <div class="popup-stat">
+              <span class="stat-label">Weekly Cases</span>
+              <span class="stat-value" style="font-weight:700;color:var(--accent-red,#ef4444);">${outbreak.cases?.toLocaleString()}</span>
+            </div>
+          ` : ''}
+          ${outbreak.max52wCases != null && outbreak.max52wCases > 0 ? `
+            <div class="popup-stat">
+              <span class="stat-label">52-Wk Max</span>
+              <span class="stat-value">${outbreak.max52wCases.toLocaleString()}</span>
+            </div>
+          ` : ''}
+          ${outbreak.ytdCases != null && outbreak.ytdCases > 0 ? `
+            <div class="popup-stat">
+              <span class="stat-label">Cumulative YTD</span>
+              <span class="stat-value">${outbreak.ytdCases.toLocaleString()}</span>
+            </div>
+          ` : ''}
+          <div class="popup-stat">
+            <span class="stat-label">Coordinates</span>
+            <span class="stat-value">${outbreak.lat.toFixed(4)}°, ${outbreak.lon.toFixed(4)}°</span>
+          </div>
+        </div>
+        ${outbreak.summary ? `
+          <p class="popup-description" style="margin-top:12px;font-size:11px;line-height:1.5;">
+            ${escapeHtml(outbreak.summary)}
+          </p>
+        ` : ''}
+        ${outbreak.url ? `
+          <div style="margin-top:10px;text-align:right;">
+            <a href="${escapeHtml(outbreak.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent-blue,#38bdf8);font-size:11px;text-decoration:none;font-weight:600;">
+              View Official Bulletin &rarr;
+            </a>
+          </div>
+        ` : ''}
       </div>
     `;
   }
