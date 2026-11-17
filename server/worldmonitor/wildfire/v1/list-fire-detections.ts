@@ -20,7 +20,7 @@ import type {
 import { CHROME_UA } from '../../../_shared/constants';
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
 
-const REDIS_CACHE_KEY = 'wildfire:fires:10d:v8';
+const REDIS_CACHE_KEY = 'wildfire:fires:10d:v9';
 const REDIS_CACHE_TTL = 3600; // 1h — FIRMS NRT updates every ~3h
 const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
 const TEN_DAYS_SECONDS = 10 * 24 * 60 * 60; // 864,000s
@@ -257,11 +257,16 @@ function parseAndFilterCSV(csv: string, regions: Record<string, number[]>): List
     const acqTime = timeIdx !== -1 && vals[timeIdx] ? vals[timeIdx].trim() : '';
     const detectedAt = parseDetectedAt(acqDate, acqTime);
 
+    const cleanLat = Math.round(lat * 1000) / 1000;
+    const cleanLon = Math.round(lon * 1000) / 1000;
+    const cleanFrp = Math.round((Number.isFinite(frp) ? frp : 0) * 10) / 10;
+    const cleanBrightness = Math.round((Number.isFinite(brightness) ? brightness : 0) * 10) / 10;
+
     fireDetections.push({
-      id: `fire-${lat}-${lon}-${detectedAt}`,
-      location: { latitude: lat, longitude: lon },
-      brightness: Number.isFinite(brightness) ? brightness : 0,
-      frp: Number.isFinite(frp) ? frp : 0,
+      id: `fire-${cleanLat}-${cleanLon}-${detectedAt}`,
+      location: { latitude: cleanLat, longitude: cleanLon },
+      brightness: cleanBrightness,
+      frp: cleanFrp,
       confidence: mapConfidence(confIdx !== -1 && vals[confIdx] ? vals[confIdx].trim() : ''),
       satellite: satIdx !== -1 && vals[satIdx] ? vals[satIdx].trim() : 'VIIRS',
       detectedAt,
@@ -378,6 +383,12 @@ async function getOrUpdate10DayFires(): Promise<ListFireDetectionsResponse['fire
 
       // Sort by detectedAt desc, then FRP desc
       allDetections.sort((a, b) => (b.detectedAt || 0) - (a.detectedAt || 0) || (b.frp || 0) - (a.frp || 0));
+
+      // Cap maximum cached fire detections to 5,000 to keep cache payload well under ~600KB
+      const MAX_CACHED_DETECTIONS = 5000;
+      if (allDetections.length > MAX_CACHED_DETECTIONS) {
+        allDetections = allDetections.slice(0, MAX_CACHED_DETECTIONS);
+      }
 
       const updatedState: FiresCacheState = {
         fireDetections: allDetections,

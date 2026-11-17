@@ -67,19 +67,38 @@ export async function getCachedJson(key: string): Promise<unknown | null> {
   }
 }
 
+const MAX_UPSTASH_PAYLOAD_BYTES = 5 * 1024 * 1024; // 5 MB hard limit (well under Upstash 10MB limit)
+const WARN_UPSTASH_PAYLOAD_BYTES = 1 * 1024 * 1024; // 1 MB warning threshold
+
 export async function setCachedJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
   const prefixed = prefixKey(key);
   l1Set(prefixed, value, Math.min(300_000, ttlSeconds * 1000));
 
+  const serialized = JSON.stringify(value);
+  const byteLength = typeof Buffer !== 'undefined'
+    ? Buffer.byteLength(serialized, 'utf8')
+    : new TextEncoder().encode(serialized).length;
+
+  if (byteLength > WARN_UPSTASH_PAYLOAD_BYTES) {
+    console.warn(`[Redis] Large cache write warning: key="${prefixed}" size=${(byteLength / 1024 / 1024).toFixed(2)} MB`);
+  }
+
+  if (byteLength > MAX_UPSTASH_PAYLOAD_BYTES) {
+    console.error(`[Redis] Aborting cache write: key="${prefixed}" exceeds 5MB limit (${(byteLength / 1024 / 1024).toFixed(2)} MB). Skipping Upstash write to prevent 10MB limit breach.`);
+    return;
+  }
+
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return;
+
   try {
     // Atomic SET with EX via pipeline POST body to avoid URL length limit & encoding overhead on large JSON
+    const pipelineBody = JSON.stringify([['SET', prefixed, serialized, 'EX', ttlSeconds]]);
     await fetch(`${url}/pipeline`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify([['SET', prefixed, JSON.stringify(value), 'EX', ttlSeconds]]),
+      body: pipelineBody,
       signal: AbortSignal.timeout(3_000),
     });
   } catch { /* best-effort */ }

@@ -44,6 +44,14 @@ describe('NASA FIRMS 24h Retrieval & 10-Day Caching', () => {
     assert.match(serverSrc, /MIN_BRIGHTNESS_KELVIN\s*=\s*325/, 'Must enforce minimum brightness threshold');
     assert.match(serverSrc, /MIN_CERTAINTY_PERCENT\s*=\s*70/, 'Must enforce 70%+ certainty threshold');
     assert.match(serverSrc, /calculateCertaintyPercentage/, 'Must calculate normalized certainty percentage');
+    assert.match(serverSrc, /MAX_CACHED_DETECTIONS\s*=\s*5000/, 'Must cap maximum cached detections to prevent unbounded payload growth');
+  });
+
+  it('enforces payload size guarding and warning in server redis module', () => {
+    const redisSrc = readSrc('server/_shared/redis.ts');
+    assert.match(redisSrc, /MAX_UPSTASH_PAYLOAD_BYTES\s*=\s*5\s*\*\s*1024\s*\*\s*1024/, 'Must define 5MB safety limit');
+    assert.match(redisSrc, /WARN_UPSTASH_PAYLOAD_BYTES\s*=\s*1\s*\*\s*1024\s*\*\s*1024/, 'Must define 1MB warning threshold');
+    assert.match(redisSrc, /Aborting cache write.*exceeds 5MB limit/, 'Must abort cache writes that exceed safety limit');
   });
 
   it('DeckGLMap filters fires using detectedAt for sub-day and multi-day precision', () => {
